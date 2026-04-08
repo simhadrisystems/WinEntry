@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ── Legacy names kept so nothing breaks ─────────────────── -->
+    <color name="purple_200">#FF1976D2</color>
+    <color name="purple_500">#FF1976D2</color>
+    <color name="purple_700">#FF0D47A1</color>
+    <color name="teal_200">#FF1976D2</color>
+    <color name="teal_700">#FF0D47A1</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="toolbar_primary">#FF1976D2</color>
+    <color name="toolbar_primary_dark">#FF0D47A1</color>
+
+    <!-- ── App palette ─────────────────────────────────────────── -->
+    <!--
+        Slate 800  #1E293B  → toolbar / app bar background
+        Slate 900  #0F172A  → status bar
+        Blue  600  #2563EB  → primary action (FAB, Save, highlights)
+        Slate 100  #F1F5F9  → screen background
+        Slate 400  #94A3B8  → hint / icon subdued
+        Slate 200  #E2E8F0  → divider
+        Slate 600  #475569  → secondary text
+        Slate 700  #334155  → sticky-header bar, sub-panels
+    -->
+    <color name="app_toolbar">#1E293B</color>
+    <color name="app_toolbar_dark">#0F172A</color>
+    <color name="app_action">#2563EB</color>
+    <color name="app_surface">#F1F5F9</color>
+    <color name="app_card">#FFFFFF</color>
+    <color name="app_text_primary">#1E293B</color>
+    <color name="app_text_secondary">#475569</color>
+    <color name="app_text_hint">#94A3B8</color>
+    <color name="app_divider">#E2E8F0</color>
+    <color name="app_sub_panel">#334155</color>
+    <color name="app_header_banner">#263446</color>
+
+    <!-- ── Module accent colours ───────────────────────────────── -->
+    <color name="module_daily">#2563EB</color>
+    <color name="module_daily_light">#BFDBFE</color><!-- Blue-200 (was Blue-50) -->
+    <color name="module_purchases">#059669</color>
+    <color name="module_purchases_light">#A7F3D0</color><!-- Emerald-200 (was Green-50) -->
+    <color name="module_reports">#7C3AED</color>
+    <color name="module_reports_light">#DDD6FE</color><!-- Violet-200 (was Violet-50) -->
+    <color name="module_settings">#64748B</color>
+    <color name="module_settings_light">#CBD5E1</color><!-- Slate-300 (was Slate-50) -->
+
+    <!-- ── Settings sub-menu accent colours (all distinct from home screen modules) ── -->
+    <color name="settings_order">#4338CA</color>          <!-- Indigo-700 -->
+    <color name="settings_order_light">#C7D2FE</color>    <!-- Indigo-200 -->
+    <color name="settings_stock">#0284C7</color>          <!-- Sky-600    -->
+    <color name="settings_stock_light">#BAE6FD</color>    <!-- Sky-200    -->
+    <color name="settings_products">#EA580C</color>       <!-- Orange-600 -->
+    <color name="settings_products_light">#FED7AA</color> <!-- Orange-200 -->
+    <color name="settings_business">#E11D48</color>       <!-- Rose-600   -->
+    <color name="settings_business_light">#FECDD3</color> <!-- Rose-200   -->
+    <color name="settings_sync">#0D9488</color>           <!-- Teal-600   -->
+    <color name="settings_sync_light">#99F6E4</color>     <!-- Teal-200   -->
+    <!-- Help &amp; Support sub-screen — three distinct card tones -->
+    <color name="settings_support_bug">#DC2626</color>            <!-- Red-600    — Report Issue  -->
+    <color name="settings_support_bug_light">#FECACA</color>      <!-- Red-200    -->
+    <color name="settings_support_help">#0284C7</color>           <!-- Sky-600    — Ask for Help  -->
+    <color name="settings_support_help_light">#BAE6FD</color>     <!-- Sky-200    -->
+    <color name="settings_support_feature">#059669</color>        <!-- Emerald-600 — Request Feature -->
+    <color name="settings_support_feature_light">#A7F3D0</color>  <!-- Emerald-200 -->
+    <!-- Settings entry card for Help &amp; Support -->
+    <color name="settings_support">#7C3AED</color>                <!-- Violet-700 -->
+    <color name="settings_support_light">#DDD6FE</color>          <!-- Violet-200 -->
+
+    <!-- ── Reports card accent colours (lighter Blue-100…Purple-100 pastels) ── -->
+    <color name="reports_daily">#3B82F6</color>               <!-- Blue-500     -->
+    <color name="reports_daily_light">#DBEAFE</color>         <!-- Blue-100     -->
+    <color name="reports_monthly">#D97706</color>             <!-- Amber-600    -->
+    <color name="reports_monthly_light">#FEF3C7</color>       <!-- Amber-100    -->
+    <color name="reports_closing">#059669</color>             <!-- Emerald-600  -->
+    <color name="reports_closing_light">#D1FAE5</color>       <!-- Emerald-100  -->
+    <color name="reports_purchase">#7C3AED</color>            <!-- Violet-700   -->
+    <color name="reports_purchase_light">#EDE9FE</color>      <!-- Violet-100   -->
+    <color name="reports_upcoming">#9333EA</color>            <!-- Purple-600   -->
+    <color name="reports_upcoming_light">#F3E8FF</color>      <!-- Purple-100   -->
+
+    <!-- ── Purchase header ───────────────────────────────────────── -->
+    <color name="app_purchase_header">#1A3828</color>
+
+    <!-- ── Reports accent colours (have night overrides) ───────── -->
+    <color name="reports_accent_crimson">#880E4F</color>  <!-- Brand-wise maroon  -->
+    <color name="reports_accent_purple">#6A1B9A</color>   <!-- Purchase purple    -->
+
+    <!-- ── Status colours ──────────────────────────────────────── -->
+    <color name="status_committed">#16A34A</color>
+    <color name="status_pending">#D97706</color>
+    <color name="status_error">#DC2626</color>
+
+</resources>

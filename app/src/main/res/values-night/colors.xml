@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dark-mode colour overrides.
+    Only colours that need to change in dark mode are listed here.
+    Everything else falls through to values/colors.xml.
+
+    Design rules:
+      - Module card backgrounds: dark but distinctly tinted (not flat black)
+      - Text on cards: near-white so it reads on dark tinted backgrounds
+      - Surface / card neutrals: standard Material dark-surface ramp
+-->
+<resources>
+
+    <!-- ── Module card backgrounds (dark tinted) ────────────────── -->
+    <!-- Each colour is a deep, saturated version of its light-mode counterpart
+         so the cards are still visually distinct from each other. -->
+    <color name="module_daily_light">#1D3461</color>     <!-- deep blue   -->
+    <color name="module_purchases_light">#064E3B</color> <!-- deep emerald -->
+    <color name="module_reports_light">#2E1065</color>   <!-- deep violet  -->
+    <color name="module_settings_light">#334155</color>     <!-- Slate-700      -->
+    <!-- Settings sub-menu night overrides -->
+    <color name="settings_order_light">#1E1B4B</color>    <!-- deep indigo    -->
+    <color name="settings_stock_light">#082F49</color>    <!-- deep sky       -->
+    <color name="settings_products_light">#431407</color> <!-- deep orange    -->
+    <color name="settings_business_light">#4C0519</color> <!-- deep rose      -->
+    <color name="settings_sync_light">#042F2E</color>     <!-- deep teal      -->
+    <!-- Help &amp; Support night overrides -->
+    <color name="settings_support_bug_light">#450A0A</color>      <!-- deep red       -->
+    <color name="settings_support_help_light">#082F49</color>     <!-- deep sky       -->
+    <color name="settings_support_feature_light">#022C22</color>  <!-- deep emerald   -->
+    <color name="settings_support_light">#2E1065</color>          <!-- deep violet    -->
+    <!-- Reports card night overrides -->
+    <color name="reports_daily_light">#0C1B33</color>     <!-- deep blue      -->
+    <color name="reports_monthly_light">#2D1900</color>   <!-- deep amber     -->
+    <color name="reports_closing_light">#022C22</color>   <!-- deep emerald   -->
+    <color name="reports_purchase_light">#160630</color>  <!-- deep violet    -->
+    <color name="reports_upcoming_light">#1E0A38</color>  <!-- deep purple    -->
+
+    <!-- ── Text colours on dark backgrounds ─────────────────────── -->
+    <color name="app_text_primary">#F8FAFC</color>    <!-- Slate-50  — near white  -->
+    <color name="app_text_secondary">#CBD5E1</color>  <!-- Slate-300 — soft white  -->
+    <color name="app_text_hint">#64748B</color>       <!-- Slate-500 — muted       -->
+
+    <!-- ── Reports accent colours (lighter for dark surfaces) ─────── -->
+    <color name="reports_accent_crimson">#F48FB1</color>  <!-- Pink-200    -->
+    <color name="reports_accent_purple">#CE93D8</color>   <!-- Purple-200  -->
+
+    <!-- ── Surface / card neutrals ───────────────────────────────── -->
+    <color name="app_surface">#0F172A</color>  <!-- Slate-900 — screen background -->
+    <color name="app_card">#1E293B</color>     <!-- Slate-800 — card background   -->
+    <color name="app_divider">#334155</color>  <!-- Slate-700 — divider lines     -->
+
+</resources>

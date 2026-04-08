@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <!--
+        ANIMATION CONVENTION (consistent across all actions):
+
+        Forward  (home → module):
+          enterAnim  = slide_in_right   — new screen slides in from RIGHT
+          exitAnim   = slide_out_left   — home slides out to LEFT
+
+        Back (module → home, hardware back / up button):
+          popEnterAnim  = slide_in_left    — home slides back in from LEFT
+          popExitAnim   = slide_out_right  — module slides out to RIGHT
+
+        This matches the natural "push forward / pull back" feel of a right-arrow tap.
+        slide_in_left  / slide_out_right  are built into @android:anim/
+        slide_in_right / slide_out_left   are in res/anim/ (our custom files)
+    -->
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ADD THIS FRAGMENT BLOCK inside your <navigation> element
+         ═══════════════════════════════════════════════════════════════════════ -->
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.simple.simpleinventory.ui.auth.LoginFragment"
+        android:label="Sign In"
+        tools:layout="@layout/fragment_login">
+
+        <!-- After successful login, go to home and clear login from back stack -->
+        <action
+            android:id="@+id/action_loginFragment_to_homeFragment"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Home Fragment (Landing Page) -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.simple.simpleinventory.ui.home.HomeFragment"
+        android:label="Simple Inventory"
+        tools:layout="@layout/fragment_home">
+
+        <action
+            android:id="@+id/action_home_to_dailyStock"
+            app:destination="@id/dailyStockFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_home_to_purchases"
+            app:destination="@id/purchasesListFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_home_to_products"
+            app:destination="@id/productListFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_home_to_reports"
+            app:destination="@id/reportsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_home_to_settings"
+            app:destination="@id/settingsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <!-- ═══════════════════════════════════════════════════════════════════════
+     ADD THIS ACTION inside your existing homeFragment block
+     (for sign-out navigation from Settings or wherever)
+              Inside your existing <fragment android:id="@+id/homeFragment" ...> block,
+            add this action:
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+            <action
+                android:id="@+id/action_homeFragment_to_loginFragment"
+                app:destination="@id/loginFragment"
+                app:popUpTo="@id/homeFragment"
+                app:popUpToInclusive="true" />
+
+
+    </fragment>
+
+    <!-- Daily Stock Fragment -->
+    <fragment
+        android:id="@+id/dailyStockFragment"
+        android:name="com.simple.simpleinventory.ui.dailystock.DailyStockFragment"
+        android:label="Daily Stock"
+        tools:layout="@layout/fragment_daily_stock" />
+
+    <!-- Products List Fragment -->
+    <fragment
+        android:id="@+id/productListFragment"
+        android:name="com.simple.simpleinventory.ui.products.ProductListFragment"
+        android:label="Products"
+        tools:layout="@layout/fragment_product_list" />
+
+    <!-- Purchases List Fragment -->
+    <fragment
+        android:id="@+id/purchasesListFragment"
+        android:name="com.simple.simpleinventory.ui.purchases.PurchasesListFragment"
+        android:label="Purchases"
+        tools:layout="@layout/fragment_purchases_list">
+
+        <action
+            android:id="@+id/action_purchasesList_to_purchaseEntry"
+            app:destination="@id/purchaseEntryFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+    </fragment>
+
+    <!-- Purchase Entry Fragment -->
+    <fragment
+        android:id="@+id/purchaseEntryFragment"
+        android:name="com.simple.simpleinventory.ui.purchases.PurchaseEntryFragment"
+        android:label="Purchase Entry"
+        tools:layout="@layout/fragment_purchase_entry" />
+
+    <!-- Reports Fragment -->
+    <fragment
+        android:id="@+id/reportsFragment"
+        android:name="com.simple.simpleinventory.ui.reports.ReportsFragment"
+        android:label="Reports"
+        tools:layout="@layout/fragment_reports">
+
+        <action
+            android:id="@+id/action_reportsFragment_to_reportViewerFragment"
+            app:destination="@id/reportViewerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_reports_to_monthlySummary"
+            app:destination="@id/monthlySummaryFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/reportViewerFragment"
+        android:name="com.simple.simpleinventory.ui.reports.ReportViewerFragment"
+        android:label="Report Viewer"
+        tools:layout="@layout/fragment_report_viewer" />
+
+    <!-- Settings Fragment -->
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.simple.simpleinventory.ui.settings.SettingsFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings">
+
+        <action
+            android:id="@+id/action_settings_to_productOrder"
+            app:destination="@id/productOrderFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_settings_to_businessInfo"
+            app:destination="@id/businessInfoFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+        <action
+            android:id="@+id/action_settings_to_openingStock"
+            app:destination="@id/openingStockFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+        <action
+            android:id="@+id/action_settings_to_products"
+            app:destination="@id/productListFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_settings_to_helpSupport"
+            app:destination="@id/helpSupportFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/productOrderFragment"
+        android:name="com.simple.simpleinventory.ui.settings.ProductOrderFragment"
+        android:label="Product Order"
+        tools:layout="@layout/fragment_product_order" />
+
+    <fragment
+        android:id="@+id/businessInfoFragment"
+        android:name="com.simple.simpleinventory.ui.settings.BusinessInfoFragment"
+        android:label="Business Info"
+        tools:layout="@layout/fragment_business_info" />
+    <fragment
+        android:id="@+id/openingStockFragment"
+        android:name="com.simple.simpleinventory.ui.settings.OpeningStockFragment"
+        android:label="Opening Stock Setup" />
+
+    <fragment
+        android:id="@+id/helpSupportFragment"
+        android:name="com.simple.simpleinventory.ui.settings.HelpSupportFragment"
+        android:label="Help &amp; Support"
+        tools:layout="@layout/fragment_help_support" />
+
+    <!-- Monthly Summary Fragment (no layout XML — UI built programmatically) -->
+    <fragment
+        android:id="@+id/monthlySummaryFragment"
+        android:name="com.simple.simpleinventory.ui.reports.MonthlySummaryFragment"
+        android:label="Monthly Summary" />
+
+</navigation>

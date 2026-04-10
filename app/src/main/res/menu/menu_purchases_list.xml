@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <!-- Search -->
+    <item
+        android:id="@+id/action_search"
+        android:title="Search"
+        android:icon="@android:drawable/ic_menu_search"
+        app:showAsAction="ifRoom|collapseActionView"
+        app:actionViewClass="androidx.appcompat.widget.SearchView" />
+    
+    <item
+        android:id="@+id/action_import"
+        android:title="Import from Excel"
+        android:icon="@android:drawable/ic_menu_upload"
+        app:showAsAction="never" />
+
+    <!-- NEW: download from Google Sheets Purchases tab -->
+    <item
+        android:id="@+id/action_download_purchases_cloud"
+        android:title="⬇ Import purchases from cloud"
+        android:orderInCategory="2"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_export"
+        android:title="Export All to Excel"
+        android:icon="@android:drawable/ic_menu_save"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_export_filtered"
+        android:title="Export Filtered..."
+        android:icon="@android:drawable/ic_menu_manage"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_download_template"
+        android:title="Download Template"
+        android:icon="@android:drawable/ic_menu_help"
+        app:showAsAction="never" />
+    
+    <!-- Multi-Select Actions (hidden by default) -->
+    <item
+        android:id="@+id/action_multi_select"
+        android:title="Select Multiple"
+        android:icon="@android:drawable/ic_menu_agenda"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_select_all"
+        android:title="Select All"
+        android:visible="false"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_delete_selected"
+        android:title="Delete Selected"
+        android:visible="false"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_cancel_selection"
+        android:title="Cancel Selection"
+        android:visible="false"
+        app:showAsAction="never" />
+    
+    <item
+        android:id="@+id/action_delete_by_date"
+        android:title="Delete by Date Range..."
+        android:icon="@android:drawable/ic_menu_delete"
+        app:showAsAction="never" />
+
+</menu>

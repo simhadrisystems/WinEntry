@@ -44,10 +44,9 @@ class HelpSupportFragment : Fragment() {
 
     private fun showContactDialog(issueType: IssueType) {
         AppDialogs.choice(
-            context    = requireContext(),
-            title      = "Contact Support",
-            message    = "How would you like to reach us?",
-            items      = arrayOf("Email", "WhatsApp"),
+            context = requireContext(),
+            title   = "Contact Support",
+            items   = arrayOf("Email", "WhatsApp"),
         ) { which ->
             when (which) {
                 0 -> SupportHelper.sendEmail(requireContext(), issueType)

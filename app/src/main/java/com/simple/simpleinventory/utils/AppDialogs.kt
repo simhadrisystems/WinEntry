@@ -98,20 +98,19 @@ object AppDialogs {
      * Single-choice list dialog.
      * Use when the user must pick one option from a short list (e.g. Email vs WhatsApp).
      * [onChoice] receives the 0-based index of the tapped item.
+     * Note: setMessage and setItems are mutually exclusive in AlertDialog — do not add message support.
      */
     fun choice(
         context: Context,
         title: String,
-        message: String? = null,
         items: Array<String>,
         onChoice: (Int) -> Unit
     ) {
-        val builder = MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setItems(items) { _, which -> onChoice(which) }
             .setNegativeButton("Cancel", null)
-        if (!message.isNullOrBlank()) builder.setMessage(message)
-        builder.show()
+            .show()
     }
 
     /**

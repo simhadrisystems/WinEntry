@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="8dp"
+    app:cardBackgroundColor="#E3F2FD"
+    app:strokeWidth="1dp"
+    app:strokeColor="#FFCCCCCC">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Line 1: Serial No and Product Name -->
+        <TextView
+            android:id="@+id/textProductHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. Product Name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#212121" />
+
+        <!-- Line 2: Type, Brand, Category -->
+        <TextView
+            android:id="@+id/textProductInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Type: W  |  Brand: 1117  |  Category: P"
+            android:textSize="13sp"
+            android:textColor="#616161"
+            android:layout_marginTop="4dp" />
+
+        <!-- Line 3: Size Codes (Color-coded + BOLD) -->
+        <!-- Line 3: Size Codes (Color-coded + BOLD) - NO BACKGROUND -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/textQqCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="W117QQ"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF4CAF50"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="@drawable/border_green" />
+
+            <TextView
+                android:id="@+id/textPpCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="W117PP"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF2196F3"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="@drawable/border_blue"
+                android:layout_marginStart="4dp" />
+
+            <TextView
+                android:id="@+id/textNnCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="W117NN"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FFFF9800"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="@drawable/border_orange"
+                android:layout_marginStart="4dp" />
+
+            <TextView
+                android:id="@+id/textDdCode"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="W117DD"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF9C27B0"
+                android:gravity="center"
+                android:padding="6dp"
+                android:background="@drawable/border_purple"
+                android:layout_marginStart="4dp" />
+
+        </LinearLayout>
+
+        <!-- Line 4: Sale Prices -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/textQqPrice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="₹100"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF4CAF50"
+                android:gravity="center"
+                android:padding="4dp" />
+
+            <TextView
+                android:id="@+id/textPpPrice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="₹150"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF2196F3"
+                android:gravity="center"
+                android:padding="4dp" />
+
+            <TextView
+                android:id="@+id/textNnPrice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="—"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FFFF9800"
+                android:gravity="center"
+                android:padding="4dp" />
+
+            <TextView
+                android:id="@+id/textDdPrice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="₹200"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#FF9C27B0"
+                android:gravity="center"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+        <!-- Line 5: Status and Edit button (Delete moved to Edit dialog) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/textStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ACTIVE"
+                android:textSize="14sp"
+                android:textColor="#FF4CAF50"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonEdit"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Edit / Delete"
+                android:textSize="13sp"
+                android:textColor="#FF1976D2"
+                app:strokeColor="#FF1976D2"
+                app:strokeWidth="1dp"
+                android:minWidth="100dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

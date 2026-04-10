@@ -32,11 +32,12 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <!-- ── DISPLAY ─────────────────────────────────────────── -->
+            <!-- ── LANGUAGE ────────────────────────────────────────── -->
             <TextView
+                android:id="@+id/textSectionLanguage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DISPLAY"
+                android:text="LANGUAGE"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:textColor="@color/app_text_hint"
@@ -45,7 +46,7 @@
                 android:layout_marginStart="4dp" />
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardProductOrder"
+                android:id="@+id/cardLanguage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
@@ -53,8 +54,8 @@
                 android:focusable="true"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/settings_order_light"
-                app:rippleColor="#1A4338CA">
+                app:cardBackgroundColor="@color/settings_language_light"
+                app:rippleColor="#1A0891B2">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -67,13 +68,12 @@
                         android:layout_width="52dp"
                         android:layout_height="52dp"
                         android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_order_light">
+                        android:backgroundTint="@color/settings_language_light">
                         <ImageView
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_product_order"
-                            android:tint="@color/settings_order"
+                            android:src="@drawable/ic_settings_language"
                             android:scaleType="fitCenter" />
                     </FrameLayout>
 
@@ -84,16 +84,18 @@
                         android:orientation="vertical"
                         android:layout_marginStart="14dp">
                         <TextView
+                            android:id="@+id/textLanguageTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Product Display Order"
+                            android:text="App Language"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/app_text_primary" />
                         <TextView
+                            android:id="@+id/textLanguageDesc"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Set the order products appear in Daily Stock"
+                            android:text="English / Telugu display"
                             android:textSize="13sp"
                             android:textColor="@color/app_text_secondary"
                             android:layout_marginTop="3dp" />
@@ -104,174 +106,17 @@
                         android:layout_height="18dp"
                         android:layout_marginStart="8dp"
                         android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_order" />
+                        android:tint="@color/settings_language" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ── STOCK SETUP ──────────────────────────────────────── -->
+            <!-- ── BUSINESS ────────────────────────────────────────── -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="STOCK SETUP"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardOpeningStock"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardCornerRadius="10dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/settings_stock_light"
-                app:rippleColor="#1A0284C7">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:padding="16dp">
-
-                    <FrameLayout
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_stock_light">
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_opening_stock"
-                            android:tint="@color/settings_stock"
-                            android:scaleType="fitCenter" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="14dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Opening Stock Setup"
-                            android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/app_text_primary" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Set initial stock quantities for a new period"
-                            android:textSize="13sp"
-                            android:textColor="@color/app_text_secondary"
-                            android:layout_marginTop="3dp" />
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_stock" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── MASTER DATA ──────────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="MASTER DATA"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardProducts"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardCornerRadius="10dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/settings_products_light"
-                app:rippleColor="#1AEA580C">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:padding="16dp">
-
-                    <FrameLayout
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_products_light">
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_products"
-                            android:tint="@color/settings_products"
-                            android:scaleType="fitCenter" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="14dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Products"
-                            android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/app_text_primary" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Master data — product codes, sizes and pricing"
-                            android:textSize="13sp"
-                            android:textColor="@color/app_text_secondary"
-                            android:layout_marginTop="3dp" />
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_products" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── BUSINESS ─────────────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:id="@+id/textSectionBusiness"
                 android:text="BUSINESS"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -323,11 +168,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:id="@+id/textBusinessInfoTitle"
                             android:text="Business Info"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/app_text_primary" />
                         <TextView
+                            android:id="@+id/textBusinessInfoDesc"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Business name, address and tax details for reports"
@@ -351,6 +198,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/textSectionSync"
                 android:text="SYNC"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -402,11 +250,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:id="@+id/textSyncSettingsTitle"
                             android:text="Sync Settings"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/app_text_primary" />
                         <TextView
+                            android:id="@+id/textSyncSettingsDesc"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Auto-sync schedule and last sync status"
@@ -430,6 +280,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/textSectionSupport"
                 android:text="SUPPORT"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -481,11 +332,13 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:id="@+id/textHelpSupportTitle"
                             android:text="Help &amp; Support"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/app_text_primary" />
                         <TextView
+                            android:id="@+id/textHelpSupportDesc"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Report issues, ask for help or request features"

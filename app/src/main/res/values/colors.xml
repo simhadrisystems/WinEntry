@@ -46,7 +46,9 @@
     <color name="module_settings_light">#CBD5E1</color><!-- Slate-300 (was Slate-50) -->
 
     <!-- ── Settings sub-menu accent colours (all distinct from home screen modules) ── -->
-    <color name="settings_order">#4338CA</color>          <!-- Indigo-700 -->
+    <color name="settings_language">#0891B2</color>        <!-- Cyan-600   -->
+    <color name="settings_language_light">#CFFAFE</color>  <!-- Cyan-100   -->
+    <color name="settings_order">#4338CA</color>           <!-- Indigo-700 -->
     <color name="settings_order_light">#C7D2FE</color>    <!-- Indigo-200 -->
     <color name="settings_stock">#0284C7</color>          <!-- Sky-600    -->
     <color name="settings_stock_light">#BAE6FD</color>    <!-- Sky-200    -->

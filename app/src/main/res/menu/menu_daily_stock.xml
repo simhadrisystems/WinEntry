@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_export_daily_stock"
+        android:title="Export Daily Sheet"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export_current_date"
+        android:title="Export CBs Current Date"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export_date_range"
+        android:title="Export CBs Date Range"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_download_closing_template"
+        android:title="Download Closing Template"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_import_closing"
+        android:title="Import Closing Balances"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_clear_date_data"
+        android:title="Clear Current Date Data"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_clear_all_daily_stock"
+        android:title="Clear All Daily Stock Data"
+        app:showAsAction="never" />
+
+</menu>

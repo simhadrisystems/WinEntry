@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Main App Theme -->
+    <style name="Theme.SimpleInventory" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/app_toolbar</item>
+        <item name="colorPrimaryVariant">@color/app_toolbar_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/app_action</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="colorAccent">@color/app_action</item>
+        <item name="android:statusBarColor">@color/app_toolbar_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/app_toolbar</item>
+        <item name="android:windowBackground">@color/app_surface</item>
+    </style>
+
+    <!--
+        ══ REUSABLE TOOLBAR STYLES ══════════════════════════════════════════
+        These are the ONLY place toolbar appearance is defined.
+        To change the app's colour theme in future:
+          1. Edit colors.xml  (app_toolbar, app_surface, etc.)
+          2. Done — every screen updates automatically.
+
+        Usage in XML layouts:
+          Standard back-nav screen  →  style="@style/Widget.SimpleInventory.Toolbar"
+          Screen with inflated menu →  style="@style/Widget.SimpleInventory.Toolbar.WithMenu"
+
+        Add to each <AppBarLayout>:   style="@style/Widget.SimpleInventory.AppBarLayout"
+        Add to each root CoordLayout: android:background="@color/app_surface"
+        ═════════════════════════════════════════════════════════════════════
+    -->
+
+    <!-- Base toolbar: slate background, white title and all icons.
+         navigationIconTint is omitted — ic_chevron_left has #FFFFFF baked in,
+         so the icon is white regardless of theme context. -->
+    <style name="Widget.SimpleInventory.Toolbar" parent="Widget.AppCompat.Toolbar">
+        <item name="android:background">@color/app_toolbar</item>
+        <item name="titleTextColor">@android:color/white</item>
+        <item name="subtitleTextColor">@color/app_text_hint</item>
+    </style>
+
+    <!-- Toolbar variant for screens that inflate an options menu (SearchView, overflow).
+         Dark ActionBar overlay keeps toolbar icons white.
+         ThemeOverlay.App.PopupMenu is defined here as Light and overridden in
+         values-night/themes.xml as Dark — gives correct popup colours in both modes. -->
+    <style name="Widget.SimpleInventory.Toolbar.WithMenu">
+        <item name="android:theme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
+        <item name="popupTheme">@style/ThemeOverlay.App.PopupMenu</item>
+    </style>
+
+    <!-- Light popup for light mode (overridden to Dark in values-night/themes.xml) -->
+    <style name="ThemeOverlay.App.PopupMenu" parent="ThemeOverlay.AppCompat.Light"/>
+
+    <!-- AppBarLayout: same slate background, standard 4dp elevation -->
+    <style name="Widget.SimpleInventory.AppBarLayout" parent="Widget.Design.AppBarLayout">
+        <item name="android:background">@color/app_toolbar</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         TEXT APPEARANCE — use these instead of android:textColor with hex.
+         All reference ?attr/ tokens that auto-adapt to light and dark mode.
+         Usage:  android:textAppearance="@style/TextAppearance.App.CardTitle"
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Bold heading inside a card or list row -->
+    <style name="TextAppearance.App.CardTitle" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- Secondary description line below a card title -->
+    <style name="TextAppearance.App.CardDescription" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- ALL-CAPS section divider (e.g. DAILY REPORTS / SYNC / DISPLAY) -->
+    <style name="TextAppearance.App.SectionHeader" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         CARD STYLES — use these on every MaterialCardView.
+         Background resolves to colorSurface which adapts automatically.
+         Usage:  style="@style/Style.App.Card"
+                 style="@style/Style.App.Card.Elevated"
+         ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Standard interactive card (home modules, settings rows) -->
+    <style name="Style.App.Card" parent="">
+        <item name="cardCornerRadius">10dp</item>
+        <item name="cardElevation">2dp</item>
+        <item name="cardBackgroundColor">?attr/colorSurface</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <!-- Elevated variant for report / settings detail cards -->
+    <style name="Style.App.Card.Elevated">
+        <item name="cardElevation">3dp</item>
+        <item name="cardCornerRadius">12dp</item>
+    </style>
+
+    <!-- Circle shape appearance — used by ShapeableImageView for profile avatar -->
+    <style name="ShapeAppearance.App.CircleImageView" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Full Screen Dialog Theme -->
+    <style name="FullScreenDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@color/app_surface</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:statusBarColor">@color/app_toolbar_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">@color/app_toolbar</item>
+        <item name="colorAccent">@color/app_action</item>
+    </style>
+</resources>

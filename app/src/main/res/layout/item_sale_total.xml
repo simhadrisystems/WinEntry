@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Total Sale header — first item in the RecyclerView.
+    Scrolls with the list, disappears under the sticky header as user scrolls down.
+    Reappears when user scrolls back to the top.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@color/app_sub_panel"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Total Day Sale"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="#CCFFFFFF" />
+
+    <TextView
+        android:id="@+id/textTotalSaleAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₹0.00"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#FF4CAF50" />
+
+</LinearLayout>

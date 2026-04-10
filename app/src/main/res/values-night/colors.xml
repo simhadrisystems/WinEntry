@@ -19,6 +19,7 @@
     <color name="module_reports_light">#2E1065</color>   <!-- deep violet  -->
     <color name="module_settings_light">#334155</color>     <!-- Slate-700      -->
     <!-- Settings sub-menu night overrides -->
+    <color name="settings_language_light">#083344</color> <!-- deep cyan       -->
     <color name="settings_order_light">#1E1B4B</color>    <!-- deep indigo    -->
     <color name="settings_stock_light">#082F49</color>    <!-- deep sky       -->
     <color name="settings_products_light">#431407</color> <!-- deep orange    -->

@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Pie / donut chart — brand-wise breakdown -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,2v20C5.93,21.5 2,17.21 2,12S5.93,2.5 11,2z
+            M13.03,2v8.99H22C21.53,6.25 17.76,2.47 13.03,2z
+            M13.03,13V22C17.76,21.53 21.5,17.75 21.97,13H13.03z"/>
+</vector>

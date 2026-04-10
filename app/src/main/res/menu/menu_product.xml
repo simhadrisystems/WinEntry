@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Search — expands inline in the toolbar -->
+    <item
+        android:id="@+id/action_search"
+        android:title="Search"
+        android:icon="@android:drawable/ic_menu_search"
+        app:showAsAction="ifRoom|collapseActionView"
+        app:actionViewClass="androidx.appcompat.widget.SearchView" />
+
+    <!-- NEW: download product master data from Google Sheets -->
+    <item
+        android:id="@+id/action_sync_products"
+        android:title="⬇ Update products from cloud"
+        android:orderInCategory="1"
+        app:showAsAction="never" />
+
+    <!-- Move to menu only (no toolbar icons) -->
+    <item
+        android:id="@+id/action_import"
+        android:title="Import from Excel"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export"
+        android:title="Export All Products"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sort_serial"
+        android:title="Sort: Serial Number"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sort_name"
+        android:title="Sort: Product Name"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sort_type"
+        android:title="Sort: Product Type"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export_active"
+        android:title="Export Active Only"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_template"
+        android:title="Download Template"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_delete_inactive"
+        android:title="Delete All Inactive"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_delete_active"
+        android:title="Delete All Active"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_delete_all"
+        android:title="Delete All Products"
+        app:showAsAction="never" />
+
+</menu>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    res/raw/keep.xml
+    Tells R8 resource shrinker to always keep these resources.
+    Place at: app/src/main/res/raw/keep.xml
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher,
+                @mipmap/ic_launcher_round,
+                @drawable/ic_google,
+                @navigation/nav_graph" />

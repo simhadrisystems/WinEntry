@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
+
+    <!-- PINNED APP BAR -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/app_toolbar"
+        android:fitsSystemWindows="false"
+        app:elevation="4dp">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            style="@style/Widget.SimpleInventory.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            app:contentInsetStart="0dp"
+            app:contentInsetEnd="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageButton
+                    android:id="@+id/btnPrevDate"
+                    android:layout_width="36dp"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_chevron_left"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@android:color/white"
+                    android:contentDescription="Previous date" />
+
+                <Button
+                    android:id="@+id/dateButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="Select Date"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:backgroundTint="@android:color/transparent"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:gravity="center"
+                    android:elevation="0dp" />
+
+                <ImageButton
+                    android:id="@+id/btnNextDate"
+                    android:layout_width="36dp"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_chevron_right"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="@android:color/white"
+                    android:contentDescription="Next date" />
+
+                <ImageButton
+                    android:id="@+id/searchIcon"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@android:drawable/ic_menu_search"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="@android:color/white"
+                    android:contentDescription="Search"
+                    android:layout_marginStart="2dp" />
+
+                <FrameLayout
+                    android:id="@+id/searchContainer"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="0"
+                    android:visibility="gone">
+
+                    <EditText
+                        android:id="@+id/searchInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:hint="Search products..."
+                        android:textSize="14sp"
+                        android:textColor="@android:color/white"
+                        android:textColorHint="#CCFFFFFF"
+                        android:background="@android:color/transparent"
+                        android:inputType="text"
+                        android:imeOptions="actionSearch"
+                        android:maxLines="1"
+                        android:selectAllOnFocus="true"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="40dp" />
+
+                    <ImageButton
+                        android:id="@+id/searchClear"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="end|center_vertical"
+                        android:layout_marginEnd="4dp"
+                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Clear search"
+                        android:tint="@android:color/white"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <View
+                    android:id="@+id/searchSpacer"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="0" />
+
+                <Button
+                    android:id="@+id/saveButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="SAVE"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:backgroundTint="#FF388E3C"
+                    android:layout_marginStart="4dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp" />
+
+                <ImageButton
+                    android:id="@+id/menuButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_more_vert"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="More options"
+                    android:tint="@android:color/white"
+                    android:layout_marginStart="0dp" />
+
+            </LinearLayout>
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Sticky Column Headers -->
+    <RelativeLayout
+        android:id="@+id/stickyHeaders"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@color/app_sub_panel"
+        android:elevation="4dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <Button
+            android:id="@+id/btnModeToggle"
+            android:layout_width="42dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentStart="true"
+            android:text="View only"
+            android:textColor="@android:color/white"
+            android:textSize="8sp"
+            android:backgroundTint="#44FFFFFF"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="42dp"
+            android:layout_marginEnd="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="QQ" android:textSize="13sp"
+                android:textStyle="bold" android:textColor="#FF4CAF50" android:gravity="center" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="PP" android:textSize="13sp"
+                android:textStyle="bold" android:textColor="#FF2196F3" android:gravity="center"
+                android:layout_marginStart="3dp" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1.1" android:text="NN" android:textSize="13sp"
+                android:textStyle="bold" android:textColor="#FFFF9800" android:gravity="center"
+                android:layout_marginStart="3dp" />
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="DD" android:textSize="13sp"
+                android:textStyle="bold" android:textColor="#FF9C27B0" android:gravity="center"
+                android:layout_marginStart="3dp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Unsaved-changes banner -->
+    <TextView
+        android:id="@+id/unsavedBanner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚠️  Unsaved changes — tap 💾 on a card to save, ✖ to cancel edit"
+        android:textSize="11sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:background="#E65100"
+        android:visibility="gone"
+        android:elevation="6dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!--
+        RecyclerView fills the screen. The reconciliation footer is the last
+        item in the ConcatAdapter — it scrolls in/out naturally with the list.
+        paddingBottom reserves space so the last product card clears the
+        nav bar when scrolled to the bottom.
+    -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/productRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="32dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical"
+        android:fastScrollEnabled="true"
+        android:fastScrollAlwaysVisible="false"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Scroll-to-top FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="48dp"
+        android:layout_marginEnd="8dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:contentDescription="Scroll to top"
+        app:fabSize="mini"
+        app:backgroundTint="#661976D2"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+
+    <!-- Scroll-to-bottom FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:contentDescription="Scroll to bottom"
+        app:fabSize="mini"
+        app:backgroundTint="#661976D2"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

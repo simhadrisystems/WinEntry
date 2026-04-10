@@ -10,6 +10,9 @@ import com.simple.simpleinventory.MainActivity
 import com.simple.simpleinventory.R
 import com.simple.simpleinventory.databinding.FragmentSettingsBinding
 import com.simple.simpleinventory.ui.auth.ErrorLogger
+import com.simple.simpleinventory.utils.AppDialogs
+import com.simple.simpleinventory.utils.AppStrings
+import com.simple.simpleinventory.utils.LangPrefs
 
 class SettingsFragment : Fragment() {
 
@@ -29,16 +32,13 @@ class SettingsFragment : Fragment() {
 
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
 
-        binding.cardProductOrder.setOnClickListener {
-            findNavController().navigate(R.id.action_settings_to_productOrder)
-        }
-
-        binding.cardOpeningStock.setOnClickListener {
-            findNavController().navigate(R.id.action_settings_to_openingStock)
-        }
-
-        binding.cardProducts.setOnClickListener {
-            findNavController().navigate(R.id.action_settings_to_products)
+        binding.cardLanguage.setOnClickListener {
+            val names = AppStrings.Lang.entries.map { it.displayName }.toTypedArray()
+            AppDialogs.choice(requireContext(), "Language / భాష", names) { which ->
+                val selected = AppStrings.Lang.entries[which]
+                LangPrefs.set(requireContext(), selected)
+                applyLanguage()
+            }
         }
 
         binding.cardBusinessInfo.setOnClickListener {
@@ -65,6 +65,28 @@ class SettingsFragment : Fragment() {
             ErrorLogger.clear(requireContext())
             updateErrorLogButton()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyLanguage()
+    }
+
+    private fun applyLanguage() {
+        val lang = LangPrefs.get(requireContext())
+        binding.toolbar.title                  = AppStrings.settingsToolbarTitle.get(lang)
+        binding.textSectionLanguage.text       = AppStrings.settingsSectionLanguage.get(lang)
+        binding.textLanguageTitle.text         = AppStrings.settingsLanguageTitle.get(lang)
+        binding.textLanguageDesc.text          = AppStrings.settingsLanguageDesc.get(lang)
+        binding.textSectionBusiness.text       = AppStrings.settingsSectionBusiness.get(lang)
+        binding.textBusinessInfoTitle.text     = AppStrings.settingsBusinessInfoTitle.get(lang)
+        binding.textBusinessInfoDesc.text      = AppStrings.settingsBusinessInfoDesc.get(lang)
+        binding.textSectionSync.text           = AppStrings.settingsSectionSync.get(lang)
+        binding.textSyncSettingsTitle.text     = AppStrings.settingsSyncTitle.get(lang)
+        binding.textSyncSettingsDesc.text      = AppStrings.settingsSyncDesc.get(lang)
+        binding.textSectionSupport.text        = AppStrings.settingsSectionSupport.get(lang)
+        binding.textHelpSupportTitle.text      = AppStrings.settingsHelpSupportTitle.get(lang)
+        binding.textHelpSupportDesc.text       = AppStrings.settingsHelpSupportDesc.get(lang)
     }
 
     private fun updateErrorLogButton() {

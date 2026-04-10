@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="6dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Header -->
+                <TextView
+                    android:id="@+id/textProductName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textBrandCode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Edit Closing Balances"
+                    android:textSize="13sp"
+                    android:textStyle="italic"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Column headers -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="6dp">
+                    <TextView android:layout_width="40dp" android:layout_height="wrap_content" android:text="" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Boxes" android:gravity="center" android:textSize="11sp" android:textStyle="bold" />
+                    <TextView android:layout_width="30dp" android:layout_height="wrap_content" android:text="" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Loose" android:gravity="center" android:textSize="11sp" android:textStyle="bold" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Total" android:gravity="center" android:textSize="11sp" android:textStyle="bold" />
+                    <TextView android:layout_width="52dp" android:layout_height="wrap_content" android:text="(Max)" android:gravity="center" android:textSize="11sp" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:background="?attr/colorOutline" android:layout_marginBottom="8dp" />
+
+                <!-- NN row -->
+                <LinearLayout android:id="@+id/rowNN"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:minHeight="52dp" android:layout_marginBottom="6dp">
+
+                    <TextView android:layout_width="40dp" android:layout_height="wrap_content"
+                        android:text="NN" android:textSize="14sp" android:textStyle="bold"
+                        android:textColor="#FF9800" />
+
+                    <EditText android:id="@+id/editNNBoxes"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginEnd="4dp" />
+
+                    <TextView android:id="@+id/textNNUpb"
+                        android:layout_width="30dp" android:layout_height="wrap_content"
+                        android:textSize="11sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText android:id="@+id/editNNLoose"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginHorizontal="4dp" />
+
+                    <TextView android:id="@+id/textNNTotal"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:textSize="20sp"
+                        android:textStyle="bold" android:gravity="center" />
+
+                    <TextView android:id="@+id/textNNMax"
+                        android:layout_width="52dp" android:layout_height="wrap_content"
+                        android:textSize="10sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <!-- PP row -->
+                <LinearLayout android:id="@+id/rowPP"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:minHeight="52dp" android:layout_marginBottom="6dp">
+
+                    <TextView android:layout_width="40dp" android:layout_height="wrap_content"
+                        android:text="PP" android:textSize="14sp" android:textStyle="bold"
+                        android:textColor="#2196F3" />
+
+                    <EditText android:id="@+id/editPPBoxes"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginEnd="4dp" />
+
+                    <TextView android:id="@+id/textPPUpb"
+                        android:layout_width="30dp" android:layout_height="wrap_content"
+                        android:textSize="11sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText android:id="@+id/editPPLoose"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginHorizontal="4dp" />
+
+                    <TextView android:id="@+id/textPPTotal"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:textSize="20sp"
+                        android:textStyle="bold" android:gravity="center" />
+
+                    <TextView android:id="@+id/textPPMax"
+                        android:layout_width="52dp" android:layout_height="wrap_content"
+                        android:textSize="10sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <!-- QQ row -->
+                <LinearLayout android:id="@+id/rowQQ"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:minHeight="52dp" android:layout_marginBottom="6dp">
+
+                    <TextView android:layout_width="40dp" android:layout_height="wrap_content"
+                        android:text="QQ" android:textSize="14sp" android:textStyle="bold"
+                        android:textColor="#4CAF50" />
+
+                    <EditText android:id="@+id/editQQBoxes"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginEnd="4dp" />
+
+                    <TextView android:id="@+id/textQQUpb"
+                        android:layout_width="30dp" android:layout_height="wrap_content"
+                        android:textSize="11sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText android:id="@+id/editQQLoose"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginHorizontal="4dp" />
+
+                    <TextView android:id="@+id/textQQTotal"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:textSize="20sp"
+                        android:textStyle="bold" android:gravity="center" />
+
+                    <TextView android:id="@+id/textQQMax"
+                        android:layout_width="52dp" android:layout_height="wrap_content"
+                        android:textSize="10sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <!-- DD row -->
+                <LinearLayout android:id="@+id/rowDD"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:minHeight="52dp">
+
+                    <TextView android:layout_width="40dp" android:layout_height="wrap_content"
+                        android:text="DD" android:textSize="14sp" android:textStyle="bold"
+                        android:textColor="#9C27B0" />
+
+                    <EditText android:id="@+id/editDDBoxes"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginEnd="4dp" />
+
+                    <TextView android:id="@+id/textDDUpb"
+                        android:layout_width="30dp" android:layout_height="wrap_content"
+                        android:textSize="11sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText android:id="@+id/editDDLoose"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:inputType="number"
+                        android:textSize="18sp" android:gravity="center"
+                        android:selectAllOnFocus="true" android:layout_marginHorizontal="4dp" />
+
+                    <TextView android:id="@+id/textDDTotal"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:textSize="20sp"
+                        android:textStyle="bold" android:gravity="center" />
+
+                    <TextView android:id="@+id/textDDMax"
+                        android:layout_width="52dp" android:layout_height="wrap_content"
+                        android:textSize="10sp" android:gravity="center"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp"
+                    android:background="?attr/colorOutline" android:layout_marginVertical="12dp" />
+
+                <!-- Buttons -->
+                <LinearLayout android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:gravity="end">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancel"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Cancel" android:layout_marginEnd="8dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Save CB" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>

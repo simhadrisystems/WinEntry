@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Search bar moved OUT of CollapsingToolbarLayout into a plain LinearLayout
+    below AppBarLayout. This makes searchInput and searchLayout accessible via
+    view binding (binding.searchInput / binding.searchLayout).
+    CollapsingToolbarLayout removed entirely — toolbar is now a simple pinned bar,
+    matching the style of DailyStock and Purchases screens.
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_surface">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/app_toolbar"
+        app:elevation="4dp">
+
+        <!-- Pinned toolbar -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            style="@style/Widget.SimpleInventory.Toolbar.WithMenu"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            app:navigationIcon="@drawable/ic_chevron_left"
+            app:navigationContentDescription="Back">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Products"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <!-- Add product button — moved from FAB to toolbar -->
+                <ImageButton
+                    android:id="@+id/fabAdd"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:src="@android:drawable/ic_input_add"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:tint="@android:color/white"
+                    android:contentDescription="Add Product"
+                    android:layout_marginEnd="4dp" />
+
+            </LinearLayout>
+
+        </androidx.appcompat.widget.Toolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:padding="8dp"
+        android:scrollbars="vertical"
+        android:fastScrollEnabled="true"
+        android:fastScrollAlwaysVisible="false"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <TextView
+        android:id="@+id/emptyView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="No products yet.\nTap + to add or Import from Excel"
+        android:textAlignment="center"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:visibility="gone" />
+
+
+
+    <!-- Scroll-to-top FAB — top-end corner, visible when not at top -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="64dp"
+        android:layout_marginEnd="8dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:contentDescription="Scroll to top"
+        app:fabSize="mini"
+        app:backgroundTint="#661976D2"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+
+    <!-- Scroll-to-bottom FAB — bottom-end corner, visible when not at bottom -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:contentDescription="Scroll to bottom"
+        app:fabSize="mini"
+        app:backgroundTint="#661976D2"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

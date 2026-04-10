@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dark-mode theme overrides for Theme.SimpleInventory.
+
+    WHY colorPrimary is overridden here
+    ─────────────────────────────────────────────────────────────────────
+    Light-mode colorPrimary = @color/app_toolbar = #1E293B (dark navy).
+    That value is fine on white/light dialog backgrounds in light mode.
+
+    In dark mode, Material3's MaterialAlertDialogBuilder sets the dialog
+    background to colorSurface (which becomes a dark ~#1C surface) and
+    colours all action-button TEXT with colorPrimary.  Dark navy on a
+    dark surface = invisible — the "3rd line" bug reported across every
+    dialog (Sync Settings toggle, Sign Out confirm, Delete confirm, etc.).
+
+    Title and message text are NOT affected because they use colorOnSurface,
+    which Material3 DayNight flips to near-white automatically.
+
+    Fix: use Blue-400 (#60A5FA) as colorPrimary in dark mode.
+      • Clearly readable on any dark Material3 surface
+      • Consistent with the app's existing blue action identity
+      • Does NOT affect toolbars — they use android:background explicitly
+      • FABs, outlined buttons, text-fields benefit too (more visible)
+    ─────────────────────────────────────────────────────────────────────
+-->
+<resources>
+    <!-- Dark popup overlay for dark mode -->
+    <style name="ThemeOverlay.App.PopupMenu" parent="ThemeOverlay.AppCompat.Dark"/>
+
+    <style name="Theme.SimpleInventory" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#60A5FA</item>       <!-- Blue-400: visible on dark surfaces -->
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:windowBackground">@color/app_surface</item>
+    </style>
+</resources>

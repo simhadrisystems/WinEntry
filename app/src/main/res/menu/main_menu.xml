@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Sync Now button (visible in toolbar, separate from popup) -->
+    <item
+        android:id="@+id/action_sync"
+        android:icon="@android:drawable/ic_popup_sync"
+        android:title="Sync Now"
+        app:showAsAction="ifRoom" />
+
+    <!-- Sign In — shown only when NOT signed in -->
+    <item
+        android:id="@+id/action_sign_in"
+        android:title="Sign in with Google"
+        app:showAsAction="never" />
+
+    <!-- Account — shown only when signed in (title set dynamically to email) -->
+    <item
+        android:id="@+id/action_account"
+        android:title="My Account"
+        app:showAsAction="never" />
+
+    <!-- Sign Out — shown only when signed in -->
+    <item
+        android:id="@+id/action_sign_out"
+        android:title="Sign Out"
+        app:showAsAction="never" />
+
+
+</menu>

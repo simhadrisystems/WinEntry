@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_surface">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Main toolbar -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            style="@style/Widget.SimpleInventory.Toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Product Display Order"
+            app:navigationIcon="@drawable/ic_chevron_left">
+
+            <!-- Search icon (hidden in edit mode) -->
+            <ImageView
+                android:id="@+id/searchIcon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="end"
+                android:layout_marginEnd="4dp"
+                android:src="@android:drawable/ic_menu_search"
+                android:tint="#FFFFFF"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                android:contentDescription="Search products" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+        <!-- Search bar (hidden until search icon tapped, only in read mode) -->
+        <LinearLayout
+            android:id="@+id/searchBar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:background="@color/app_sub_panel"
+            android:paddingHorizontal="8dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/searchInput"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_weight="1"
+                android:background="#FFFFFF"
+                android:paddingHorizontal="12dp"
+                android:hint="Search products…"
+                android:textSize="14sp"
+                android:textColor="#212121"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:singleLine="true" />
+
+            <ImageView
+                android:id="@+id/searchClear"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:tint="#FFFFFF"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="6dp"
+                android:contentDescription="Clear search" />
+
+        </LinearLayout>
+
+        <!-- Edit toggle row (always visible) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:background="@color/app_surface"
+            android:paddingHorizontal="12dp"
+            android:gravity="center_vertical">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchEditOrder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit Order"
+                android:textSize="13sp"
+                android:textColor="@color/app_text_secondary" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <!-- Only shown when editing -->
+            <LinearLayout
+                android:id="@+id/editControlsRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDiscard"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Discard"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="0dp"
+                    android:layout_marginEnd="8dp"
+                    app:strokeColor="#9E9E9E" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRenumberSave"
+                    style="@style/Widget.MaterialComponents.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Renumber &amp; Save"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="0dp"
+                    android:backgroundTint="#1565C0" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Hint text (updates based on mode) -->
+        <TextView
+            android:id="@+id/textHint"
+            android:layout_width="match_parent"
+            android:layout_height="34dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:text="Products shown in display order · toggle ✏ to edit"
+            android:textSize="12sp"
+            android:textColor="#0D47A1"
+            android:background="#E3F2FD" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerProducts"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingTop="4dp"
+        android:paddingBottom="80dp"
+        android:clipToPadding="false"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Scroll to top — top-end corner, visible when not at top -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="64dp"
+        android:layout_marginEnd="8dp"
+        android:src="@android:drawable/arrow_up_float"
+        android:contentDescription="Scroll to top"
+        app:fabSize="mini"
+        app:backgroundTint="#660D47A1"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+
+    <!-- Scroll to bottom — bottom-end corner, visible when not at bottom -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabScrollBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:src="@android:drawable/arrow_down_float"
+        android:contentDescription="Scroll to bottom"
+        app:fabSize="mini"
+        app:backgroundTint="#660D47A1"
+        app:tint="@android:color/white"
+        android:visibility="gone"
+        android:elevation="6dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Reusable row for one size in the closing entry dialog.
+    IDs are referenced dynamically using getIdentifier() in ClosingEntryDialog.
+    Each included row gets a unique prefix (NN/PP/QQ/DD) via the parent container ID.
+
+    NOTE: Because Android's <include> doesn't support ID remapping for child views,
+    we use a single flat layout with size-specific IDs set in each row directly.
+    This layout is NOT included — instead the dialog inflates the full layout
+    dialog_closing_entry.xml which has all four rows inline.
+    This file is kept as a reference for the row structure.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:minHeight="48dp">
+
+    <!-- Size label: NN / PP / QQ / DD -->
+    <TextView
+        android:id="@+id/textSizeLabel"
+        android:layout_width="36dp"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary" />
+
+    <!-- Boxes input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+        android:layout_marginEnd="4dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editBoxes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:selectAllOnFocus="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Units per box label -->
+    <TextView
+        android:id="@+id/textUpb"
+        android:layout_width="28dp"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <!-- Loose units input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+        android:layout_marginHorizontal="4dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editLoose"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:textSize="16sp"
+            android:gravity="center"
+            android:selectAllOnFocus="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Computed total -->
+    <TextView
+        android:id="@+id/textTotal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="?attr/colorPrimary" />
+
+    <!-- Max units hint -->
+    <TextView
+        android:id="@+id/textMax"
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:gravity="center"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+</LinearLayout>

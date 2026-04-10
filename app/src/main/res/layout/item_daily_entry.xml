@@ -1,0 +1,463 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="3dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="6dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:strokeWidth="1dp"
+    app:strokeColor="#FFCCCCCC">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- ══════════════════════════════════════════════════════════
+             ROW 1: Product Name + Sale Amount + Save/Cancel buttons
+             Background: #DDEEFF normal  |  #FFF3E0 when dirty
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:id="@+id/rowProductName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#DDEEFF"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/textProductName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Product Name"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#0D47A1"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/textSaleAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹0.00"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#2E7D32"
+                android:layout_marginStart="8dp" />
+
+            <ImageButton
+                android:id="@+id/btnSaveProduct"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:src="@android:drawable/ic_menu_save"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#2E7D32"
+                android:padding="4dp"
+                android:contentDescription="Save this product"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnCancelProduct"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="2dp"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="#C62828"
+                android:padding="4dp"
+                android:contentDescription="Discard edits for this product"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════════
+             ROW 2: OB — Opening Balance (read-only)
+             Strip: #F5F5F5  Height: 36dp  Fields: 28dp  alpha=0.50
+             No trailing spacer — fields use full row width.
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#F5F5F5"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:text="OB"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:gravity="center_vertical" />
+
+            <TextView
+                android:id="@+id/textOpeningQQ"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:background="@drawable/border_green"
+                android:padding="2dp"
+                android:alpha="0.75" />
+
+            <TextView
+                android:id="@+id/textOpeningPP"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:background="@drawable/border_blue"
+                android:padding="2dp"
+                android:layout_marginStart="3dp"
+                android:alpha="0.75" />
+
+            <TextView
+                android:id="@+id/textOpeningNN"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1.1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:background="@drawable/border_orange"
+                android:padding="2dp"
+                android:layout_marginStart="3dp"
+                android:alpha="0.75" />
+
+            <TextView
+                android:id="@+id/textOpeningDD"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:background="@drawable/border_purple"
+                android:padding="2dp"
+                android:layout_marginStart="3dp"
+                android:alpha="0.75" />
+
+        </LinearLayout>
+
+        <!-- hairline divider -->
+
+
+        <!-- ══════════════════════════════════════════════════════════
+             ROW 3: PQ — Purchase Quantity (editable)
+             Strip: #EDF4FF  Height: 36dp  Fields: 28dp
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#EDF4FF"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:text="PQ"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:gravity="center_vertical" />
+
+            <EditText
+                android:id="@+id/editPurchaseQQ"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#C62828"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_green"
+                android:padding="2dp" />
+
+            <EditText
+                android:id="@+id/editPurchasePP"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#C62828"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_blue"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <EditText
+                android:id="@+id/editPurchaseNN"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1.1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#C62828"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_orange"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <EditText
+                android:id="@+id/editPurchaseDD"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="18sp"
+                android:textColor="#C62828"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_purple"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+        </LinearLayout>
+
+        <!-- hairline divider -->
+
+
+        <!-- ══════════════════════════════════════════════════════════
+             ROW 4: SQ — Sale Quantity (read-only, calculated)
+             Strip: #F5F5F5  Height: 36dp  Fields: 28dp  alpha=0.50
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#F5F5F5"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <TextView
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:text="SQ"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:gravity="center_vertical" />
+
+            <TextView
+                android:id="@+id/textSaleQQ"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textColor="#FF4CAF50"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:background="@drawable/border_green"
+                android:padding="2dp" />
+
+            <TextView
+                android:id="@+id/textSalePP"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textColor="#FF2196F3"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:background="@drawable/border_blue"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <TextView
+                android:id="@+id/textSaleNN"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1.1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textColor="#FFFF9800"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:background="@drawable/border_orange"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <TextView
+                android:id="@+id/textSaleDD"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textColor="#FF9C27B0"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:background="@drawable/border_purple"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+        </LinearLayout>
+
+        <!-- ══════════════════════════════════════════════════════════
+             ROW 5: CB — Closing Balance (editable)
+             Strip: #EDFFF0  Height: 39dp  Fields: 31dp  17sp bold
+
+             CB label area (id=btnEditClosing, 34dp wide LinearLayout):
+               • Always visible in all modes
+               • "CB" bold dark-green on top, zero gap,
+                 "entry" small red italic below — like an underline
+               • Adapter sets background to bright green + clickable
+                 in BALANCE mode; transparent + non-clickable otherwise
+             Fields use full remaining width (no trailing spacer)
+             ══════════════════════════════════════════════════════════ -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="41dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#EDFFF0"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <!-- CB label container — id used by adapter for click + bg -->
+            <LinearLayout
+                android:id="@+id/btnEditClosing"
+                android:layout_width="34dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center_horizontal|center_vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CB"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#1B5E20"
+                    android:lineSpacingExtra="0dp"
+                    android:includeFontPadding="false" />
+
+                <!-- "entry" sits flush below "CB" like an underline caption -->
+                <TextView
+                    android:id="@+id/textCbEntryLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Entry"
+                    android:textSize="9sp"
+                    android:textStyle="italic"
+                    android:textColor="#C62828"
+                    android:includeFontPadding="false"
+                    android:lineSpacingExtra="0dp"
+                    android:visibility="invisible" />
+
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/editClosingQQ"
+                android:layout_width="0dp"
+                android:layout_height="31dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_green"
+                android:padding="2dp" />
+
+            <EditText
+                android:id="@+id/editClosingPP"
+                android:layout_width="0dp"
+                android:layout_height="31dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_blue"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <EditText
+                android:id="@+id/editClosingNN"
+                android:layout_width="0dp"
+                android:layout_height="31dp"
+                android:layout_weight="1.1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_orange"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+            <EditText
+                android:id="@+id/editClosingDD"
+                android:layout_width="0dp"
+                android:layout_height="31dp"
+                android:layout_weight="1"
+                android:text="0"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:gravity="center"
+                android:inputType="number"
+                android:imeOptions="actionNext"
+                android:selectAllOnFocus="true"
+                android:background="@drawable/border_purple"
+                android:padding="2dp"
+                android:layout_marginStart="3dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -63,7 +63,7 @@
 
         <action
             android:id="@+id/action_home_to_products"
-            app:destination="@id/productListFragment"
+            app:destination="@id/productsMenuFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@android:anim/slide_in_left"
@@ -178,30 +178,8 @@
         tools:layout="@layout/fragment_settings">
 
         <action
-            android:id="@+id/action_settings_to_productOrder"
-            app:destination="@id/productOrderFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:exitAnim="@anim/slide_out_left"
-            app:popEnterAnim="@android:anim/slide_in_left"
-            app:popExitAnim="@android:anim/slide_out_right" />
-
-        <action
             android:id="@+id/action_settings_to_businessInfo"
             app:destination="@id/businessInfoFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:exitAnim="@anim/slide_out_left"
-            app:popEnterAnim="@android:anim/slide_in_left"
-            app:popExitAnim="@android:anim/slide_out_right" />
-        <action
-            android:id="@+id/action_settings_to_openingStock"
-            app:destination="@id/openingStockFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:exitAnim="@anim/slide_out_left"
-            app:popEnterAnim="@android:anim/slide_in_left"
-            app:popExitAnim="@android:anim/slide_out_right" />
-        <action
-            android:id="@+id/action_settings_to_products"
-            app:destination="@id/productListFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@android:anim/slide_in_left"
@@ -210,6 +188,39 @@
         <action
             android:id="@+id/action_settings_to_helpSupport"
             app:destination="@id/helpSupportFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+    </fragment>
+
+    <!-- Products Menu Fragment -->
+    <fragment
+        android:id="@+id/productsMenuFragment"
+        android:name="com.simple.simpleinventory.ui.settings.ProductsMenuFragment"
+        android:label="Products"
+        tools:layout="@layout/fragment_products_menu">
+
+        <action
+            android:id="@+id/action_productsMenu_to_productOrder"
+            app:destination="@id/productOrderFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_productsMenu_to_openingStock"
+            app:destination="@id/openingStockFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
+        <action
+            android:id="@+id/action_productsMenu_to_productList"
+            app:destination="@id/productListFragment"
             app:enterAnim="@anim/slide_in_right"
             app:exitAnim="@anim/slide_out_left"
             app:popEnterAnim="@android:anim/slide_in_left"

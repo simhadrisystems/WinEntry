@@ -410,6 +410,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 }
                 clearDirty()
                 loadDateStatus()
+                filterAndUpdateEntries()   // re-emit updated cache so strip total recalculates
                 _saveStatus.value = SaveStatus.Success(rowsToSave.size)
                 if (rowsToSave.isNotEmpty()) checkAndRequestCascade(rowsToSave)
             } catch (e: Exception) {
@@ -571,7 +572,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
 
     companion object { const val MAX_FUTURE_DAYS = 1 }
 
-    enum class EntryMode { VIEW, BALANCE, PURCHASE }
+    enum class EntryMode { VIEW, BALANCE }
 
     sealed class SaveStatus {
         object Saving : SaveStatus()

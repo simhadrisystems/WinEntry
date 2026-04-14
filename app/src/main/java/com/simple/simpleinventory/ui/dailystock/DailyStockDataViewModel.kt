@@ -471,10 +471,16 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch { repository.clearDateData(date) }
     }
 
+    /** Suspend version — caller awaits DB completion before reloading UI. */
+    suspend fun clearDateDataAwait(date: String) = repository.clearDateData(date)
+
     /** Clear the entire daily_stock table. */
     fun clearAllData() {
         viewModelScope.launch { repository.clearAllData() }
     }
+
+    /** Suspend version — caller awaits DB completion before reloading UI. */
+    suspend fun clearAllDataAwait() = repository.clearAllData()
 
     /** Force all committed rows to re-sync to Google Sheets. */
     fun forceFullResync() {

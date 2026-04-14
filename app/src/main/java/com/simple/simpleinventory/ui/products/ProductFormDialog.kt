@@ -15,6 +15,7 @@ import com.simple.simpleinventory.data.entity.Product
 import android.content.res.ColorStateList
 import android.graphics.Color
 import com.simple.simpleinventory.databinding.DialogProductFormBinding
+import com.simple.simpleinventory.utils.TypeLabels
 import kotlinx.coroutines.launch
 
 class ProductFormDialog : DialogFragment() {
@@ -108,14 +109,13 @@ class ProductFormDialog : DialogFragment() {
     }
 
     private fun setupProductTypeDropdown() {
-        val productTypes = arrayOf("W", "Y", "R", "B", "V", "M", "E", "S", "G")
         val adapter = android.widget.ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
-            productTypes
+            TypeLabels.typeDisplayItems          // e.g. ["W  —  Whisky", "Y  —  Brandy", ...]
         )
         binding.spinnerProductType.setAdapter(adapter)
-        binding.spinnerProductType.setText("W", false) // Set default to W
+        binding.spinnerProductType.setText(TypeLabels.typeDisplay("W"), false) // default W
         
         // Trigger code generation when type changes
         binding.spinnerProductType.setOnItemClickListener { _, _, _, _ ->
@@ -134,7 +134,7 @@ class ProductFormDialog : DialogFragment() {
 
     private fun updateGeneratedCodes() {
         val brandCode = binding.editBrandCode.text.toString().trim().uppercase()
-        val productType = binding.spinnerProductType.text.toString().trim().uppercase()
+        val productType = TypeLabels.codeFromDisplay(binding.spinnerProductType.text.toString())
 
         if (brandCode.isNotEmpty() && productType.isNotEmpty()) {
             binding.textQqCode.text = "QQ: ${productType}${brandCode}QQ"
@@ -171,7 +171,7 @@ class ProductFormDialog : DialogFragment() {
         editingProduct?.let { product ->
             binding.apply {
                 editProductName.setText(product.productName)
-                spinnerProductType.setText(product.productType, false)  // Use spinner
+                spinnerProductType.setText(TypeLabels.typeDisplay(product.productType), false)
                 editCategory.setText(product.category)
                 editBrandCode.setText(product.brandCode)
                 editAliases.setText(product.aliases)
@@ -281,7 +281,9 @@ class ProductFormDialog : DialogFragment() {
 
     private fun saveProduct() {
         val productName = binding.editProductName.text.toString().trim()
-        val productType = binding.spinnerProductType.text.toString().trim().uppercase()  // Use spinner
+        // Dropdown shows "W  —  Whisky"; extract just the code character
+        val productType = TypeLabels.codeFromDisplay(
+            binding.spinnerProductType.text.toString())
         val brandCode = binding.editBrandCode.text.toString().trim().uppercase()
 
         // Validation
@@ -295,9 +297,9 @@ class ProductFormDialog : DialogFragment() {
             return
         }
 
-        val validTypes = listOf("W", "Y", "R", "B", "V", "M", "E", "S", "G")
+        val validTypes = TypeLabels.typeCodes
         if (!validTypes.contains(productType)) {
-            binding.spinnerProductType.error = "Must be W, Y, R, B, V, M, E, S, or G"
+            binding.spinnerProductType.error = "Select a valid product type"
             return
         }
 
@@ -348,7 +350,8 @@ class ProductFormDialog : DialogFragment() {
     
     private fun completeSave() {
         val productName = binding.editProductName.text.toString().trim()
-        val productType = binding.spinnerProductType.text.toString().trim().uppercase()
+        val productType = TypeLabels.codeFromDisplay(
+            binding.spinnerProductType.text.toString())
         val brandCode = binding.editBrandCode.text.toString().trim().uppercase()
         val category = binding.editCategory.text.toString().trim()
         val aliases = binding.editAliases.text.toString().trim()

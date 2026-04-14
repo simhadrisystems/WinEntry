@@ -30,6 +30,7 @@ import com.simple.simpleinventory.data.entity.stockCode
 import com.simple.simpleinventory.data.repository.DailyStockRepository
 import com.simple.simpleinventory.utils.DailyStockImportHelper
 import com.simple.simpleinventory.ui.dailystock.DailyStockDataViewModel
+import com.simple.simpleinventory.sync.SyncCoordinator
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -43,16 +44,18 @@ import java.util.*
 class OpeningStockFragment : Fragment() {
 
     private lateinit var repository: DailyStockRepository
-    private lateinit var products: List<Product>
+    private var products: List<Product> = emptyList()
 
     private val quantities = mutableMapOf<Long, IntArray>()
 
-    private lateinit var tvSummary: TextView
-    private lateinit var tvTotalValue: TextView
+    // ── Header info rows (3 coloured summary lines) ───────────────────────────
+    private lateinit var tvDateInfo:    TextView   // row 1: date / trading day
+    private lateinit var tvValueInfo:   TextView   // row 2: stock value
+    private lateinit var tvProductInfo: TextView   // row 3: products + units
+    // ── Bottom bar sync indicator ─────────────────────────────────────────────
+    private lateinit var tvSyncStatus:  TextView   // static status chip
     private lateinit var btnSave: Button
     private lateinit var btnEdit: Button
-    private lateinit var btnDatePick: Button
-    private lateinit var tvDateDisplay: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: OpeningStockAdapter
     private lateinit var fabTop: com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -61,7 +64,6 @@ class OpeningStockFragment : Fragment() {
     private var selectedDate: String = defaultDate()
 
     private lateinit var dataViewModel: DailyStockDataViewModel
-    private lateinit var savedDatesAdapter: SavedDatesAdapter
     /**
      * True when the currently selected date already has committed opening stock
      * in the DB. Derived from DB on every loadProducts() — survives app restarts.
@@ -84,9 +86,13 @@ class OpeningStockFragment : Fragment() {
     private var importHelper: DailyStockImportHelper? = null
 
     companion object {
+        // Sync chip states
+        const val SYNC_SAVED   = "SAVED"
+        const val SYNC_PENDING = "PENDING"
+        const val SYNC_ERROR   = "ERROR"
+        const val SYNC_NONE    = "NONE"
+
         fun defaultDate(): String {
-            // Neutral fallback — initialiseScreen() overrides this with the
-            // earliest committed date (or user-chosen date from the start dialog)
             val cal = Calendar.getInstance()
             cal.set(Calendar.DAY_OF_MONTH, 1)
             return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
@@ -123,10 +129,11 @@ class OpeningStockFragment : Fragment() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        // Search icon in toolbar
+        // Search — added to toolbar as a collapsible action view
         val searchItem = toolbar.menu.add(0, android.R.id.edit, 0, "Search")
         searchItem.setIcon(android.R.drawable.ic_menu_search)
-        searchItem.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+        searchItem.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM or
+                android.view.MenuItem.SHOW_AS_ACTION_COLLAPSE_ACTION_VIEW)
         val searchView = androidx.appcompat.widget.SearchView(requireContext()).apply {
             queryHint = "Search products…"
             val searchText = findViewById<androidx.appcompat.widget.SearchView.SearchAutoComplete>(
@@ -134,7 +141,11 @@ class OpeningStockFragment : Fragment() {
             searchText?.setTextColor(android.graphics.Color.WHITE)
             searchText?.setHintTextColor(android.graphics.Color.parseColor("#B3FFFFFF"))
             setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
-                override fun onQueryTextSubmit(q: String?) = false
+                override fun onQueryTextSubmit(q: String?): Boolean {
+                    // Collapse the search bar and restore the search icon when user submits
+                    searchItem.collapseActionView()
+                    return true
+                }
                 override fun onQueryTextChange(q: String?): Boolean {
                     filterProducts(q ?: "")
                     return true
@@ -142,85 +153,116 @@ class OpeningStockFragment : Fragment() {
             })
         }
         searchItem.actionView = searchView
+
+        // Tint the SearchView's own internal icons white — the MenuItem icon tint
+        // has no effect once an actionView is attached; each internal ImageView needs
+        // its own ColorFilter.
+        val white = android.graphics.Color.WHITE
+        // Collapsed search icon (shown when search bar is not open)
+        searchView.findViewById<android.widget.ImageView>(androidx.appcompat.R.id.search_button)
+            ?.setColorFilter(white)
+        // Clear (×) button shown while typing
+        searchView.findViewById<android.widget.ImageView>(androidx.appcompat.R.id.search_close_btn)
+            ?.setColorFilter(white)
+        // Inline magnifier icon inside the open search field
+        searchView.findViewById<android.widget.ImageView>(androidx.appcompat.R.id.search_mag_icon)
+            ?.setColorFilter(white)
+
+        // When search collapses (back pressed or X tapped to close the bar),
+        // clear the product filter so the full list is shown again.
+        searchItem.setOnActionExpandListener(object : android.view.MenuItem.OnActionExpandListener {
+            override fun onMenuItemActionExpand(item: android.view.MenuItem) = true
+            override fun onMenuItemActionCollapse(item: android.view.MenuItem): Boolean {
+                filterProducts("")
+                return true
+            }
+        })
+
+        // ── Overflow (3-dot) menu ─────────────────────────────────────────────
+        val MENU_IMPORT  = 1001
+        val MENU_DELETE  = 1002
+        val MENU_UPLOAD  = 1003
+        val MENU_RESTORE = 1004
+        toolbar.menu.add(0, MENU_IMPORT,  1, "📥 Import from Excel")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, MENU_DELETE,  2, "🗑 Delete Opening Stock")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, MENU_UPLOAD,  3, "☁ Upload to Cloud")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, MENU_RESTORE, 4, "☁ Restore from Cloud")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
+        // Tint the overflow (3-dot) icon white after all items are added
+        toolbar.overflowIcon?.setTint(android.graphics.Color.WHITE)
+
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                MENU_IMPORT  -> {
+                    importLauncher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }); true
+                }
+                MENU_DELETE  -> { deleteOpeningStock(); true }
+                MENU_UPLOAD  -> { uploadOpeningStock(); true }
+                MENU_RESTORE -> { restoreFromCloud();   true }
+                else         -> false
+            }
+        }
+
         root.addView(toolbar)
 
-        // ── Fixed header panel (date + summary) ──────────────────────────────
+        // ── Fixed header panel — 3 equal-weight coloured info rows ──────────────
         val headerPanel = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(android.graphics.Color.WHITE)
             elevation = dp(2).toFloat()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
+        val rowPad = dp(8)
 
-        // Date row
-        val dateRow = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(4))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        dateRow.addView(TextView(requireContext()).apply {
-            text = "First trading day:"
-            textSize = 13f
-            setTextColor(android.graphics.Color.parseColor("#475569"))
-            layoutParams = LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        // Date shown as plain text — not a picker button when data is committed
-        tvDateDisplay = TextView(requireContext()).apply {
-            text = formatDisplay(selectedDate)
+        // Row 1 (blue) — date / first trading day; tappable in fresh-setup mode
+        tvDateInfo = TextView(requireContext()).apply {
             textSize = 13f
             setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(android.graphics.Color.parseColor("#2563EB"))
-            gravity = android.view.Gravity.END
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
-        // btnDatePick kept for fresh setup flow — hidden when DB has data
-        btnDatePick = Button(requireContext()).apply {
-            text = formatDisplay(selectedDate)
-            textSize = 12f
-            visibility = View.GONE   // shown only for fresh DB setup
-            setOnClickListener { pickDate() }
-        }
-        dateRow.addView(tvDateDisplay)
-        dateRow.addView(btnDatePick)
-        headerPanel.addView(dateRow)
-
-        // Summary bar — product count + total units + total value
-        tvSummary = TextView(requireContext()).apply {
-            text = "No quantities entered"
-            textSize = 12f
-            setTextColor(android.graphics.Color.parseColor("#1B5E20"))
-            setBackgroundColor(android.graphics.Color.parseColor("#F1F8E9"))
-            setPadding(dp(12), dp(6), dp(12), dp(2))
+            setTextColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.parseColor("#1565C0"))
+            setPadding(dp(12), rowPad, dp(12), rowPad)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        headerPanel.addView(tvSummary)
+        headerPanel.addView(tvDateInfo)
 
-        tvTotalValue = TextView(requireContext()).apply {
-            text = ""
+        // Row 2 (green) — opening stock value
+        tvValueInfo = TextView(requireContext()).apply {
             textSize = 13f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(android.graphics.Color.parseColor("#1B5E20"))
-            setBackgroundColor(android.graphics.Color.parseColor("#F1F8E9"))
-            setPadding(dp(12), dp(2), dp(12), dp(8))
+            setBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+            setPadding(dp(12), rowPad, dp(12), rowPad)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        headerPanel.addView(tvTotalValue)
+        headerPanel.addView(tvValueInfo)
+
+        // Row 3 (amber) — product count + units
+        tvProductInfo = TextView(requireContext()).apply {
+            textSize = 13f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(android.graphics.Color.parseColor("#E65100"))
+            setBackgroundColor(android.graphics.Color.parseColor("#FFF8E1"))
+            setPadding(dp(12), rowPad, dp(12), rowPad)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        headerPanel.addView(tvProductInfo)
 
         // Column header row
         headerPanel.addView(buildColumnHeader())
@@ -280,32 +322,28 @@ class OpeningStockFragment : Fragment() {
         rvFrame.addView(fabBottom)
         root.addView(rvFrame)
 
-        // ── Fixed bottom bar: Import + Save ───────────────────────────────────
+        // ── Fixed bottom bar: SyncStatus | Edit | Save (equal weights) ──────────
         val bottomBar = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(52)
             )
         }
 
-        val btnImport = Button(requireContext()).apply {
-            text = "📥 Import"
-            textSize = 12f
-            setBackgroundColor(android.graphics.Color.parseColor("#37474F"))
-            setTextColor(android.graphics.Color.WHITE)
+        // Sync status — non-interactive display chip (weight 1, equal to buttons)
+        tvSyncStatus = TextView(requireContext()).apply {
+            text = "☁ SAVED IN CLOUD"
+            textSize = 11f
+            gravity = android.view.Gravity.CENTER
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(android.graphics.Color.parseColor("#1B5E20"))
+            setBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
                 .also { it.marginEnd = dp(2) }
-            setOnClickListener {
-                importLauncher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
-                    type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                })
-            }
         }
 
         btnEdit = Button(requireContext()).apply {
-            text = "✎ Edit"
+            text = "✎ EDIT"
             textSize = 12f
             setBackgroundColor(android.graphics.Color.parseColor("#E65100"))
             setTextColor(android.graphics.Color.WHITE)
@@ -315,7 +353,7 @@ class OpeningStockFragment : Fragment() {
         }
 
         btnSave = Button(requireContext()).apply {
-            text = "💾 Save"
+            text = "💾 SAVE"
             textSize = 12f
             setBackgroundColor(android.graphics.Color.parseColor("#1565C0"))
             setTextColor(android.graphics.Color.WHITE)
@@ -325,7 +363,7 @@ class OpeningStockFragment : Fragment() {
             setOnClickListener { confirmSave() }
         }
 
-        bottomBar.addView(btnImport)
+        bottomBar.addView(tvSyncStatus)
         bottomBar.addView(btnEdit)
         bottomBar.addView(btnSave)
         root.addView(bottomBar)
@@ -363,11 +401,7 @@ class OpeningStockFragment : Fragment() {
                 }
             }
         )
-        savedDatesAdapter = SavedDatesAdapter(
-            onDelete = { date, count -> confirmDelete(date, count) }
-        )
-        recyclerView.adapter = androidx.recyclerview.widget.ConcatAdapter(
-            adapter, savedDatesAdapter)
+        recyclerView.adapter = adapter
 
         setupImportObserver()
         setupScrollFabs()
@@ -453,7 +487,7 @@ class OpeningStockFragment : Fragment() {
                         .minByOrNull { it.date }?.date
                     if (firstImportedDate != null) {
                         selectedDate = firstImportedDate
-                        btnDatePick.text = formatDisplay(firstImportedDate)
+                        updateDateRow()
                     }
                     dataViewModel.clearPendingImport()
                     // Use opening-stock-specific save: OB = CB = imported qty, sale = 0
@@ -561,17 +595,13 @@ class OpeningStockFragment : Fragment() {
             .setMessage(
                 "Opening stock date on record: ${formatDisplay(earliest)}\n\n" +
                 "Quantities shown in read-only mode.\n\n" +
-                "• Tap ✎ Edit to correct quantities\n" +
-                "• Tap 📥 Import to load from Excel\n" +
-                "• Scroll down to delete this record"
+                "• Tap ✎ EDIT to correct quantities\n" +
+                "• Use ⋮ menu to Import, Delete, Upload or Restore"
             )
             .setPositiveButton("View") { _, _ ->
                 selectedDate      = earliest
                 isEditMode        = false
                 hasUnsavedChanges = false
-                tvDateDisplay.text       = formatDisplay(earliest)
-                tvDateDisplay.visibility = View.VISIBLE
-                btnDatePick.visibility   = View.GONE
                 loadProducts()
             }
             .setNegativeButton("Cancel") { _, _ ->
@@ -623,14 +653,11 @@ class OpeningStockFragment : Fragment() {
             .setTitle("📦 Opening Stock — New Setup")
             .setView(panel)
             .setPositiveButton("Begin Entry") { _, _ ->
-                selectedDate             = chosenDate
-                isEditMode               = true    // fresh DB — start in edit mode
-                hasUnsavedChanges        = false
-                tvDateDisplay.text       = formatDisplay(chosenDate)
-                tvDateDisplay.visibility = View.VISIBLE
-                btnDatePick.text         = formatDisplay(chosenDate)
-                btnDatePick.visibility   = View.VISIBLE   // allow date change for fresh setup
-                isCurrentDateLocked      = false
+                selectedDate        = chosenDate
+                isEditMode          = true    // fresh DB — start in edit mode
+                hasUnsavedChanges   = false
+                isCurrentDateLocked = false
+                updateDateRow()
                 loadProducts()
             }
             .setNegativeButton("Cancel") { _, _ ->
@@ -697,19 +724,60 @@ class OpeningStockFragment : Fragment() {
         }
     }
 
+    /** Updates the bottom-bar sync status chip from the DB. */
     private fun refreshSavedDates() {
         lifecycleScope.launch {
-            // Show exactly one entry — the earliest committed date (= the opening stock date).
-            // No complex query needed; this is the one date the user can view/correct/delete.
             val earliest = dataViewModel.getEarliestCommittedDate()
             if (earliest == null) {
-                savedDatesAdapter.submitEntries(emptyList())
+                setSyncChip(SYNC_NONE)
+                return@launch
+            }
+            val statuses = repository.getOpeningStockSyncStatuses(earliest)
+            val state = when {
+                statuses.isEmpty()                                -> SYNC_SAVED
+                statuses.any { it == SyncStatus.SYNC_ERROR }    -> SYNC_ERROR
+                statuses.any { it == SyncStatus.PENDING_UPSERT }-> SYNC_PENDING
+                else                                             -> SYNC_SAVED
+            }
+            setSyncChip(state)
+        }
+    }
+
+    private fun setSyncChip(state: String) {
+        when (state) {
+            SYNC_PENDING -> {
+                tvSyncStatus.text = "⏳ PENDING SYNC"
+                tvSyncStatus.setTextColor(android.graphics.Color.parseColor("#BF360C"))
+                tvSyncStatus.setBackgroundColor(android.graphics.Color.parseColor("#FFF3E0"))
+            }
+            SYNC_ERROR -> {
+                tvSyncStatus.text = "⚠ SYNC ERROR"
+                tvSyncStatus.setTextColor(android.graphics.Color.parseColor("#B71C1C"))
+                tvSyncStatus.setBackgroundColor(android.graphics.Color.parseColor("#FFEBEE"))
+            }
+            SYNC_NONE -> {
+                tvSyncStatus.text = "— NO DATA"
+                tvSyncStatus.setTextColor(android.graphics.Color.parseColor("#546E7A"))
+                tvSyncStatus.setBackgroundColor(android.graphics.Color.parseColor("#ECEFF1"))
+            }
+            else -> {  // SYNC_SAVED
+                tvSyncStatus.text = "☁ SAVED IN CLOUD"
+                tvSyncStatus.setTextColor(android.graphics.Color.parseColor("#1B5E20"))
+                tvSyncStatus.setBackgroundColor(android.graphics.Color.parseColor("#E8F5E9"))
+            }
+        }
+    }
+
+    /** Called from the ⋮ overflow menu Delete item. */
+    private fun deleteOpeningStock() {
+        lifecycleScope.launch {
+            val earliest = dataViewModel.getEarliestCommittedDate() ?: run {
+                Toast.makeText(requireContext(),
+                    "No opening stock data to delete.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val count = repository.getAllDailyStockForDate(earliest).count { it.isCommitted }
-            savedDatesAdapter.submitEntries(listOf(
-                SavedDatesAdapter.Entry(earliest, count, earliest == selectedDate)
-            ))
+            confirmDelete(earliest, count)
         }
     }
 
@@ -724,12 +792,9 @@ class OpeningStockFragment : Fragment() {
             )
             .setPositiveButton("Delete") { _, _ ->
                 dataViewModel.clearDateData(date)
-                // If deleted date was selected, reset quantities
-                if (date == selectedDate) {
-                    quantities.keys.forEach { quantities[it] = IntArray(4) }
-                    if (::adapter.isInitialized) adapter.updateProducts(products)
-                    updateSummary()
-                }
+                quantities.keys.forEach { quantities[it] = IntArray(4) }
+                if (::adapter.isInitialized) adapter.updateProducts(products)
+                updateSummary()
                 refreshSavedDates()
                 Toast.makeText(requireContext(),
                     "Opening stock for ${formatDisplay(date)} deleted.",
@@ -739,25 +804,42 @@ class OpeningStockFragment : Fragment() {
             .show()
     }
 
-    // ── Summary ───────────────────────────────────────────────────────────────
+    // ── Header info helpers ───────────────────────────────────────────────────
 
+    /**
+     * Row 1 (blue): date + lock indicator.
+     * In fresh-setup mode (not locked) the row is tappable to change the date.
+     */
+    private fun updateDateRow() {
+        val lockMark = if (isCurrentDateLocked) "  🔒" else "  (tap to change)"
+        tvDateInfo.text = "Opening Stock  •  1st Trading Day: ${formatDisplay(selectedDate)}$lockMark"
+        tvDateInfo.setOnClickListener(
+            if (!isCurrentDateLocked) View.OnClickListener { pickDate() } else null
+        )
+        // Slightly lighter background in fresh (unlocked) mode to hint it's tappable
+        tvDateInfo.setBackgroundColor(
+            android.graphics.Color.parseColor(
+                if (isCurrentDateLocked) "#1565C0" else "#1976D2"
+            )
+        )
+    }
+
+    /** Rows 2 + 3: stock value and product/unit counts. */
     private fun updateSummary() {
         val productCount = quantities.values.count { it.sum() > 0 }
         val totalUnits   = quantities.values.sumOf { it.sum() }
-
-        // Total value = qty × sale price per size, summed across all products
-        val totalValue = products.sumOf { p ->
+        val totalValue   = products.sumOf { p ->
             val qty = quantities[p.id] ?: IntArray(4)
             qty[0] * p.qqSalePrice + qty[1] * p.ppSalePrice +
             qty[2] * p.nnSalePrice + qty[3] * p.ddSalePrice
         }
 
         if (totalUnits == 0) {
-            tvSummary.text    = "No quantities entered — leave zero for products not in stock"
-            tvTotalValue.text = ""
+            tvValueInfo.text   = "Opening Stock Value:  —"
+            tvProductInfo.text = "No quantities entered yet"
         } else {
-            tvSummary.text    = "✓ $productCount product(s) · $totalUnits total units"
-            tvTotalValue.text = "Total opening stock value: ₹${String.format("%,.2f", totalValue)}"
+            tvValueInfo.text   = "Opening Stock Value:  ₹${String.format("%,.2f", totalValue)}"
+            tvProductInfo.text = "$productCount Products  •  $totalUnits Units"
         }
     }
 
@@ -791,7 +873,7 @@ class OpeningStockFragment : Fragment() {
             { _, y, m, d ->
                 cal.set(y, m, d)
                 selectedDate = sdf.format(cal.time)
-                btnDatePick.text = formatDisplay(selectedDate)
+                updateDateRow()
                 loadProducts()
             },
             cal.get(Calendar.YEAR),
@@ -810,17 +892,13 @@ class OpeningStockFragment : Fragment() {
      */
     private fun requestDateChange(date: String) {
         selectedDate = date
-        btnDatePick.text = formatDisplay(date)
+        updateDateRow()
         loadProducts()
     }
 
     /** Apply UI state based on isEditMode and hasUnsavedChanges. */
     private fun updateDateLockUI() {
-        // Date display
-        tvDateDisplay.text = if (isCurrentDateLocked)
-            "${formatDisplay(selectedDate)}  🔒"
-        else
-            formatDisplay(selectedDate)
+        updateDateRow()
 
         // Edit button — hidden when already in edit mode
         btnEdit.visibility = if (isEditMode) View.GONE else View.VISIBLE
@@ -829,8 +907,7 @@ class OpeningStockFragment : Fragment() {
         val saveActive = isEditMode && hasUnsavedChanges
         btnSave.isEnabled = saveActive
         btnSave.alpha     = if (saveActive) 1.0f else 0.4f
-        btnSave.text      = if (isCurrentDateLocked) "💾 Update Opening Stock"
-                            else                     "💾 Save Opening Stock"
+        btnSave.text      = if (isCurrentDateLocked) "💾 UPDATE" else "💾 SAVE"
 
         // Apply read-only / editable state to all product EditText fields
         adapter.setEditMode(isEditMode)
@@ -912,6 +989,96 @@ class OpeningStockFragment : Fragment() {
                     "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    // ── Cloud sync ────────────────────────────────────────────────────────────
+
+    /**
+     * Pushes any PENDING_UPSERT opening stock rows to Google Sheets.
+     * Runs a full sync (purchases + daily stock + day summary) — opening stock
+     * rows are included because they are standard daily_stock rows with PENDING_UPSERT.
+     */
+    private fun uploadOpeningStock() {
+        val toast = Toast.makeText(requireContext(),
+            "Uploading opening stock to cloud…", Toast.LENGTH_LONG)
+        toast.show()
+        lifecycleScope.launch {
+            try {
+                val result = SyncCoordinator(requireContext()).performFullSync()
+                toast.cancel()
+                when (result) {
+                    is SyncCoordinator.SyncResult.Success ->
+                        Toast.makeText(requireContext(),
+                            "✓ Opening stock uploaded to cloud.", Toast.LENGTH_SHORT).show()
+                    is SyncCoordinator.SyncResult.Error ->
+                        Toast.makeText(requireContext(),
+                            "✗ Upload failed: ${result.message}", Toast.LENGTH_LONG).show()
+                    else ->
+                        Toast.makeText(requireContext(),
+                            "✓ Sync complete.", Toast.LENGTH_SHORT).show()
+                }
+                refreshSavedDates()
+            } catch (e: Exception) {
+                toast.cancel()
+                Toast.makeText(requireContext(),
+                    "✗ Upload error: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /**
+     * Downloads all daily stock rows from Google Sheets (including opening stock)
+     * and upserts them into the local Room database.
+     * Used after a package rename or fresh install to recover cloud data.
+     */
+    private fun restoreFromCloud() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Restore Opening Stock from Cloud")
+            .setMessage(
+                "This will download your opening stock from Google Sheets and " +
+                "restore it to this device.\n\n" +
+                "Existing local data for the same date will be overwritten.\n\n" +
+                "Continue?"
+            )
+            .setPositiveButton("Restore") { _, _ ->
+                val toast = Toast.makeText(requireContext(),
+                    "Downloading from cloud…", Toast.LENGTH_LONG)
+                toast.show()
+                lifecycleScope.launch {
+                    try {
+                        val result = SyncCoordinator(requireContext())
+                            .downloadDailyStockFromCloud()
+                        toast.cancel()
+                        when (result) {
+                            is SyncCoordinator.SyncResult.DailyStockDownSync -> {
+                                if (result.count > 0) {
+                                    Toast.makeText(requireContext(),
+                                        "✓ Restored ${result.count} row(s) from cloud.",
+                                        Toast.LENGTH_LONG).show()
+                                    loadProducts()
+                                } else {
+                                    Toast.makeText(requireContext(),
+                                        "No opening stock found in cloud.",
+                                        Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            is SyncCoordinator.SyncResult.Error ->
+                                Toast.makeText(requireContext(),
+                                    "✗ Restore failed: ${result.message}",
+                                    Toast.LENGTH_LONG).show()
+                            else ->
+                                Toast.makeText(requireContext(),
+                                    "Restore complete.", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        toast.cancel()
+                        Toast.makeText(requireContext(),
+                            "✗ Restore error: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
@@ -1156,124 +1323,4 @@ private class OpeningStockAdapter(
         val tvTotal:        TextView,
         val watchers:       Array<TextWatcher?> = arrayOfNulls(4)
     ) : RecyclerView.ViewHolder(itemView)
-}
-// ── Saved Dates Footer Adapter ────────────────────────────────────────────────
-
-private class SavedDatesAdapter(
-    private val onDelete: (date: String, count: Int) -> Unit
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-
-    data class Entry(val date: String, val count: Int, val isSelected: Boolean)
-
-    private val ITEM_HEADER = 0
-    private val ITEM_DATE   = 1
-
-    private var entries: List<Entry> = emptyList()
-
-    fun submitEntries(newEntries: List<Entry>) {
-        val oldCount = getItemCount()
-        entries = newEntries
-        val newCount = getItemCount()
-        when {
-            oldCount == 0 && newCount > 0 -> notifyItemRangeInserted(0, newCount)
-            newCount == 0 && oldCount > 0 -> notifyItemRangeRemoved(0, oldCount)
-            oldCount == newCount          -> notifyItemRangeChanged(0, newCount)
-            oldCount < newCount           -> {
-                notifyItemRangeChanged(0, oldCount)
-                notifyItemRangeInserted(oldCount, newCount - oldCount)
-            }
-            else                          -> {
-                notifyItemRangeChanged(0, newCount)
-                notifyItemRangeRemoved(newCount, oldCount - newCount)
-            }
-        }
-    }
-
-    // header row + one row per entry; hidden entirely when empty
-    override fun getItemCount() = if (entries.isEmpty()) 0 else entries.size + 1
-
-    override fun getItemViewType(position: Int) =
-        if (position == 0) ITEM_HEADER else ITEM_DATE
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val ctx = parent.context
-        fun dp(v: Int) = (v * ctx.resources.displayMetrics.density).toInt()
-
-        return if (viewType == ITEM_HEADER) {
-            val tv = TextView(ctx).apply {
-                text = "  SAVED OPENING STOCK DATES"
-                textSize = 11f
-                setTypeface(null, android.graphics.Typeface.BOLD)
-                setTextColor(android.graphics.Color.parseColor("#78909C"))
-                setBackgroundColor(android.graphics.Color.parseColor("#ECEFF1"))
-                setPadding(dp(12), dp(10), dp(12), dp(10))
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            }
-            object : RecyclerView.ViewHolder(tv) {}
-        } else {
-            val row = LinearLayout(ctx).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(dp(12), dp(10), dp(8), dp(10))
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            }
-            val tvDate = TextView(ctx).apply {
-                textSize = 13f
-                layoutParams = LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            val btnDel = Button(ctx).apply {
-                text = "🗑 Delete"
-                textSize = 11f
-                setBackgroundColor(android.graphics.Color.parseColor("#C62828"))
-                setTextColor(android.graphics.Color.WHITE)
-                layoutParams = LinearLayout.LayoutParams(dp(88), dp(36))
-            }
-            row.addView(tvDate)
-            row.addView(btnDel)
-            object : RecyclerView.ViewHolder(row) {
-                val dateText = tvDate
-                val delBtn   = btnDel
-            }
-        }
-    }
-
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        if (getItemViewType(position) == ITEM_HEADER) return
-        val entry = entries[position - 1]
-
-        val tvDate = holder.itemView.let {
-            (it as? LinearLayout)?.getChildAt(0) as? TextView
-        } ?: return
-        val btnDel = (holder.itemView as? LinearLayout)?.getChildAt(1) as? Button ?: return
-
-        val disp = try {
-            val sdf  = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            val disp = java.text.SimpleDateFormat("dd MMM yyyy (EEE)", java.util.Locale.getDefault())
-            disp.format(sdf.parse(entry.date)!!)
-        } catch (_: Exception) { entry.date }
-
-        tvDate.text = "$disp\n${entry.count} products"
-        tvDate.setTextColor(
-            if (entry.isSelected) android.graphics.Color.parseColor("#0D47A1")
-            else android.graphics.Color.parseColor("#212121")
-        )
-        tvDate.setTypeface(null,
-            if (entry.isSelected) android.graphics.Typeface.BOLD
-            else android.graphics.Typeface.NORMAL)
-
-        holder.itemView.setBackgroundColor(
-            if (entry.isSelected) android.graphics.Color.parseColor("#E3F2FD")
-            else if (position % 2 == 0) android.graphics.Color.WHITE
-            else android.graphics.Color.parseColor("#FAFAFA")
-        )
-
-        btnDel.setOnClickListener { onDelete(entry.date, entry.count) }
-    }
 }

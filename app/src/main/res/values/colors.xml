@@ -81,6 +81,13 @@
     <color name="reports_upcoming">#9333EA</color>            <!-- Purple-600   -->
     <color name="reports_upcoming_light">#F3E8FF</color>      <!-- Purple-100   -->
 
+    <!-- ── Daily stock row backgrounds ─────────────────────────── -->
+    <color name="daily_ob_row">#FFFBEB</color>               <!-- Amber-50  — Opening Balance row  -->
+    <color name="daily_pq_row">#ECFDF5</color>               <!-- Emerald-50 — Purchase row        -->
+
+    <!-- ── Daily stock CB bar ───────────────────────────────────── -->
+    <color name="daily_cb_bar">#475569</color>               <!-- Slate-600 (1 step lighter than app_sub_panel Slate-700) -->
+
     <!-- ── Purchase header ───────────────────────────────────────── -->
     <color name="app_purchase_header">#1A3828</color>
 

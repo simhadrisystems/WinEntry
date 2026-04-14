@@ -116,17 +116,17 @@ class ClosingEntryDialog : DialogFragment() {
         root.findViewById<TextView>(R.id.textBrandCode).text =
             args.getString("brandCode", "")
 
-        // Build size rows — stock-first order: NN, PP, QQ, DD
+        // Build size rows — order: QQ, PP, NN, DD (matches card column order)
         val sizes = listOf(
-            SizeRow("NN", args.getInt("nnUpb"), args.getInt("nnCB"),
-                args.getInt("nnMax"), args.getInt("nnMax") > 0,
-                args.getDouble("nnSalePrice")),
-            SizeRow("PP", args.getInt("ppUpb"), args.getInt("ppCB"),
-                args.getInt("ppMax"), args.getInt("ppMax") > 0,
-                args.getDouble("ppSalePrice")),
             SizeRow("QQ", args.getInt("qqUpb"), args.getInt("qqCB"),
                 args.getInt("qqMax"), args.getInt("qqMax") > 0,
                 args.getDouble("qqSalePrice")),
+            SizeRow("PP", args.getInt("ppUpb"), args.getInt("ppCB"),
+                args.getInt("ppMax"), args.getInt("ppMax") > 0,
+                args.getDouble("ppSalePrice")),
+            SizeRow("NN", args.getInt("nnUpb"), args.getInt("nnCB"),
+                args.getInt("nnMax"), args.getInt("nnMax") > 0,
+                args.getDouble("nnSalePrice")),
             SizeRow("DD", args.getInt("ddUpb"), args.getInt("ddCB"),
                 args.getInt("ddMax"), args.getInt("ddMax") > 0,
                 args.getDouble("ddSalePrice"))
@@ -136,9 +136,9 @@ class ClosingEntryDialog : DialogFragment() {
         sizes.forEach { totals[it.label] = it.currentTotal }
 
         // Wire up each size row
-        bindSizeRow(root, "NN", sizes[0])
+        bindSizeRow(root, "QQ", sizes[0])
         bindSizeRow(root, "PP", sizes[1])
-        bindSizeRow(root, "QQ", sizes[2])
+        bindSizeRow(root, "NN", sizes[2])
         bindSizeRow(root, "DD", sizes[3])
 
         // Cancel — dismiss with no changes

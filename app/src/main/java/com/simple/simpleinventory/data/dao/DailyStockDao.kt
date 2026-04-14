@@ -219,4 +219,18 @@ interface DailyStockDao {
     suspend fun getOpeningStockDateCounts(): List<DateCount>
 
     data class DateCount(val date: String, val productCount: Int)
+
+    /**
+     * Sync statuses for all opening-stock rows on [date].
+     * Opening stock rows are identified by: isCommitted=1, open total > 0, sale total = 0.
+     * Used by Opening Stock Setup screen to show Synced / Pending badge.
+     */
+    @Query("""
+        SELECT syncStatus FROM daily_stock
+        WHERE date = :date
+          AND isCommitted = 1
+          AND (openQq + openPp + openNn + openDd) > 0
+          AND (saleQq + salePp + saleNn + saleDd) = 0
+    """)
+    suspend fun getOpeningStockSyncStatuses(date: String): List<String>
 }

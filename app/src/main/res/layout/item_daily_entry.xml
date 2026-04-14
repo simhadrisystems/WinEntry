@@ -7,9 +7,9 @@
     android:layout_margin="3dp"
     app:cardElevation="2dp"
     app:cardCornerRadius="6dp"
-    app:cardBackgroundColor="#FFFFFF"
+    app:cardBackgroundColor="@color/app_card"
     app:strokeWidth="1dp"
-    app:strokeColor="#FFCCCCCC">
+    app:strokeColor="@color/app_divider">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -17,8 +17,8 @@
         android:orientation="vertical">
 
         <!-- ══════════════════════════════════════════════════════════
-             ROW 1: Product Name + Sale Amount + Save/Cancel buttons
-             Background: #DDEEFF normal  |  #FFF3E0 when dirty
+             ROW 1 — Product name + Sale amount + Save/Cancel
+             Background driven by adapter: blue (clean) / amber (dirty) / red (negative)
              ══════════════════════════════════════════════════════════ -->
         <LinearLayout
             android:id="@+id/rowProductName"
@@ -81,279 +81,427 @@
         </LinearLayout>
 
         <!-- ══════════════════════════════════════════════════════════
-             ROW 2: OB — Opening Balance (read-only)
-             Strip: #F5F5F5  Height: 36dp  Fields: 28dp  alpha=0.50
-             No trailing spacer — fields use full row width.
+             EXCEL TABLE ZONE — column headers · OB · PQ · SQ
+             Sits flush below the product name row (no top margin).
+             Inset 6dp from card edges; outer border frames the zone.
+             Column structure in every row:
+               [34dp label] | [QQ w=1] | [PP w=1] | [NN w=1.1] | [DD w=1]
+             The 1dp View separators are shared across all rows so
+             columns align perfectly with the sticky strip above.
              ══════════════════════════════════════════════════════════ -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="30dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="#F5F5F5"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/bg_excel_table_border">
 
-            <TextView
-                android:layout_width="34dp"
-                android:layout_height="match_parent"
-                android:text="OB"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#424242"
-                android:gravity="center_vertical" />
+            <!-- Column headers — 20dp, colour-coded QQ/PP/NN/DD; code in label cell -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp"
+                android:background="#F1F5F9">
 
-            <TextView
-                android:id="@+id/textOpeningQQ"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#1A1A1A"
-                android:gravity="center"
-                android:background="@drawable/border_green"
-                android:padding="2dp"
-                android:alpha="0.75" />
+                <!-- product code in label column — same 34dp width as data rows -->
+                <TextView
+                    android:id="@+id/textProductCode"
+                    android:layout_width="34dp"
+                    android:layout_height="match_parent"
+                    android:text=""
+                    android:textSize="9sp"
+                    android:textColor="#64748B"
+                    android:gravity="center_vertical"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
 
-            <TextView
-                android:id="@+id/textOpeningPP"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#1A1A1A"
-                android:gravity="center"
-                android:background="@drawable/border_blue"
-                android:padding="2dp"
-                android:layout_marginStart="3dp"
-                android:alpha="0.75" />
+                <!-- vertical separator after label column -->
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
 
-            <TextView
-                android:id="@+id/textOpeningNN"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1.1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#1A1A1A"
-                android:gravity="center"
-                android:background="@drawable/border_orange"
-                android:padding="2dp"
-                android:layout_marginStart="3dp"
-                android:alpha="0.75" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="QQ"
+                    android:textSize="13sp"
+                    android:textColor="#FF4CAF50"
+                    android:gravity="center"
+                    android:includeFontPadding="false" />
 
-            <TextView
-                android:id="@+id/textOpeningDD"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#1A1A1A"
-                android:gravity="center"
-                android:background="@drawable/border_purple"
-                android:padding="2dp"
-                android:layout_marginStart="3dp"
-                android:alpha="0.75" />
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="PP"
+                    android:textSize="13sp"
+                    android:textColor="#FF2196F3"
+                    android:gravity="center"
+                    android:includeFontPadding="false" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.1"
+                    android:text="NN"
+                    android:textSize="13sp"
+                    android:textColor="#FFFF9800"
+                    android:gravity="center"
+                    android:includeFontPadding="false" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="DD"
+                    android:textSize="13sp"
+                    android:textColor="#FF9C27B0"
+                    android:gravity="center"
+                    android:includeFontPadding="false" />
+
+            </LinearLayout>
+
+            <!-- horizontal divider: headers → OB -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/app_divider" />
+
+            <!-- OB row — read-only, no box borders; bold slate text -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp"
+                android:background="@color/daily_ob_row">
+
+                <TextView
+                    android:layout_width="34dp"
+                    android:layout_height="match_parent"
+                    android:text="OB"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center_vertical" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textOpeningQQ"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textOpeningPP"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textOpeningNN"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textOpeningDD"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+            </LinearLayout>
+
+            <!-- horizontal divider: OB → PQ -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/app_divider" />
+
+            <!-- PQ row — editable; adapter sets EditText background to transparent (no borders).
+                 Row BG gives visual zone; hint="0" shows placeholder when blank. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp"
+                android:background="@color/daily_pq_row">
+
+                <TextView
+                    android:layout_width="34dp"
+                    android:layout_height="match_parent"
+                    android:text="PQ"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center_vertical" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <EditText
+                    android:id="@+id/editPurchaseQQ"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:hint="–"
+                    android:textSize="17sp"
+                    android:textColor="#C62828"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:imeOptions="actionNext"
+                    android:selectAllOnFocus="true"
+                    android:background="@drawable/border_green"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <EditText
+                    android:id="@+id/editPurchasePP"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:hint="–"
+                    android:textSize="17sp"
+                    android:textColor="#C62828"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:imeOptions="actionNext"
+                    android:selectAllOnFocus="true"
+                    android:background="@drawable/border_blue"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <EditText
+                    android:id="@+id/editPurchaseNN"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1.1"
+                    android:hint="–"
+                    android:textSize="17sp"
+                    android:textColor="#C62828"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:imeOptions="actionNext"
+                    android:selectAllOnFocus="true"
+                    android:background="@drawable/border_orange"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <EditText
+                    android:id="@+id/editPurchaseDD"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:hint="–"
+                    android:textSize="17sp"
+                    android:textColor="#C62828"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:imeOptions="actionNext"
+                    android:selectAllOnFocus="true"
+                    android:background="@drawable/border_purple"
+                    android:padding="2dp" />
+
+            </LinearLayout>
+
+            <!-- horizontal divider: PQ → SQ -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/app_divider" />
+
+            <!-- SQ row — read-only calculated; adapter sets textColor only -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="34dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp"
+                android:background="@color/app_surface">
+
+                <TextView
+                    android:layout_width="34dp"
+                    android:layout_height="match_parent"
+                    android:text="SQ"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#334155"
+                    android:gravity="center_vertical" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textSaleQQ"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF4CAF50"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textSalePP"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF2196F3"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textSaleNN"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1.1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFF9800"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/app_divider" />
+
+                <TextView
+                    android:id="@+id/textSaleDD"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9C27B0"
+                    android:gravity="center"
+                    android:padding="2dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
-
-        <!-- hairline divider -->
-
+        <!-- end EXCEL TABLE ZONE -->
 
         <!-- ══════════════════════════════════════════════════════════
-             ROW 3: PQ — Purchase Quantity (editable)
-             Strip: #EDF4FF  Height: 36dp  Fields: 28dp
+             CB ROW — "Totals bar" matching sticky strip colour.
+             Sits 5dp below the table zone for visual separation.
+             Adapter overrides: EditText backgrounds (applyFieldState),
+             btnEditClosing background (green patch in BALANCE mode).
+             Text colours are XML-only — adapter does not touch them.
              ══════════════════════════════════════════════════════════ -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="30dp"
+            android:layout_height="44dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="#EDF4FF"
+            android:background="@color/daily_cb_bar"
+            android:layout_marginTop="5dp"
             android:paddingStart="8dp"
-            android:paddingEnd="8dp">
+            android:paddingEnd="4dp">
 
-            <TextView
-                android:layout_width="34dp"
-                android:layout_height="match_parent"
-                android:text="PQ"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#424242"
-                android:gravity="center_vertical" />
-
-            <EditText
-                android:id="@+id/editPurchaseQQ"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#C62828"
-                android:gravity="center"
-                android:inputType="number"
-                android:imeOptions="actionNext"
-                android:selectAllOnFocus="true"
-                android:background="@drawable/border_green"
-                android:padding="2dp" />
-
-            <EditText
-                android:id="@+id/editPurchasePP"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#C62828"
-                android:gravity="center"
-                android:inputType="number"
-                android:imeOptions="actionNext"
-                android:selectAllOnFocus="true"
-                android:background="@drawable/border_blue"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-            <EditText
-                android:id="@+id/editPurchaseNN"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1.1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#C62828"
-                android:gravity="center"
-                android:inputType="number"
-                android:imeOptions="actionNext"
-                android:selectAllOnFocus="true"
-                android:background="@drawable/border_orange"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-            <EditText
-                android:id="@+id/editPurchaseDD"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="18sp"
-                android:textColor="#C62828"
-                android:gravity="center"
-                android:inputType="number"
-                android:imeOptions="actionNext"
-                android:selectAllOnFocus="true"
-                android:background="@drawable/border_purple"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-        </LinearLayout>
-
-        <!-- hairline divider -->
-
-
-        <!-- ══════════════════════════════════════════════════════════
-             ROW 4: SQ — Sale Quantity (read-only, calculated)
-             Strip: #F5F5F5  Height: 36dp  Fields: 28dp  alpha=0.50
-             ══════════════════════════════════════════════════════════ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="30dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="#F5F5F5"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp">
-
-            <TextView
-                android:layout_width="34dp"
-                android:layout_height="match_parent"
-                android:text="SQ"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#424242"
-                android:gravity="center_vertical" />
-
-            <TextView
-                android:id="@+id/textSaleQQ"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="19sp"
-                android:textColor="#FF4CAF50"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:background="@drawable/border_green"
-                android:padding="2dp" />
-
-            <TextView
-                android:id="@+id/textSalePP"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="19sp"
-                android:textColor="#FF2196F3"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:background="@drawable/border_blue"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-            <TextView
-                android:id="@+id/textSaleNN"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1.1"
-                android:text="0"
-                android:textSize="19sp"
-                android:textColor="#FFFF9800"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:background="@drawable/border_orange"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-            <TextView
-                android:id="@+id/textSaleDD"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:text="0"
-                android:textSize="19sp"
-                android:textColor="#FF9C27B0"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:background="@drawable/border_purple"
-                android:padding="2dp"
-                android:layout_marginStart="3dp" />
-
-        </LinearLayout>
-
-        <!-- ══════════════════════════════════════════════════════════
-             ROW 5: CB — Closing Balance (editable)
-             Strip: #EDFFF0  Height: 39dp  Fields: 31dp  17sp bold
-
-             CB label area (id=btnEditClosing, 34dp wide LinearLayout):
-               • Always visible in all modes
-               • "CB" bold dark-green on top, zero gap,
-                 "entry" small red italic below — like an underline
-               • Adapter sets background to bright green + clickable
-                 in BALANCE mode; transparent + non-clickable otherwise
-             Fields use full remaining width (no trailing spacer)
-             ══════════════════════════════════════════════════════════ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="41dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="#EDFFF0"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp">
-
-            <!-- CB label container — id used by adapter for click + bg -->
+            <!-- CB label area — adapter sets background green (#A5D6A7) in BALANCE mode -->
             <LinearLayout
                 android:id="@+id/btnEditClosing"
                 android:layout_width="34dp"
@@ -370,19 +518,18 @@
                     android:text="CB"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="#1B5E20"
+                    android:textColor="#FFFFFF"
                     android:lineSpacingExtra="0dp"
                     android:includeFontPadding="false" />
 
-                <!-- "entry" sits flush below "CB" like an underline caption -->
                 <TextView
                     android:id="@+id/textCbEntryLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Entry"
                     android:textSize="9sp"
-                    android:textStyle="italic"
-                    android:textColor="#C62828"
+                    android:textStyle="bold|italic"
+                    android:textColor="#1B5E20"
                     android:includeFontPadding="false"
                     android:lineSpacingExtra="0dp"
                     android:visibility="invisible" />
@@ -392,12 +539,12 @@
             <EditText
                 android:id="@+id/editClosingQQ"
                 android:layout_width="0dp"
-                android:layout_height="31dp"
+                android:layout_height="33dp"
                 android:layout_weight="1"
                 android:text="0"
                 android:textSize="19sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="#F8FAFC"
                 android:gravity="center"
                 android:inputType="number"
                 android:imeOptions="actionNext"
@@ -408,12 +555,12 @@
             <EditText
                 android:id="@+id/editClosingPP"
                 android:layout_width="0dp"
-                android:layout_height="31dp"
+                android:layout_height="33dp"
                 android:layout_weight="1"
                 android:text="0"
                 android:textSize="19sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="#F8FAFC"
                 android:gravity="center"
                 android:inputType="number"
                 android:imeOptions="actionNext"
@@ -425,12 +572,12 @@
             <EditText
                 android:id="@+id/editClosingNN"
                 android:layout_width="0dp"
-                android:layout_height="31dp"
+                android:layout_height="33dp"
                 android:layout_weight="1.1"
                 android:text="0"
                 android:textSize="19sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="#F8FAFC"
                 android:gravity="center"
                 android:inputType="number"
                 android:imeOptions="actionNext"
@@ -442,12 +589,12 @@
             <EditText
                 android:id="@+id/editClosingDD"
                 android:layout_width="0dp"
-                android:layout_height="31dp"
+                android:layout_height="33dp"
                 android:layout_weight="1"
                 android:text="0"
                 android:textSize="19sp"
                 android:textStyle="bold"
-                android:textColor="#1A1A1A"
+                android:textColor="#F8FAFC"
                 android:gravity="center"
                 android:inputType="number"
                 android:imeOptions="actionNext"
@@ -457,6 +604,7 @@
                 android:layout_marginStart="3dp" />
 
         </LinearLayout>
+        <!-- end CB ROW -->
 
     </LinearLayout>
 

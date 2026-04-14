@@ -50,7 +50,6 @@ class DailyStockFragment : Fragment() {
     private val viewModel: DailyStockViewModel by viewModels()
     private val dataViewModel: DailyStockDataViewModel by viewModels()
     private lateinit var adapter: DailyEntryAdapter
-    private lateinit var saleTotalAdapter: SaleTotalAdapter
     private lateinit var reconciliationFooterAdapter: StaticFooterAdapter
     private var currentTotalSale: Double = 0.0
     // Direct reference to footer views — set in wireFooter, used to push
@@ -141,29 +140,14 @@ class DailyStockFragment : Fragment() {
             }
         }
 
-        // Overflow ⋮ button — shows popup menu with all actions + Purchase Entry mode
+        // Overflow ⋮ button — shows popup menu with all actions
         binding.menuButton.setOnClickListener { anchor ->
             val popup = androidx.appcompat.widget.PopupMenu(requireContext(), anchor)
             popup.menuInflater.inflate(R.menu.menu_daily_stock, popup.menu)
-            // Add Purchase Entry as a menu item at the top
-            val PURCHASE_MODE_ID       = 0x7fff0001
             val RESTORE_FROM_CLOUD_ID  = 0x7fff0002
-            popup.menu.add(0, PURCHASE_MODE_ID,      0, "📦 Purchase Entry")
-            popup.menu.add(0, RESTORE_FROM_CLOUD_ID, 1, "☁️ Restore Daily Stock from Cloud")
-            // Total sale shown as scrollable header above the product list
+            popup.menu.add(0, RESTORE_FROM_CLOUD_ID, 0, "☁️ Restore Daily Stock from Cloud")
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
-                    PURCHASE_MODE_ID -> {
-                        MaterialAlertDialogBuilder(requireContext())
-                            .setTitle("📦 Purchase Entry")
-                            .setMessage(
-                                "Purchase entries are managed in the Purchases module.\n\n" +
-                                "Purchases are reflected automatically in the PQ row as soon as they are entered."
-                            )
-                            .setPositiveButton("OK", null)
-                            .show()
-                        true
-                    }
                     RESTORE_FROM_CLOUD_ID -> {
                         com.simple.simpleinventory.sync.SyncHelper.downloadDailyStockFromCloud(
                             context    = requireContext(),
@@ -262,8 +246,7 @@ class DailyStockFragment : Fragment() {
                 for (pos in (currentPosition + 1)..list.lastIndex) {
                     val entry = list[pos]
                     val hasEditableField = when (mode) {
-                        DailyStockViewModel.EntryMode.PURCHASE -> true  // purchase fields always enabled
-                        DailyStockViewModel.EntryMode.BALANCE  ->
+                        DailyStockViewModel.EntryMode.BALANCE ->
                             (entry.opening.qq + entry.purchase.qq) > 0 ||
                             (entry.opening.pp + entry.purchase.pp) > 0 ||
                             (entry.opening.nn + entry.purchase.nn) > 0 ||
@@ -274,15 +257,10 @@ class DailyStockFragment : Fragment() {
                 }
                 if (targetPosition < 0) return@DailyEntryAdapter  // no more editable cards
 
-                // ConcatAdapter offset: saleTotalAdapter sits before DailyEntryAdapter
-                // so RecyclerView global position = targetPosition + saleTotalAdapter.itemCount
-                val rvPosition = targetPosition + saleTotalAdapter.itemCount
+                val rvPosition = targetPosition
 
                 val fieldIds = when (mode) {
-                    DailyStockViewModel.EntryMode.PURCHASE ->
-                        listOf(R.id.editPurchaseQQ, R.id.editPurchasePP,
-                               R.id.editPurchaseNN, R.id.editPurchaseDD)
-                    DailyStockViewModel.EntryMode.BALANCE  ->
+                    DailyStockViewModel.EntryMode.BALANCE ->
                         listOf(R.id.editClosingQQ, R.id.editClosingPP,
                                R.id.editClosingNN, R.id.editClosingDD)
                     else -> emptyList()
@@ -328,14 +306,11 @@ class DailyStockFragment : Fragment() {
             isProductDirty    = { productId -> viewModel.isProductDirty(productId) }
         )
 
-        saleTotalAdapter = SaleTotalAdapter()
-
         reconciliationFooterAdapter = StaticFooterAdapter(layoutInflater)
 
         concatAdapter = ConcatAdapter(
-            saleTotalAdapter,
             this@DailyStockFragment.adapter
-            // footer added in applyEntries on first non-empty result
+            // reconciliationFooterAdapter added in applyEntries on first non-empty result
         )
         binding.productRecyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -415,16 +390,19 @@ class DailyStockFragment : Fragment() {
     }
 
     private fun updateModeToggleButton(mode: DailyStockViewModel.EntryMode) {
-        // Button is exactly 42dp wide (fixed in XML) — never reflows regardless of text.
+        // Label shows the ACTION (what tapping will do), not the current state.
+        // Green background signals that CB Entry mode is currently active.
         binding.btnModeToggle.apply {
             when (mode) {
                 DailyStockViewModel.EntryMode.BALANCE -> {
-                    text = "CB Entry"
+                    // Currently in CB Entry mode — tap to go back to view
+                    text = "View\nOnly"
                     backgroundTintList = android.content.res.ColorStateList.valueOf(
                         android.graphics.Color.parseColor("#FF388E3C"))
                 }
                 else -> {
-                    text = "View Only"
+                    // Currently in View mode — tap to enter CB Entry
+                    text = "CB\nEntry"
                     backgroundTintList = android.content.res.ColorStateList.valueOf(
                         android.graphics.Color.parseColor("#44FFFFFF"))
                 }
@@ -844,7 +822,10 @@ class DailyStockFragment : Fragment() {
             entry.sale.dd * entry.product.ddSalePrice
         }
         currentTotalSale = total
-        saleTotalAdapter.updateTotal(total)
+        val indFmt = java.text.NumberFormat.getInstance(java.util.Locale("en", "IN")).apply {
+            minimumFractionDigits = 2; maximumFractionDigits = 2
+        }
+        binding.textTotalSaleStrip.text = "₹${indFmt.format(total)}"
         reconciliationViewModel.setTotalDaySales(total)
         footerFormatRupee?.let { fmt -> footerTextTotal?.text = fmt(total) }
 
@@ -1603,22 +1584,76 @@ class DailyStockFragment : Fragment() {
             .setTitle("Clear Current Date Data")
             .setMessage("Delete all stock entries for $date?\nThis cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
-                dataViewModel.clearDateData(date)
-                Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    dataViewModel.clearDateDataAwait(date)
+                    viewModel.clearDirty()
+                    viewModel.loadEntriesForDate()
+                    Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun clearAllDailyStock() {
+        // Stage 1 — initial warning
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Clear ALL Daily Stock Data")
-            .setMessage("Delete the ENTIRE daily stock history?\nThis cannot be undone!")
-            .setPositiveButton("Delete All") { _, _ ->
-                dataViewModel.clearAllData()
-                Toast.makeText(requireContext(), "Cleared all daily stock data", Toast.LENGTH_SHORT).show()
-            }
+            .setTitle("⚠ Clear ALL Daily Stock Data")
+            .setMessage(
+                "This will permanently delete the ENTIRE stock history across ALL dates.\n\n" +
+                "This action cannot be undone."
+            )
             .setNegativeButton("Cancel", null)
+            .setPositiveButton("Continue…") { _, _ -> showClearAllConfirmation() }
             .show()
+    }
+
+    /** Stage 2 — user must type DELETE ALL to unlock the confirm button. */
+    private fun showClearAllConfirmation() {
+        val density = resources.displayMetrics.density
+        val input = android.widget.EditText(requireContext()).apply {
+            hint = "Type  DELETE ALL"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            gravity = android.view.Gravity.CENTER
+            textSize = 15f
+        }
+        val container = android.widget.FrameLayout(requireContext()).apply {
+            val px = (20 * density).toInt()
+            setPadding(px, (8 * density).toInt(), px, 0)
+            addView(input)
+        }
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Confirm — Delete All History")
+            .setMessage("Type  DELETE ALL  to confirm:")
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Delete All", null)   // null → manual dismiss control
+            .show()
+
+        val confirmBtn = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).also {
+            it.isEnabled = false
+            it.setTextColor(android.graphics.Color.parseColor("#B71C1C"))
+        }
+
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+            override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                confirmBtn.isEnabled =
+                    s?.toString()?.trim().equals("DELETE ALL", ignoreCase = true)
+            }
+        })
+
+        confirmBtn.setOnClickListener {
+            dialog.dismiss()
+            lifecycleScope.launch {
+                dataViewModel.clearAllDataAwait()
+                viewModel.clearDirty()
+                viewModel.loadEntriesForDate()
+                Toast.makeText(requireContext(), "All daily stock data cleared", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

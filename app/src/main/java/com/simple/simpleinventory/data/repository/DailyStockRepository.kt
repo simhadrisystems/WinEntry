@@ -352,6 +352,10 @@ class DailyStockRepository(
     suspend fun getPendingSyncStock(): List<DailyStock> =
         dailyStockDao.getPendingSyncStock()
 
+    /** Returns sync statuses for opening-stock rows on [date] (used for the cloud badge). */
+    suspend fun getOpeningStockSyncStatuses(date: String): List<String> =
+        dailyStockDao.getOpeningStockSyncStatuses(date)
+
     suspend fun markStockAsSynced(date: String, productCode: String) =
         dailyStockDao.markStockAsSynced(date, productCode)
 

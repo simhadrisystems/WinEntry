@@ -33,8 +33,14 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_danger_divider"
+        android:title="──────────────────"
+        android:enabled="false"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_clear_all_daily_stock"
-        android:title="Clear All Daily Stock Data"
+        android:title="⚠ Clear All History (All Dates)"
         app:showAsAction="never" />
 
 </menu>

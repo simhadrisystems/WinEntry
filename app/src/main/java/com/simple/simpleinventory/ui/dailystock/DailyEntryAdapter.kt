@@ -47,16 +47,17 @@ class DailyEntryAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
-        when {
-            payloads.contains(PAYLOAD_DIRTY_CHANGED) ->
-                // Only dirty state changed — update name row highlight only
-                holder.bindDirtyIndicatorOnly(getItem(position))
-            payloads.contains(PAYLOAD_VALUES_CHANGED) ->
-                // Only numeric values changed (date navigation) — update numbers only
-                holder.bindValuesOnly(getItem(position))
-            else ->
-                holder.bind(getItem(position), position)
+        if (payloads.isEmpty()) {
+            holder.bind(getItem(position), position)
+            return
         }
+        // Payloads can be merged into a single call by RecyclerView — handle each independently
+        // so that DIRTY_CHANGED never suppresses VALUES_CHANGED (e.g. after dialog CB save).
+        if (payloads.contains(PAYLOAD_VALUES_CHANGED)) holder.bindValuesOnly(getItem(position))
+        if (payloads.contains(PAYLOAD_DIRTY_CHANGED))  holder.bindDirtyIndicatorOnly(getItem(position))
+        // Unknown payload → full bind
+        if (!payloads.contains(PAYLOAD_VALUES_CHANGED) && !payloads.contains(PAYLOAD_DIRTY_CHANGED))
+            holder.bind(getItem(position), position)
     }
 
     companion object {
@@ -84,6 +85,9 @@ class DailyEntryAdapter(
             watchers.clear()
 
             binding.apply {
+
+                // Product code in column-header label cell (fine print, top-left)
+                textProductCode.text = entry.product.brandCode
 
                 // Product name prefixed with its display position number
                 val posLabel = if (entry.product.dailySortKey in 1..998) "${entry.product.dailySortKey}. " else ""
@@ -122,10 +126,10 @@ class DailyEntryAdapter(
                 }
 
                 // ── Static rows ───────────────────────────────────
-                textOpeningQQ.text = entry.opening.qq.toString()
-                textOpeningPP.text = entry.opening.pp.toString()
-                textOpeningNN.text = entry.opening.nn.toString()
-                textOpeningDD.text = entry.opening.dd.toString()
+                textOpeningQQ.text = if (entry.opening.qq == 0) "–" else entry.opening.qq.toString()
+                textOpeningPP.text = if (entry.opening.pp == 0) "–" else entry.opening.pp.toString()
+                textOpeningNN.text = if (entry.opening.nn == 0) "–" else entry.opening.nn.toString()
+                textOpeningDD.text = if (entry.opening.dd == 0) "–" else entry.opening.dd.toString()
 
                 // Sale values: 25% dimmed accent colour (read-only), red if negative
                 val negativeColor = android.graphics.Color.parseColor("#C62828")
@@ -134,23 +138,23 @@ class DailyEntryAdapter(
                 val sqNN = dimColor(colorNN, 0.75f)
                 val sqDD = dimColor(colorDD, 0.75f)
 
-                textSaleQQ.text = entry.sale.qq.toString()
+                textSaleQQ.text = if (entry.sale.qq == 0) "–" else entry.sale.qq.toString()
                 textSaleQQ.setTextColor(if (entry.sale.qq < 0) negativeColor else sqQQ)
 
-                textSalePP.text = entry.sale.pp.toString()
+                textSalePP.text = if (entry.sale.pp == 0) "–" else entry.sale.pp.toString()
                 textSalePP.setTextColor(if (entry.sale.pp < 0) negativeColor else sqPP)
 
-                textSaleNN.text = entry.sale.nn.toString()
+                textSaleNN.text = if (entry.sale.nn == 0) "–" else entry.sale.nn.toString()
                 textSaleNN.setTextColor(if (entry.sale.nn < 0) negativeColor else sqNN)
 
-                textSaleDD.text = entry.sale.dd.toString()
+                textSaleDD.text = if (entry.sale.dd == 0) "–" else entry.sale.dd.toString()
                 textSaleDD.setTextColor(if (entry.sale.dd < 0) negativeColor else sqDD)
 
                 // ── Editable rows ─────────────────────────────────
-                editPurchaseQQ.setText(entry.purchase.qq.toString())
-                editPurchasePP.setText(entry.purchase.pp.toString())
-                editPurchaseNN.setText(entry.purchase.nn.toString())
-                editPurchaseDD.setText(entry.purchase.dd.toString())
+                editPurchaseQQ.setText(if (entry.purchase.qq == 0) "" else entry.purchase.qq.toString())
+                editPurchasePP.setText(if (entry.purchase.pp == 0) "" else entry.purchase.pp.toString())
+                editPurchaseNN.setText(if (entry.purchase.nn == 0) "" else entry.purchase.nn.toString())
+                editPurchaseDD.setText(if (entry.purchase.dd == 0) "" else entry.purchase.dd.toString())
 
                 editClosingQQ.setText(entry.closing.qq.toString())
                 editClosingPP.setText(entry.closing.pp.toString())
@@ -159,7 +163,7 @@ class DailyEntryAdapter(
 
                 // ── Visual states ─────────────────────────────────
                 val mode            = getEntryMode()
-                val purchaseEnabled = mode == DailyStockViewModel.EntryMode.PURCHASE
+                val purchaseEnabled = false   // PURCHASE mode removed; PQ row is read-only display
                 val closingEnabled  = mode == DailyStockViewModel.EntryMode.BALANCE
                 val viewMode        = mode == DailyStockViewModel.EntryMode.VIEW
 
@@ -169,21 +173,22 @@ class DailyEntryAdapter(
                 val nnHasStock = (entry.opening.nn + entry.purchase.nn) > 0
                 val ddHasStock = (entry.opening.dd + entry.purchase.dd) > 0
 
-                // In VIEW mode, all fields disabled with 50% dim borders
+                // In VIEW mode, purchase fields have no border (transparent); CB fields dimmed
                 if (viewMode) {
-                    applyFieldState(editPurchaseQQ, false, colorQQ)
-                    applyFieldState(editPurchasePP, false, colorPP)
-                    applyFieldState(editPurchaseNN, false, colorNN)
-                    applyFieldState(editPurchaseDD, false, colorDD)
+                    applyFieldState(editPurchaseQQ, false, colorQQ, febleBorder = true)
+                    applyFieldState(editPurchasePP, false, colorPP, febleBorder = true)
+                    applyFieldState(editPurchaseNN, false, colorNN, febleBorder = true)
+                    applyFieldState(editPurchaseDD, false, colorDD, febleBorder = true)
                     applyFieldState(editClosingQQ,  false, colorQQ, alwaysAccentText = true)
                     applyFieldState(editClosingPP,  false, colorPP, alwaysAccentText = true)
                     applyFieldState(editClosingNN,  false, colorNN, alwaysAccentText = true)
                     applyFieldState(editClosingDD,  false, colorDD, alwaysAccentText = true)
                 } else {
-                    applyFieldState(editPurchaseQQ, purchaseEnabled, colorQQ)
-                    applyFieldState(editPurchasePP, purchaseEnabled, colorPP)
-                    applyFieldState(editPurchaseNN, purchaseEnabled, colorNN)
-                    applyFieldState(editPurchaseDD, purchaseEnabled, colorDD)
+                    // febleBorder=true → 1dp 40%-opacity stroke so PQ boxes recede
+                    applyFieldState(editPurchaseQQ, purchaseEnabled, colorQQ, febleBorder = true)
+                    applyFieldState(editPurchasePP, purchaseEnabled, colorPP, febleBorder = true)
+                    applyFieldState(editPurchaseNN, purchaseEnabled, colorNN, febleBorder = true)
+                    applyFieldState(editPurchaseDD, purchaseEnabled, colorDD, febleBorder = true)
                     // Closing only enabled if in BALANCE mode AND has stock
                     applyFieldState(editClosingQQ,  closingEnabled && qqHasStock,  colorQQ, alwaysAccentText = true)
                     applyFieldState(editClosingPP,  closingEnabled && ppHasStock,  colorPP, alwaysAccentText = true)
@@ -279,7 +284,8 @@ class DailyEntryAdapter(
 
         // ── Visual state ─────────────────────────────────────────
         private fun applyFieldState(et: EditText, enabled: Boolean, accent: Int,
-                                       alwaysAccentText: Boolean = false) {
+                                       alwaysAccentText: Boolean = false,
+                                       febleBorder: Boolean = false) {
             et.isEnabled              = enabled
             et.isFocusable            = enabled
             et.isFocusableInTouchMode = enabled
@@ -288,18 +294,24 @@ class DailyEntryAdapter(
             //   border uses 50% dim (50% opacity) always when disabled
             et.alpha = 1.0f
 
-            // Text: 25% dim when disabled (75% opacity of accent or near-black)
+            // Text: PQ row (febleBorder) always red; otherwise accent when enabled
             val textColor = when {
-                enabled                         -> accent
-                alwaysAccentText                -> dimColor(accent, 0.75f)
-                else                            -> android.graphics.Color.parseColor("#1A1A1A")
+                febleBorder      -> Color.parseColor("#C62828")
+                enabled          -> accent
+                alwaysAccentText -> dimColor(accent, 0.75f)
+                else             -> android.graphics.Color.parseColor("#1A1A1A")
             }
             et.setTextColor(textColor)
 
-            // Border: full accent when enabled (thick 2dp)
-            //         50% alpha accent when disabled (thin 1dp) — border dims, text stays readable
-            et.background = if (enabled) buildBorder(accent, 2)
-                            else         buildBorder(dimColor(accent, 0.50f), 1)
+            // Border: full 2dp accent when enabled normally (StateListDrawable handles focus
+            //         highlight automatically — no focus listener needed)
+            //         febleBorder=true (PQ row): always transparent — no box, BG color alone
+            //         disabled: 1dp at 50% opacity always
+            et.background = when {
+                febleBorder -> android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+                enabled     -> buildEnabledBackground(accent)
+                else        -> buildBorder(dimColor(accent, 0.50f), 1)
+            }
         }
 
         /** Return [color] at [opacity] (0.0 fully transparent … 1.0 fully opaque). */
@@ -316,6 +328,26 @@ class DailyEntryAdapter(
                 setColor(Color.TRANSPARENT)
                 setStroke((dp * density).toInt(), color)
                 cornerRadius = 4f * density
+            }
+        }
+
+        /** StateListDrawable for an enabled CB cell.
+         *  Android applies the focused state automatically — no listener needed.
+         *  Focused  → 30% accent fill + 2dp stroke (cell lights up distinctly)
+         *  Default  → transparent fill + 2dp stroke (cell recedes) */
+        private fun buildEnabledBackground(accent: Int): android.graphics.drawable.StateListDrawable {
+            val density  = itemView.resources.displayMetrics.density
+            val fillColor = (accent and 0x00FFFFFF) or (0x4D shl 24) // 30% opacity
+            val focused  = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(fillColor)
+                setStroke((2 * density).toInt(), accent)
+                cornerRadius = 4f * density
+            }
+            val normal   = buildBorder(accent, 2)
+            return android.graphics.drawable.StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), focused)
+                addState(intArrayOf(), normal)
             }
         }
 
@@ -365,17 +397,18 @@ class DailyEntryAdapter(
         fun bindValuesOnly(entry: DailyEntry) {
             isBinding = true
             binding.apply {
+                textProductCode.text = entry.product.brandCode
                 // Opening
-                textOpeningQQ.text = entry.opening.qq.toString()
-                textOpeningPP.text = entry.opening.pp.toString()
-                textOpeningNN.text = entry.opening.nn.toString()
-                textOpeningDD.text = entry.opening.dd.toString()
+                textOpeningQQ.text = if (entry.opening.qq == 0) "–" else entry.opening.qq.toString()
+                textOpeningPP.text = if (entry.opening.pp == 0) "–" else entry.opening.pp.toString()
+                textOpeningNN.text = if (entry.opening.nn == 0) "–" else entry.opening.nn.toString()
+                textOpeningDD.text = if (entry.opening.dd == 0) "–" else entry.opening.dd.toString()
 
                 // Purchase (read-only display — watchers handle edits)
-                editPurchaseQQ.setText(entry.purchase.qq.toString())
-                editPurchasePP.setText(entry.purchase.pp.toString())
-                editPurchaseNN.setText(entry.purchase.nn.toString())
-                editPurchaseDD.setText(entry.purchase.dd.toString())
+                editPurchaseQQ.setText(if (entry.purchase.qq == 0) "" else entry.purchase.qq.toString())
+                editPurchasePP.setText(if (entry.purchase.pp == 0) "" else entry.purchase.pp.toString())
+                editPurchaseNN.setText(if (entry.purchase.nn == 0) "" else entry.purchase.nn.toString())
+                editPurchaseDD.setText(if (entry.purchase.dd == 0) "" else entry.purchase.dd.toString())
 
                 // Closing
                 editClosingQQ.setText(entry.closing.qq.toString())
@@ -387,13 +420,13 @@ class DailyEntryAdapter(
                 val negativeColor = android.graphics.Color.parseColor("#C62828")
                 val sqQQ = dimColor(colorQQ, 0.75f); val sqPP = dimColor(colorPP, 0.75f)
                 val sqNN = dimColor(colorNN, 0.75f); val sqDD = dimColor(colorDD, 0.75f)
-                textSaleQQ.text = entry.sale.qq.toString()
+                textSaleQQ.text = if (entry.sale.qq == 0) "–" else entry.sale.qq.toString()
                 textSaleQQ.setTextColor(if (entry.sale.qq < 0) negativeColor else sqQQ)
-                textSalePP.text = entry.sale.pp.toString()
+                textSalePP.text = if (entry.sale.pp == 0) "–" else entry.sale.pp.toString()
                 textSalePP.setTextColor(if (entry.sale.pp < 0) negativeColor else sqPP)
-                textSaleNN.text = entry.sale.nn.toString()
+                textSaleNN.text = if (entry.sale.nn == 0) "–" else entry.sale.nn.toString()
                 textSaleNN.setTextColor(if (entry.sale.nn < 0) negativeColor else sqNN)
-                textSaleDD.text = entry.sale.dd.toString()
+                textSaleDD.text = if (entry.sale.dd == 0) "–" else entry.sale.dd.toString()
                 textSaleDD.setTextColor(if (entry.sale.dd < 0) negativeColor else sqDD)
 
                 // Sale amount
@@ -497,7 +530,8 @@ class DailyEntryAdapter(
                     val value = s?.toString()?.toIntOrNull() ?: 0
 
                     if (isPurchase) {
-                        editText.background = buildBorder(accent, 2)
+                        // PQ row has no borders — keep transparent so typing doesn't restore box
+                        editText.background = android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
                         editText.error = null
                         onPurchaseChanged(entry.product.id, size, value)
                         onDataChanged(entry.product.id)
@@ -516,19 +550,19 @@ class DailyEntryAdapter(
                         when (size) {
                             "QQ" -> {
                                 binding.editClosingQQ.setText(newClosing.toString())
-                                binding.textSaleQQ.text = newSale.toString()
+                                binding.textSaleQQ.text = if (newSale == 0) "–" else newSale.toString()
                             }
                             "PP" -> {
                                 binding.editClosingPP.setText(newClosing.toString())
-                                binding.textSalePP.text = newSale.toString()
+                                binding.textSalePP.text = if (newSale == 0) "–" else newSale.toString()
                             }
                             "NN" -> {
                                 binding.editClosingNN.setText(newClosing.toString())
-                                binding.textSaleNN.text = newSale.toString()
+                                binding.textSaleNN.text = if (newSale == 0) "–" else newSale.toString()
                             }
                             "DD" -> {
                                 binding.editClosingDD.setText(newClosing.toString())
-                                binding.textSaleDD.text = newSale.toString()
+                                binding.textSaleDD.text = if (newSale == 0) "–" else newSale.toString()
                             }
                         }
                         updateSaleAmount(entry)
@@ -578,10 +612,10 @@ class DailyEntryAdapter(
 
                             // Update Sale field immediately in UI
                             when (size) {
-                                "QQ" -> binding.textSaleQQ.text = newSale.toString()
-                                "PP" -> binding.textSalePP.text = newSale.toString()
-                                "NN" -> binding.textSaleNN.text = newSale.toString()
-                                "DD" -> binding.textSaleDD.text = newSale.toString()
+                                "QQ" -> binding.textSaleQQ.text = if (newSale == 0) "–" else newSale.toString()
+                                "PP" -> binding.textSalePP.text = if (newSale == 0) "–" else newSale.toString()
+                                "NN" -> binding.textSaleNN.text = if (newSale == 0) "–" else newSale.toString()
+                                "DD" -> binding.textSaleDD.text = if (newSale == 0) "–" else newSale.toString()
                             }
                             updateSaleAmount(entry)
                         }
@@ -612,10 +646,11 @@ class DailyEntryAdapter(
          * Called whenever sale quantities change
          */
         private fun updateSaleAmount(entry: DailyEntry) {
-            val qqSale = binding.textSaleQQ.text.toString().toIntOrNull() ?: 0
-            val ppSale = binding.textSalePP.text.toString().toIntOrNull() ?: 0
-            val nnSale = binding.textSaleNN.text.toString().toIntOrNull() ?: 0
-            val ddSale = binding.textSaleDD.text.toString().toIntOrNull() ?: 0
+            // "–" is displayed for zero-sale sizes — treat as 0
+            val qqSale = binding.textSaleQQ.text.toString().let { if (it == "–") 0 else it.toIntOrNull() ?: 0 }
+            val ppSale = binding.textSalePP.text.toString().let { if (it == "–") 0 else it.toIntOrNull() ?: 0 }
+            val nnSale = binding.textSaleNN.text.toString().let { if (it == "–") 0 else it.toIntOrNull() ?: 0 }
+            val ddSale = binding.textSaleDD.text.toString().let { if (it == "–") 0 else it.toIntOrNull() ?: 0 }
             
             val totalAmount = (qqSale * entry.product.qqSalePrice) +
                             (ppSale * entry.product.ppSalePrice) +

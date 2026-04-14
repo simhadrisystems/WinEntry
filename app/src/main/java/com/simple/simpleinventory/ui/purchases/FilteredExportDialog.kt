@@ -13,6 +13,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simple.simpleinventory.data.entity.Product
 import com.simple.simpleinventory.data.entity.Purchase
 import com.simple.simpleinventory.databinding.DialogFilteredExportBinding
+import com.simple.simpleinventory.utils.TypeLabels
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -104,7 +105,7 @@ class FilteredExportDialog : DialogFragment() {
     private fun setupProductFilter() {
         viewModel.allProducts.observe(this) { products ->
             val productNames = mutableListOf("All Products")
-            productNames.addAll(products.map { "${it.displayName} (${it.productType}${it.brandCode})" })
+            productNames.addAll(products.map { "${it.displayName} (${TypeLabels.typeDisplay(it.productType)}${it.brandCode})" })
             
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, productNames)
             binding.acProduct.setAdapter(adapter)
@@ -116,13 +117,13 @@ class FilteredExportDialog : DialogFragment() {
     }
     
     private fun setupTypeFilter() {
-        val types = arrayOf("All Types", "W", "Y", "B")
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, types)
+        val displayItems = arrayOf("All Types") + TypeLabels.typeDisplayItems
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, displayItems)
         binding.acProductType.setAdapter(adapter)
         binding.acProductType.setText("All Types", false)
-        
+
         binding.acProductType.setOnItemClickListener { _, _, position, _ ->
-            selectedProductType = if (position == 0) "All" else types[position]
+            selectedProductType = if (position == 0) "All" else TypeLabels.codeFromDisplay(displayItems[position])
         }
     }
     

@@ -14,6 +14,7 @@ import com.simple.simpleinventory.data.entity.stockCode
 import com.simple.simpleinventory.data.repository.DailyStockRepository
 import com.simple.simpleinventory.data.repository.PurchaseQuantities
 import com.simple.simpleinventory.data.repository.PurchaseRepository
+import com.simple.simpleinventory.utils.TypeLabels
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -632,9 +633,11 @@ ${if (recon != null) """
             var grpPqQQ = 0; var grpPqPP = 0; var grpPqNN = 0; var grpPqDD = 0
             var grpCbQQ = 0; var grpCbPP = 0; var grpCbNN = 0; var grpCbDD = 0
 
-            // Group header
+            // Group header — show code + name e.g. "W — Whisky"
+            val groupLabel = TypeLabels.getType(group)
+            val groupHeading = if (groupLabel != group) "$group — $groupLabel" else group
             bodyRows.append("""<tr class="grow">
-                <td colspan="13">$group</td>
+                <td colspan="13">$groupHeading</td>
             </tr>""")
 
             for (e in groupEntries) {
@@ -658,7 +661,7 @@ ${if (recon != null) """
 
             // Group total
             bodyRows.append("""<tr class="srow">
-                <td style="font-weight:bold">$group &nbsp;Total</td>
+                <td style="font-weight:bold">$groupHeading &nbsp;Total</td>
                 <td class="n">${qty(grpObQQ)}</td><td class="n">${qty(grpObPP)}</td>
                 <td class="n">${qty(grpObNN)}</td><td class="n">${qty(grpObDD)}</td>
                 <td class="n">${qty(grpPqQQ)}</td><td class="n">${qty(grpPqPP)}</td>

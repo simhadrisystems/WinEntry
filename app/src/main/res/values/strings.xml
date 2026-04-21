@@ -1,4 +1,33 @@
 <resources>
-    <string name="app_name">SimpleInventoryApp</string>
-    <string name="default_web_client_id">263562095912-er52ceob6n0njbjunpt2jugvttup656n.apps.googleusercontent.com</string>
+    <string name="app_name">WinEntry</string>
+    <!-- API key for reading the admin-managed product master sheet.
+         Restricted to Google Sheets API only; no Android app restrictions so it
+         works with plain HTTP calls from CloudSyncManager.syncProductsFromCloud().
+         Created in GCP Console → Credentials → WinEntry Sheets Read. -->
+    <string name="sheets_api_key">REMOVED_KEY</string>
+    <string name="default_web_client_id">827909879534-aldn3jtv2bdmrqt9j5duacln5b5gqbr6.apps.googleusercontent.com</string>
+
+    <!-- ── Google OAuth / Data-access disclosure ─────────────────────────────
+         Shown as a consent dialog on the first sign-in attempt and as a
+         permanent note on the login screen.  Required for Google OAuth
+         verification and Play Store Data Safety compliance.
+    ──────────────────────────────────────────────────────────────────────── -->
+
+    <!-- Consent dialog shown once before OAuth -->
+    <string name="data_access_consent_title">Data Access</string>
+    <string name="data_access_consent_message">WinEntry uses Google Sign-In to identify you so the admin can set up your cloud workspace.\n\nSigning in does NOT automatically give access to any spreadsheet. Cloud backup becomes active only after your admin creates and assigns a workspace to your account.\n\nUntil then, the app works fully offline — all data stays on your device.\n\nOnce cloud backup is active:\n\u2022 Your inventory records sync to your admin-managed workspace sheet\n\u2022 Admin\'s shared product catalogue is readable (read-only reference)\n\nWhat is NEVER accessed:\n\u2022 Your personal Google Drive files\n\u2022 Any spreadsheets you have not been explicitly assigned\n\u2022 Any other Google services\n\nYou can revoke access at any time from Google Account \u2192 Security \u2192 Third-party apps with account access.</string>
+    <string name="data_access_accept">I Understand</string>
+
+    <!-- App tagline — shown on login screen below app name -->
+    <string name="app_tagline">Stock Management, Simple.\nFor Small Retail Business Use</string>
+
+    <!-- Compact disclosure shown permanently on the login screen, below the Sign-in button -->
+    <string name="data_access_brief">Signing in creates your account identity only. Cloud backup requires a separate workspace — request one from your admin via Settings once you are signed in. Until then the app works fully with local data and Excel export. Your personal Drive is never accessed.</string>
+
+    <!-- Privacy Policy link shown at the bottom of the login screen.
+         TODO: Replace the URL below with your actual hosted privacy policy
+               before submitting to Google for OAuth verification or to the
+               Play Store.  A publicly reachable URL is mandatory. -->
+    <string name="privacy_policy_label">Privacy Policy</string>
+    <string name="privacy_policy_url">https://winentry-a87f2.web.app/privacy.html</string>
 </resources>

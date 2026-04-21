@@ -10,6 +10,14 @@
     <!-- Permissions needed for Cloud sync -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!--
+        GET_ACCOUNTS is required by GoogleAccountCredential.usingOAuth2() when
+        building the Sheets API credential from a GoogleSignInAccount.
+        The app ONLY reads the account that the user explicitly signed in with
+        via the Google Sign-In flow — it never enumerates all device accounts.
+        On Android 8.0+ this permission is automatically scoped to the calling
+        package's own accounts, so no broad account enumeration is possible.
+    -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 
     <queries>
@@ -31,7 +39,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.SimpleInventory">
+        android:theme="@style/Theme.SimpleInventory"
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".MainActivity"
@@ -56,16 +65,6 @@
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

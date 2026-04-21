@@ -26,23 +26,24 @@
 
     <fragment
         android:id="@+id/loginFragment"
-        android:name="com.simple.simpleinventory.ui.auth.LoginFragment"
+        android:name="com.simhadri.winentry.ui.auth.LoginFragment"
         android:label="Sign In"
         tools:layout="@layout/fragment_login">
 
-        <!-- After successful login, go to home and clear login from back stack -->
+        <!-- After successful login (returning user), go to Home and clear login -->
         <action
             android:id="@+id/action_loginFragment_to_homeFragment"
             app:destination="@id/homeFragment"
             app:popUpTo="@id/loginFragment"
             app:popUpToInclusive="true" />
+
     </fragment>
 
     <!-- Home Fragment (Landing Page) -->
     <fragment
         android:id="@+id/homeFragment"
-        android:name="com.simple.simpleinventory.ui.home.HomeFragment"
-        android:label="Simple Inventory"
+        android:name="com.simhadri.winentry.ui.home.HomeFragment"
+        android:label="Win Entry"
         tools:layout="@layout/fragment_home">
 
         <action
@@ -104,21 +105,21 @@
     <!-- Daily Stock Fragment -->
     <fragment
         android:id="@+id/dailyStockFragment"
-        android:name="com.simple.simpleinventory.ui.dailystock.DailyStockFragment"
+        android:name="com.simhadri.winentry.ui.dailystock.DailyStockFragment"
         android:label="Daily Stock"
         tools:layout="@layout/fragment_daily_stock" />
 
     <!-- Products List Fragment -->
     <fragment
         android:id="@+id/productListFragment"
-        android:name="com.simple.simpleinventory.ui.products.ProductListFragment"
+        android:name="com.simhadri.winentry.ui.products.ProductListFragment"
         android:label="Products"
         tools:layout="@layout/fragment_product_list" />
 
     <!-- Purchases List Fragment -->
     <fragment
         android:id="@+id/purchasesListFragment"
-        android:name="com.simple.simpleinventory.ui.purchases.PurchasesListFragment"
+        android:name="com.simhadri.winentry.ui.purchases.PurchasesListFragment"
         android:label="Purchases"
         tools:layout="@layout/fragment_purchases_list">
 
@@ -135,14 +136,14 @@
     <!-- Purchase Entry Fragment -->
     <fragment
         android:id="@+id/purchaseEntryFragment"
-        android:name="com.simple.simpleinventory.ui.purchases.PurchaseEntryFragment"
+        android:name="com.simhadri.winentry.ui.purchases.PurchaseEntryFragment"
         android:label="Purchase Entry"
         tools:layout="@layout/fragment_purchase_entry" />
 
     <!-- Reports Fragment -->
     <fragment
         android:id="@+id/reportsFragment"
-        android:name="com.simple.simpleinventory.ui.reports.ReportsFragment"
+        android:name="com.simhadri.winentry.ui.reports.ReportsFragment"
         android:label="Reports"
         tools:layout="@layout/fragment_reports">
 
@@ -166,14 +167,14 @@
 
     <fragment
         android:id="@+id/reportViewerFragment"
-        android:name="com.simple.simpleinventory.ui.reports.ReportViewerFragment"
+        android:name="com.simhadri.winentry.ui.reports.ReportViewerFragment"
         android:label="Report Viewer"
         tools:layout="@layout/fragment_report_viewer" />
 
     <!-- Settings Fragment -->
     <fragment
         android:id="@+id/settingsFragment"
-        android:name="com.simple.simpleinventory.ui.settings.SettingsFragment"
+        android:name="com.simhadri.winentry.ui.settings.SettingsFragment"
         android:label="Settings"
         tools:layout="@layout/fragment_settings">
 
@@ -198,7 +199,7 @@
     <!-- Products Menu Fragment -->
     <fragment
         android:id="@+id/productsMenuFragment"
-        android:name="com.simple.simpleinventory.ui.settings.ProductsMenuFragment"
+        android:name="com.simhadri.winentry.ui.settings.ProductsMenuFragment"
         android:label="Products"
         tools:layout="@layout/fragment_products_menu">
 
@@ -230,30 +231,30 @@
 
     <fragment
         android:id="@+id/productOrderFragment"
-        android:name="com.simple.simpleinventory.ui.settings.ProductOrderFragment"
+        android:name="com.simhadri.winentry.ui.settings.ProductOrderFragment"
         android:label="Product Order"
         tools:layout="@layout/fragment_product_order" />
 
     <fragment
         android:id="@+id/businessInfoFragment"
-        android:name="com.simple.simpleinventory.ui.settings.BusinessInfoFragment"
+        android:name="com.simhadri.winentry.ui.settings.BusinessInfoFragment"
         android:label="Business Info"
         tools:layout="@layout/fragment_business_info" />
     <fragment
         android:id="@+id/openingStockFragment"
-        android:name="com.simple.simpleinventory.ui.settings.OpeningStockFragment"
+        android:name="com.simhadri.winentry.ui.settings.OpeningStockFragment"
         android:label="Opening Stock Setup" />
 
     <fragment
         android:id="@+id/helpSupportFragment"
-        android:name="com.simple.simpleinventory.ui.settings.HelpSupportFragment"
+        android:name="com.simhadri.winentry.ui.settings.HelpSupportFragment"
         android:label="Help &amp; Support"
         tools:layout="@layout/fragment_help_support" />
 
     <!-- Monthly Summary Fragment (no layout XML — UI built programmatically) -->
     <fragment
         android:id="@+id/monthlySummaryFragment"
-        android:name="com.simple.simpleinventory.ui.reports.MonthlySummaryFragment"
+        android:name="com.simhadri.winentry.ui.reports.MonthlySummaryFragment"
         android:label="Monthly Summary" />
 
 </navigation>

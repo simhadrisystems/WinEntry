@@ -11,8 +11,8 @@
     <!-- App logo — PNG sits directly on the dark background, no wrapper circle -->
     <ImageView
         android:id="@+id/logoContainer"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
         android:src="@drawable/ic_app_logo"
         android:scaleType="fitCenter"
         android:contentDescription="App logo"
@@ -29,7 +29,7 @@
         android:id="@+id/tvAppName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Simple Inventory"
+        android:text="WinEntry"
         android:textSize="26sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
@@ -40,15 +40,17 @@
         app:layout_constraintBottom_toTopOf="@+id/tvTagline"
         android:layout_marginBottom="8dp" />
 
-    <!-- Tagline -->
+    <!-- Tagline — two lines -->
     <TextView
         android:id="@+id/tvTagline"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Stock management made simple"
+        android:text="@string/app_tagline"
         android:textSize="14sp"
         android:textColor="#94A3B8"
         android:letterSpacing="0.01"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.5"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tvAppName"
@@ -109,5 +111,48 @@
         android:layout_marginEnd="40dp"
         android:layout_marginBottom="52dp"
         tools:visibility="visible" />
+
+    <!--
+        Data-access disclosure — permanently visible below the sign-in button.
+        Informs users what is (and is not) accessed before they tap sign-in.
+        Required for Google OAuth verification compliance.
+    -->
+    <TextView
+        android:id="@+id/tvDataAccess"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/data_access_brief"
+        android:textSize="11sp"
+        android:textAppearance="@style/TextAppearance.App.CardDescription"
+        android:textAlignment="center"
+        android:lineSpacingMultiplier="1.4"
+        app:layout_constraintTop_toBottomOf="@+id/btnSignIn"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp" />
+
+    <!--
+        Privacy Policy link — sits above the progress bar at the screen bottom.
+        A tappable privacy policy URL is mandatory for Google OAuth verification
+        and Play Store Data Safety requirements.
+        Update strings.xml privacy_policy_url with your actual hosted URL.
+    -->
+    <TextView
+        android:id="@+id/tvPrivacyPolicy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/privacy_policy_label"
+        android:textSize="12sp"
+        android:textAppearance="@style/TextAppearance.App.CardDescription"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/progressBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="4dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

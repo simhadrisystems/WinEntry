@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,12 +8,18 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// ── Keystore config (never committed to git) ──────────────────────────────
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(keystorePropsFile.inputStream())
+}
+
 android {
-    namespace = "com.simple.simpleinventory"
+    namespace = "com.simhadri.winentry"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.simple.simpleinventory"
+        applicationId = "com.simhadri.winentry"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -19,8 +27,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile     = file(keystoreProps["storeFile"] as String)
+            storePassword = keystoreProps["storePassword"] as String
+            keyAlias      = keystoreProps["keyAlias"] as String
+            keyPassword   = keystoreProps["keyPassword"] as String
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             // ── R8 / ProGuard ─────────────────────────────────────────────
             // Enables code shrinking, obfuscation and resource shrinking.
             // Expected saving: 3-5 MB by removing unused SDK code.

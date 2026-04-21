@@ -68,6 +68,9 @@
     <!-- Settings entry card for Help &amp; Support -->
     <color name="settings_support">#7C3AED</color>                <!-- Violet-700 -->
     <color name="settings_support_light">#DDD6FE</color>          <!-- Violet-200 -->
+    <!-- Import Test Data card — Amber-600 / Amber-100 -->
+    <color name="settings_test_data">#D97706</color>
+    <color name="settings_test_data_light">#FEF3C7</color>
 
     <!-- ── Reports card accent colours (lighter Blue-100…Purple-100 pastels) ── -->
     <color name="reports_daily">#3B82F6</color>               <!-- Blue-500     -->
@@ -99,5 +102,6 @@
     <color name="status_committed">#16A34A</color>
     <color name="status_pending">#D97706</color>
     <color name="status_error">#DC2626</color>
+    <color name="status_warning">#F59E0B</color>
 
 </resources>

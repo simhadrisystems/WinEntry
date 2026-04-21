@@ -36,7 +36,167 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="WHAT CAN WE HELP WITH?"
+                android:text="DOCUMENTATION"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_text_hint"
+                android:letterSpacing="0.12"
+                android:layout_marginBottom="8dp"
+                android:layout_marginStart="4dp" />
+
+            <!-- ── User Guide ──────────────────────────────────────── -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardUserGuide"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/settings_support_feature_light"
+                app:rippleColor="#1A7C3AED">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <FrameLayout
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:background="@drawable/bg_module_icon"
+                        android:backgroundTint="@color/settings_support_feature_light">
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_user_guide"
+                            android:tint="@color/settings_support_feature"
+                            android:scaleType="fitCenter" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="14dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="User Guide"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/app_text_primary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Step-by-step guide to using the app."
+                            android:textSize="13sp"
+                            android:textColor="@color/app_text_secondary"
+                            android:layout_marginTop="3dp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@drawable/ic_chevron_right"
+                        android:tint="@color/settings_support_feature" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Section: GETTING STARTED ──────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GETTING STARTED"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/app_text_hint"
+                android:letterSpacing="0.12"
+                android:layout_marginBottom="8dp"
+                android:layout_marginStart="4dp" />
+
+            <!-- ── Import Test Data ───────────────────────────────── -->
+            <!-- Active only when no committed daily stock data exists -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardImportTestData"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/settings_test_data_light"
+                app:rippleColor="#1AD97706">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="16dp">
+
+                    <FrameLayout
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:background="@drawable/bg_module_icon"
+                        android:backgroundTint="@color/settings_test_data_light">
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_settings_opening_stock"
+                            android:tint="@color/settings_test_data"
+                            android:scaleType="fitCenter" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="14dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Import Test Data"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/app_text_primary" />
+                        <TextView
+                            android:id="@+id/tvTestDataStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Load sample stock data to explore the app."
+                            android:textSize="13sp"
+                            android:textColor="@color/app_text_secondary"
+                            android:layout_marginTop="3dp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@drawable/ic_chevron_right"
+                        android:tint="@color/settings_test_data" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ── Section header ─────────────────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CONTACT SUPPORT"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:textColor="@color/app_text_hint"
@@ -154,14 +314,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Ask for Help"
+                            android:text="Contact Support"
                             android:textSize="17sp"
                             android:textStyle="bold"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Questions about how to use the app."
+                            android:text="Reach us via Email or WhatsApp."
                             android:textSize="13sp"
                             android:textColor="@color/app_text_secondary"
                             android:layout_marginTop="3dp" />

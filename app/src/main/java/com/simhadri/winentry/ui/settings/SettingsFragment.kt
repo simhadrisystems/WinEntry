@@ -12,11 +12,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
+import com.simhadri.winentry.BuildConfig
 import com.simhadri.winentry.MainActivity
 import com.simhadri.winentry.R
 import com.simhadri.winentry.databinding.FragmentSettingsBinding
 import com.simhadri.winentry.sync.CloudFunctionClient
+import com.simhadri.winentry.sync.CreateSheetResult
 import com.simhadri.winentry.sync.CloudSyncManager
 import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.ui.auth.AuthViewModel
@@ -25,6 +26,7 @@ import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
 import com.simhadri.winentry.utils.SupportHelper
+import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -112,10 +114,11 @@ class SettingsFragment : Fragment() {
      */
     private fun refreshDriveBackupStatus() {
         val sync = SyncCoordinator(requireContext())
+        val lang = LangPrefs.get(requireContext())
         when {
             sync.isUserSheetReady() -> {
-                binding.textMyDriveTitle.text = "Drive Backup Active"
-                binding.textMyDriveDesc.text  = "Syncing to admin-managed workspace"
+                binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupActiveTitle.get(lang)
+                binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupActiveDesc.get(lang)
                 // One-time registry refresh: ensures processedAt/role/sheetUrl are updated
                 // for users whose sheet was activated before the full registry write was in place.
                 val prefs = requireContext()
@@ -133,12 +136,19 @@ class SettingsFragment : Fragment() {
                 }
             }
             sync.isWorkspaceRequested() -> {
-                binding.textMyDriveTitle.text = "Drive Backup Pending"
-                binding.textMyDriveDesc.text  = "Awaiting admin setup — tap to send reminder"
-                // Also check Firestore in case the sheet was created after the request
-                val uid = requireContext()
+                val prefs = requireContext()
                     .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
-                    .getString(AuthViewModel.KEY_USER_UID, null)
+                val sheetIdMissing = prefs.getBoolean(AuthViewModel.KEY_SHEET_ID_MISSING, false)
+                if (sheetIdMissing) {
+                    binding.textMyDriveTitle.text = "Workspace Setup Incomplete"
+                    binding.textMyDriveDesc.text  =
+                        "Sheet not linked yet. Tap here to retry automatic setup."
+                } else {
+                    binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupPendingTitle.get(lang)
+                    binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupPendingDesc.get(lang)
+                }
+                // Also check Firestore in case the sheet was created after the request
+                val uid = prefs.getString(AuthViewModel.KEY_USER_UID, null)
                 if (!uid.isNullOrBlank()) {
                     viewLifecycleOwner.lifecycleScope.launch {
                         activateSheetFromFirestoreIfReady(uid, sync)
@@ -146,8 +156,8 @@ class SettingsFragment : Fragment() {
                 }
             }
             else -> {
-                binding.textMyDriveTitle.text = "Request Drive Backup"
-                binding.textMyDriveDesc.text  = "Tap to request cloud backup from admin"
+                binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupRequestTitle.get(lang)
+                binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupRequestDesc.get(lang)
             }
         }
     }
@@ -159,8 +169,26 @@ class SettingsFragment : Fragment() {
         val sync = SyncCoordinator(requireContext())
         when {
             sync.isUserSheetReady() -> showBackupActiveOptions()
-            sync.isWorkspaceRequested() -> showReminderDialog()
-            else -> showConsentThenRequest()
+            sync.isWorkspaceRequested() -> {
+                val sheetIdMissing = requireContext()
+                    .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
+                    .getBoolean(AuthViewModel.KEY_SHEET_ID_MISSING, false)
+                if (sheetIdMissing) showSheetIdMissingDialog() else showReminderDialog()
+            }
+            else -> UserRegistrationManager.ensureRegistered(
+                context = requireContext(),
+                scope   = viewLifecycleOwner.lifecycleScope,
+                onNotRegistered = {
+                    AppDialogs.confirm(
+                        context     = requireContext(),
+                        title       = "Registration Required",
+                        message     = "App registration required to access Admin's drive space.\n\n" +
+                            "Go to Business Info to register.",
+                        actionLabel = "Go to Business Info"
+                    ) { findNavController().navigate(R.id.action_settings_to_businessInfo) }
+                },
+                onReady = { showConsentThenRequest() }
+            )
         }
     }
 
@@ -170,8 +198,6 @@ class SettingsFragment : Fragment() {
             context     = requireContext(),
             title       = "Drive Backup Active",
             message     = "Your inventory data is syncing to the admin-managed Google workspace.\n\n" +
-                "The administrator has read access to all synced records. " +
-                "This is the normal operation of the app.\n\n" +
                 "Tap 'Deactivate' to stop cloud sync. " +
                 "Your local data and Excel exports will continue to work.",
             actionLabel = "Deactivate"
@@ -211,10 +237,34 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private fun showSheetIdMissingDialog() {
+        val bizPrefs = requireContext().getSharedPreferences(
+            BusinessInfoFragment.PREFS_NAME, Context.MODE_PRIVATE
+        )
+        val ownerName    = bizPrefs.getString(BusinessInfoFragment.KEY_OWNER_NAME, "").orEmpty()
+        val businessName = bizPrefs.getString(BusinessInfoFragment.KEY_BUSINESS, "").orEmpty()
+        val phone        = bizPrefs.getString(BusinessInfoFragment.KEY_PHONE, "").orEmpty()
+        val location     = bizPrefs.getString(BusinessInfoFragment.KEY_LOCATION, "").orEmpty()
+
+        AppDialogs.confirm(
+            context     = requireContext(),
+            title       = "Workspace Setup Incomplete",
+            message     = "Your account was found but the cloud workspace sheet has not been " +
+                "set up yet.\n\n" +
+                "Tap 'Retry Setup' to attempt automatic setup now. " +
+                "If the problem persists, contact the administrator at simhadrisystems@gmail.com.\n\n" +
+                "Your local data and Excel exports continue to work normally.",
+            actionLabel = "Retry Setup"
+        ) {
+            submitWorkspaceRequest(ownerName, businessName, phone, location)
+        }
+    }
+
     /**
      * First-time request path — shows consent + indemnity dialog before proceeding.
      * Consent is shown every time (not a one-time flag) because it contains the
      * indemnity terms the user must explicitly accept before each new activation.
+     * Registration check is done before calling this method.
      */
     private fun showConsentThenRequest() {
         val bizPrefs = requireContext().getSharedPreferences(
@@ -225,45 +275,33 @@ class SettingsFragment : Fragment() {
         val phone        = bizPrefs.getString(BusinessInfoFragment.KEY_PHONE, "").orEmpty()
         val location     = bizPrefs.getString(BusinessInfoFragment.KEY_LOCATION, "").orEmpty()
 
-        if (businessName.isEmpty() && ownerName.isEmpty()) {
-            AppDialogs.confirm(
-                context     = requireContext(),
-                title       = "Business Details Required",
-                message     = "Please fill in your Business Name and Owner Name in\n" +
-                    "Settings → Business Info first.\n\n" +
-                    "This helps the admin identify your account.",
-                actionLabel = "Go to Business Info"
-            ) {
-                findNavController().navigate(R.id.action_settings_to_businessInfo)
-            }
-            return
-        }
-
-        val detailsText = buildString {
-            if (ownerName.isNotEmpty())    appendLine("Owner   : $ownerName")
-            if (businessName.isNotEmpty()) appendLine("Business: $businessName")
-            if (phone.isNotEmpty())        appendLine("Phone   : $phone")
-            if (location.isNotEmpty())     appendLine("Location: $location")
-        }.trimEnd()
-
         AppDialogs.confirm(
             context     = requireContext(),
-            title       = "Request Cloud Drive Backup",
-            message     = "Your details to be sent to admin:\n\n$detailsText\n\n" +
-                "─────────────────────────────\n" +
-                "TERMS & DISCLAIMER\n\n" +
-                "\u2022 Your inventory data will be stored in a Google Sheet " +
-                "in the admin\u2019s managed workspace.\n" +
-                "\u2022 The administrator has FULL READ ACCESS to all synced records.\n" +
-                "\u2022 Data loss due to service outages, accidental deletion, or " +
-                "sync errors is possible. The admin and app developers are not " +
-                "liable for such losses.\n" +
-                "\u2022 Cloud backup is optional. Local data and Excel export " +
-                "remain fully functional whether or not you enable backup.\n" +
-                "\u2022 You may deactivate cloud backup at any time from this screen.\n\n" +
-                "By tapping \u2018I Agree \u2013 Send Request\u2019 you confirm you have " +
-                "read and accept these terms.",
-            actionLabel = "I Agree — Send Request"
+            title       = "Enable Cloud Drive Backup",
+            message     = "What this does\n" +
+                "A private Google Sheet will be created in the admin-managed Google Drive " +
+                "exclusively for your inventory data. No other user\u2019s data is stored in your sheet.\n\n" +
+                "What data is stored in the cloud\n" +
+                "Your daily stock entries, purchases, and day-end summaries will sync to this sheet. " +
+                "Your business registration details (name, owner, phone, location) " +
+                "are already held by the administrator from your Business Info registration.\n\n" +
+                "Administrator access\n" +
+                "The administrator has read access to all records synced to this sheet. " +
+                "This is the basis on which cloud backup is offered as a facility.\n\n" +
+                "Automatic background sync\n" +
+                "Once active, the app syncs your data automatically every 6 hours. " +
+                "You can also trigger a manual sync at any time using the Sync button on the Home screen.\n\n" +
+                "This is optional\n" +
+                "Cloud backup is an additional facility alongside local storage and Excel exports. " +
+                "You can deactivate it at any time by tapping the Drive Backup card on this screen. " +
+                "Your local data and Excel exports are never affected.\n\n" +
+                "Limitation of liability\n" +
+                "Cloud sync depends on internet connectivity and third-party services. " +
+                "Data loss due to service outages or sync errors is possible. " +
+                "Always maintain local backups via Excel export.\n\n" +
+                "By tapping \u2018I Agree \u2014 Enable Backup\u2019 you confirm you have read " +
+                "and understood the above.",
+            actionLabel = "I Agree — Enable Backup"
         ) {
             submitWorkspaceRequest(ownerName, businessName, phone, location)
         }
@@ -298,12 +336,15 @@ class SettingsFragment : Fragment() {
                 .collection("users").document(uid).get().await()
             val sheetId = doc.getString("userSheetId")
             if (!sheetId.isNullOrBlank()) {
-                // Sheet exists in Firestore — activate locally
+                // Sheet exists in Firestore — activate locally and clear any error flags
                 requireContext()
                     .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().putString(AuthViewModel.KEY_USER_SHEET_ID, sheetId).apply()
+                    .edit()
+                    .putString(AuthViewModel.KEY_USER_SHEET_ID, sheetId)
+                    .remove(AuthViewModel.KEY_SHEET_ID_MISSING)
+                    .apply()
                 sync.setSpreadsheetId(sheetId)
-                if (_binding != null) applyLanguage()   // resets card to normal sync description
+                if (_binding != null) refreshDriveBackupStatus()
 
                 // Registry is written by the Cloud Function (service account) — not here.
                 true
@@ -320,73 +361,6 @@ class SettingsFragment : Fragment() {
                     "Workspace request submitted — awaiting admin"
             }
             false
-        }
-    }
-
-    /**
-     * Shows a pre-submission dialog that displays the user's saved business details
-     * and asks them to confirm before sending the workspace request.
-     *
-     * If business details are missing, prompts the user to fill them in first.
-     */
-    private fun showRequestWorkspaceDialog() {
-        val bizPrefs = requireContext().getSharedPreferences(
-            BusinessInfoFragment.PREFS_NAME, Context.MODE_PRIVATE
-        )
-        val businessName = bizPrefs.getString(BusinessInfoFragment.KEY_BUSINESS, "").orEmpty()
-        val ownerName    = bizPrefs.getString(BusinessInfoFragment.KEY_OWNER_NAME, "").orEmpty()
-        val phone        = bizPrefs.getString(BusinessInfoFragment.KEY_PHONE, "").orEmpty()
-        val location     = bizPrefs.getString(BusinessInfoFragment.KEY_LOCATION, "").orEmpty()
-
-        val sync = SyncCoordinator(requireContext())
-        if (sync.isWorkspaceRequested()) {
-            // Already submitted — offer to resubmit + notify admin in case they missed it.
-            // We re-read business info here so the reminder always carries the latest details.
-            AppDialogs.toggle(
-                context     = requireContext(),
-                title       = "Request Already Submitted",
-                message     = "Your workspace request is pending admin approval.\n\n" +
-                    "Tap 'Send Reminder' to resend the request to the admin.",
-                actionLabel = "Send Reminder"
-            ) {
-                // Re-submit to Firestore so the Cloud Function retriggers,
-                // then offer Email / WhatsApp for a direct nudge.
-                submitWorkspaceRequest(ownerName, businessName, phone, location)
-            }
-            return
-        }
-
-        if (businessName.isEmpty() && ownerName.isEmpty()) {
-            AppDialogs.confirm(
-                context     = requireContext(),
-                title       = "Business Details Required",
-                message     = "Please fill in your Business Name and Owner Name in\n" +
-                    "Settings → Business Info first.\n\n" +
-                    "This helps the admin identify your account.",
-                actionLabel = "Go to Business Info"
-            ) {
-                findNavController().navigate(R.id.action_settings_to_businessInfo)
-            }
-            return
-        }
-
-        val detailsText = buildString {
-            if (ownerName.isNotEmpty())    appendLine("Owner   : $ownerName")
-            if (businessName.isNotEmpty()) appendLine("Business: $businessName")
-            if (phone.isNotEmpty())        appendLine("Phone   : $phone")
-            if (location.isNotEmpty())     appendLine("Location: $location")
-        }.trimEnd()
-
-        AppDialogs.confirm(
-            context     = requireContext(),
-            title       = "Request Cloud Workspace",
-            message     = "The following details will be sent to your admin:\n\n" +
-                "$detailsText\n\n" +
-                "The admin will create a Google Sheet for your account in the " +
-                "managed workspace and notify you once it is ready.",
-            actionLabel = "Send Request"
-        ) {
-            submitWorkspaceRequest(ownerName, businessName, phone, location)
         }
     }
 
@@ -420,7 +394,6 @@ class SettingsFragment : Fragment() {
                 Toast.makeText(requireContext(),
                     "Sign in required. Please sign in and try again.",
                     Toast.LENGTH_LONG).show()
-                showNotifyAdminChoice()
                 return@launch
             }
 
@@ -457,60 +430,53 @@ class SettingsFragment : Fragment() {
             Toast.makeText(requireContext(), "Requesting workspace…", Toast.LENGTH_SHORT).show()
 
             val displayName = firebaseUser?.displayName ?: ownerName
-            val sheetInfo = CloudFunctionClient().createUserSheet(
-                uid          = uid,
-                email        = email,
-                displayName  = displayName,
-                ownerName    = ownerName,
-                businessName = businessName,
-                phone        = phone,
-                location     = location,
-                device       = "${Build.MANUFACTURER} ${Build.MODEL}"
+            val cfResult = CloudFunctionClient().createUserSheet(
+                uid            = uid,
+                email          = email,
+                displayName    = displayName,
+                ownerName      = ownerName,
+                businessName   = businessName,
+                phone          = phone,
+                location       = location,
+                androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                appVersion     = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
             )
 
-            if (sheetInfo != null) {
-                // ── Cloud Function succeeded: sheet is in admin's workspace ──
-                // Cache sheetId locally so AuthViewModel fast-path works on next login
-                requireContext()
-                    .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString(AuthViewModel.KEY_USER_SHEET_ID, sheetInfo.sheetId)
-                    .apply()
-
-                // Persist business data the CF didn't capture — merge so we don't
-                // overwrite userSheetId / role that the CF already wrote.
-                try {
-                    FirebaseFirestore.getInstance()
-                        .collection("users").document(uid)
-                        .set(mapOf(
-                            "ownerName"    to ownerName,
-                            "businessName" to businessName,
-                            "phone"        to phone,
-                            "location"     to location,
-                            "device"       to "${Build.MANUFACTURER} ${Build.MODEL}",
-                            "registeredAt" to Timestamp.now()
-                        ), SetOptions.merge())
-                        .await()
-                } catch (e: Exception) {
-                    android.util.Log.w("SettingsFragment",
-                        "users/{uid} business data update failed (non-fatal): ${e.message}")
+            when (cfResult) {
+                is CreateSheetResult.Success -> {
+                    val sheetInfo = cfResult.sheetInfo
+                    requireContext()
+                        .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString(AuthViewModel.KEY_USER_SHEET_ID, sheetInfo.sheetId)
+                        .apply()
+                    sync.setSpreadsheetId(sheetInfo.sheetId)
+                    sync.setWorkspaceRequested(true)
+                    refreshDriveBackupStatus()
+                    refreshSyncCardStatus()
+                    Toast.makeText(requireContext(),
+                        "Workspace ready — cloud sync is now active!",
+                        Toast.LENGTH_LONG).show()
+                    return@launch
                 }
-
-                // Registry is written by the Cloud Function (service account) — not here.
-                // Activate sync immediately and update both cards on screen
-                sync.setSpreadsheetId(sheetInfo.sheetId)
-                sync.setWorkspaceRequested(true)
-                refreshDriveBackupStatus()
-                refreshSyncCardStatus()
-
-                Toast.makeText(requireContext(),
-                    "Workspace ready — cloud sync is now active!",
-                    Toast.LENGTH_LONG).show()
-                showNotifyAdminChoice()
-                return@launch
+                is CreateSheetResult.NotInvited -> {
+                    // Admin has been notified — user waits for approval
+                    sync.setWorkspaceRequested(true)
+                    refreshDriveBackupStatus()
+                    refreshSyncCardStatus()
+                    Toast.makeText(requireContext(),
+                        "Request submitted — admin will set up your workspace shortly.",
+                        Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                is CreateSheetResult.Error -> {
+                    // Fall through to admin_requests Firestore write below
+                    android.util.Log.w("SettingsFragment",
+                        "Cloud Function unavailable — falling back to admin_requests")
+                }
             }
 
-            // ── 2. Cloud Function unavailable — send a pending request ───────
+            // ── 2. Cloud Function error — send a pending request ─────────────
             // Admin will create the sheet manually and write /users/{uid} to
             // Firestore.  The app picks it up on next login via fetchSheetIdInBackground.
             android.util.Log.w("SettingsFragment",
@@ -527,9 +493,10 @@ class SettingsFragment : Fragment() {
                         "businessName" to businessName,
                         "phone"        to phone,
                         "location"     to location,
-                        "registeredAt" to Timestamp.now(),
-                        "status"       to "awaiting_sheet",
-                        "device"       to "${Build.MANUFACTURER} ${Build.MODEL}"
+                        "registeredAt"  to Timestamp.now(),
+                        "status"        to "awaiting_sheet",
+                        "androidVersion" to "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                        "appVersion"    to "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
                     ))
                     .await()
                 firestoreOk = true
@@ -553,46 +520,48 @@ class SettingsFragment : Fragment() {
                     "Could not send request. Check your connection and try again.",
                     Toast.LENGTH_LONG).show()
             }
-
-            // Always offer direct admin notification as a backup channel
-            showNotifyAdminChoice()
-        }
-    }
-
-    /** Shows Email / WhatsApp choice for directly notifying the admin. */
-    private fun showNotifyAdminChoice() {
-        if (_binding == null) return
-        AppDialogs.choice(
-            context = requireContext(),
-            title   = "Notify Admin Directly",
-            items   = arrayOf("Send Email to Admin", "Send WhatsApp to Admin")
-        ) { which ->
-            when (which) {
-                0 -> SupportHelper.sendEmail(
-                    requireContext(), SupportHelper.IssueType.WORKSPACE_REQUEST
-                )
-                1 -> SupportHelper.sendWhatsApp(
-                    requireContext(), SupportHelper.IssueType.WORKSPACE_REQUEST
-                )
-            }
         }
     }
 
     private fun applyLanguage() {
         val lang = LangPrefs.get(requireContext())
+        val te = lang == AppStrings.Lang.TE
+        val titleSp = if (te) 19f else 17f
+        val descSp  = if (te) 11f else 13f
+
         binding.toolbar.title                  = AppStrings.settingsToolbarTitle.get(lang)
-        binding.textSectionLanguage.text       = AppStrings.settingsSectionLanguage.get(lang)
         binding.textLanguageTitle.text         = AppStrings.settingsLanguageTitle.get(lang)
         binding.textLanguageDesc.text          = AppStrings.settingsLanguageDesc.get(lang)
-        binding.textSectionBusiness.text       = AppStrings.settingsSectionBusiness.get(lang)
         binding.textBusinessInfoTitle.text     = AppStrings.settingsBusinessInfoTitle.get(lang)
         binding.textBusinessInfoDesc.text      = AppStrings.settingsBusinessInfoDesc.get(lang)
-        binding.textSectionSync.text           = AppStrings.settingsSectionSync.get(lang)
         binding.textSyncSettingsTitle.text     = AppStrings.settingsSyncTitle.get(lang)
         binding.textSyncSettingsDesc.text      = AppStrings.settingsSyncDesc.get(lang)
-        binding.textSectionSupport.text        = AppStrings.settingsSectionSupport.get(lang)
         binding.textHelpSupportTitle.text      = AppStrings.settingsHelpSupportTitle.get(lang)
         binding.textHelpSupportDesc.text       = AppStrings.settingsHelpSupportDesc.get(lang)
+
+        // Drive Backup card text depends on both language AND current backup state
+        val sync = SyncCoordinator(requireContext())
+        when {
+            sync.isUserSheetReady() -> {
+                binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupActiveTitle.get(lang)
+                binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupActiveDesc.get(lang)
+            }
+            sync.isWorkspaceRequested() -> {
+                binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupPendingTitle.get(lang)
+                binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupPendingDesc.get(lang)
+            }
+            else -> {
+                binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupRequestTitle.get(lang)
+                binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupRequestDesc.get(lang)
+            }
+        }
+
+        for (v in listOf(binding.textLanguageTitle, binding.textBusinessInfoTitle,
+                         binding.textSyncSettingsTitle, binding.textHelpSupportTitle, binding.textMyDriveTitle))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
+        for (v in listOf(binding.textLanguageDesc, binding.textBusinessInfoDesc,
+                         binding.textSyncSettingsDesc, binding.textHelpSupportDesc, binding.textMyDriveDesc))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 
     private fun updateErrorLogButton() {

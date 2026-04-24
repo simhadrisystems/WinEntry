@@ -10,6 +10,7 @@ keystore.properties
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+app/build/
 /captures
 .externalNativeBuild
 .cxx

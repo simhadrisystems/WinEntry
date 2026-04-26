@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Guide — WinEntry</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #ffffff;
+      padding: 0 16px;
+    }
+    .container { max-width: 820px; margin: 40px auto 80px; }
+    h1 { font-size: 26px; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 32px; }
+    h2 {
+      font-size: 17px; font-weight: 700; color: #0d1b2a;
+      margin: 36px 0 10px;
+      border-left: 4px solid #1976D2;
+      padding-left: 12px;
+    }
+    h3 {
+      font-size: 14px; font-weight: 600; color: #1976D2;
+      margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    p { margin-bottom: 12px; }
+    ul, ol { margin: 6px 0 12px 20px; }
+    li { margin-bottom: 5px; }
+    .tip {
+      background: #f0f7ff; border-left: 4px solid #1976D2;
+      padding: 12px 16px; border-radius: 4px; margin: 14px 0; font-size: 14px;
+    }
+    .warn {
+      background: #fff8e1; border-left: 4px solid #f9a825;
+      padding: 12px 16px; border-radius: 4px; margin: 14px 0; font-size: 14px;
+    }
+    .note {
+      background: #f1f8f1; border-left: 4px solid #43a047;
+      padding: 12px 16px; border-radius: 4px; margin: 14px 0; font-size: 14px;
+    }
+    .step-grid {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 6px 14px; margin: 10px 0 14px;
+    }
+    .step-num {
+      font-weight: 700; color: #1976D2;
+      font-size: 15px; padding-top: 1px;
+    }
+    .path {
+      font-size: 13px; background: #f5f5f5;
+      padding: 2px 8px; border-radius: 3px; display: inline-block;
+      font-family: monospace; color: #444;
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      margin: 10px 0 16px; font-size: 14px;
+    }
+    th {
+      background: #e8f0fe; text-align: left;
+      padding: 8px 12px; font-weight: 600;
+      border: 1px solid #c5d4f0;
+    }
+    td { padding: 7px 12px; border: 1px solid #dde3f0; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafbff; }
+    .toc { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px 20px; margin: 20px 0 32px; }
+    .toc h3 { margin-top: 0; color: #333; }
+    .toc ol { margin: 8px 0 0 18px; }
+    .toc li { margin-bottom: 4px; }
+    .toc a { color: #1976D2; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    footer { margin-top: 60px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 13px; color: #888; }
+    hr { border: none; border-top: 1px solid #e8e8e8; margin: 32px 0; }
+    strong.label { color: #1976D2; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>WinEntry — User Guide</h1>
+  <p class="subtitle">Daily Stock Status · Sales · Purchases &nbsp;|&nbsp; Simple Inventory for Retailer &nbsp;|&nbsp; Updated April 2026</p>
+
+  <p>WinEntry ("the App") is an inventory management application designed for retail businesses that manage products as countable units (such as packaged or bottled items), across multiple brands and sizes. This guide covers all features of the app.</p>
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#installation">Installation</a></li>
+      <li><a href="#getting-started">Getting Started</a></li>
+      <li><a href="#home">Home Screen</a></li>
+      <li><a href="#daily-stock">Daily Stock</a></li>
+      <li><a href="#purchases">Purchases</a></li>
+      <li><a href="#reports">Reports</a></li>
+      <li><a href="#products">Products</a></li>
+      <li><a href="#settings">Settings</a></li>
+      <li><a href="#cloud-backup">Cloud Backup</a></li>
+      <li><a href="#data-management">Data Management &amp; Excel</a></li>
+      <li><a href="#help-support">Help &amp; Support</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="installation">1. Installation</h2>
+
+  <p>WinEntry is distributed as an Android APK file. Your administrator shares the APK via email or another channel.</p>
+
+  <div class="step-grid">
+    <span class="step-num">1</span><span>Download the file <strong>app-arm64-v8a-release.apk</strong> (suitable for most modern Android phones) shared by your administrator.</span>
+    <span class="step-num">2</span><span>On your Android phone go to <strong>Settings → Security</strong> (or <em>Settings → Apps → Special app access → Install unknown apps</em> on Android 8+) and allow installation from the app you used to receive the file (e.g. your email or file manager).</span>
+    <span class="step-num">3</span><span>Open the downloaded APK and tap <strong>Install</strong>.</span>
+    <span class="step-num">4</span><span>Once installed, tap <strong>Open</strong> or find <strong>WinEntry</strong> in your app drawer.</span>
+  </div>
+
+  <div class="note">
+    <strong>Requirements:</strong> Android 8.0 (Oreo) or later · At least 50 MB free storage.<br />
+    If you see "App not installed", check that you have enough storage and that your Android version is 8.0+.
+  </div>
+
+  <div class="tip">
+    The <strong>arm64-v8a</strong> APK works on the majority of Android phones made after 2017. If it does not install on your device, contact the administrator for the compatible variant.
+  </div>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="getting-started">2. Getting Started</h2>
+
+  <h3>Sign In</h3>
+  <p>WinEntry uses your Google account for identity. Tap <strong>Sign In with Google</strong> on the login screen and select your account. The app works fully without internet after the first sign-in — you only need connectivity to enable cloud backup features.</p>
+
+  <h3>First-Time Setup (do this once)</h3>
+  <div class="step-grid">
+    <span class="step-num">1</span><span><strong>Business Info</strong> — Go to <span class="path">Settings → Business Info</span>. Enter your business name (required). Owner name, phone, and location are optional but useful for report headers.</span>
+    <span class="step-num">2</span><span><strong>Add Products</strong> — Go to <span class="path">Products → Product List</span>. Add each brand/product you carry. Each product supports four size variants: <strong>QQ, PP, NN, DD</strong>.</span>
+    <span class="step-num">3</span><span><strong>Set Display Order</strong> — Go to <span class="path">Products → Product Order</span>. Arrange products in the order you want them to appear on the daily stock screen.</span>
+    <span class="step-num">4</span><span><strong>Opening Stock</strong> — Go to <span class="path">Products → Opening Stock Setup</span>. Enter the quantities you have on hand on your first trading day. This is the starting point for all sales calculations.</span>
+  </div>
+
+  <div class="tip">
+    <strong>New to the app?</strong> Try loading sample data first. Go to <span class="path">Settings → Help &amp; Support → Import Test Data</span> to load 7 days of sample opening balances and closing stock. This lets you explore the app before entering your real data.
+  </div>
+
+  <h3>Size Codes</h3>
+  <table>
+    <tr><th>Code</th><th>Typical pack size</th><th>Example</th></tr>
+    <tr><td><strong>QQ</strong></td><td>Full (750 ml)</td><td>12 bottles per box</td></tr>
+    <tr><td><strong>PP</strong></td><td>Half/Pint (375 ml)</td><td>24 bottles per box</td></tr>
+    <tr><td><strong>NN</strong></td><td>Quarter/Nip (180 ml)</td><td>48 bottles per box</td></tr>
+    <tr><td><strong>DD</strong></td><td>Dip (90 ml)</td><td>96 bottles per box</td></tr>
+    <tr><td><strong>QQ</strong></td><td>Liter (1000 ml)</td><td>9 bottles per box</td></tr>
+    <tr><td><strong>QQ</strong></td><td>Big (650 ml)</td><td>12 bottles per box</td></tr>
+  </table>
+  <p>The units-per-box values are set when you add a product and used automatically to convert between boxes and loose units.</p>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="home">3. Home Screen</h2>
+
+  <p>The Home screen is your starting point. It shows five module cards — tap any card to open that section.</p>
+
+  <table>
+    <tr><th>Card</th><th>What it does</th></tr>
+    <tr><td><strong>Daily Stock</strong></td><td>Enter opening balances, record closing stock, view daily sales</td></tr>
+    <tr><td><strong>Purchases</strong></td><td>Record supplier invoices (boxes + loose units per size)</td></tr>
+    <tr><td><strong>Reports</strong></td><td>Daily stock sheets, monthly summaries, brand-wise accounts</td></tr>
+    <tr><td><strong>Products</strong></td><td>Manage product list, display order, opening stock</td></tr>
+    <tr><td><strong>Settings</strong></td><td>Business info, cloud backup, language, help &amp; support</td></tr>
+  </table>
+
+  <h3>Sync Button (top-right)</h3>
+  <table>
+    <tr><th>Colour</th><th>Meaning</th></tr>
+    <tr><td>🟢 Green</td><td>All data synced to cloud successfully</td></tr>
+    <tr><td>🟡 Amber</td><td>Cloud backup not set up — tap to see how to enable it</td></tr>
+    <tr><td>🔴 Red</td><td>Sync errors detected — tap to retry</td></tr>
+  </table>
+  <p>Tap the sync icon to trigger a manual sync at any time.</p>
+
+  <h3>Profile Button</h3>
+  <p>The person icon (top-right) shows your Google account photo when signed in. Tap it to see your account email or to sign out.</p>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="daily-stock">4. Daily Stock</h2>
+
+  <p>This is the core daily workflow. For each product, the app tracks:</p>
+  <p><strong>Opening Balance → + Purchases → − Closing Balance = Daily Sale</strong></p>
+
+  <h3>Selecting a Date</h3>
+  <p>The toolbar shows the current date (e.g. <strong>10-MAR</strong>). Use the <strong>‹</strong> and <strong>›</strong> arrows to move between dates, or tap the date itself to open a date picker. You can view or edit data up to 7 days into the future.</p>
+
+  <h3>Two Modes</h3>
+  <table>
+    <tr><th>Mode</th><th>What you can do</th></tr>
+    <tr><td><strong>View Mode</strong> (default)</td><td>See all stock figures — opening, purchases, closing, sales. No editing.</td></tr>
+    <tr><td><strong>CB Entry Mode</strong></td><td>Edit closing balances for each product and size. Tap <strong>CB Entry</strong> in the toolbar to switch. Tap <strong>View Only</strong> to go back.</td></tr>
+  </table>
+
+  <h3>Entering Closing Balances</h3>
+  <div class="step-grid">
+    <span class="step-num">1</span><span>Tap <strong>CB Entry</strong> to enter edit mode.</span>
+    <span class="step-num">2</span><span>The product list appears. Each product card shows QQ, PP, NN, DD columns with the Opening Balance and Purchases already filled in.</span>
+    <span class="step-num">3</span><span>Tap a closing balance field and enter the quantity counted at end of day.</span>
+    <span class="step-num">4</span><span>The app calculates: <strong>Sale = Opening + Purchases − Closing</strong>.</span>
+    <span class="step-num">5</span><span>Tap the <strong>Save</strong> button (green checkmark in toolbar) to commit all changes.</span>
+  </div>
+
+  <div class="note">
+    <strong>Navigating quickly:</strong> The keyboard's Next key moves focus automatically from one size field to the next, and from the last size of one product to the first size of the next product. The list scrolls to keep the active field visible.
+  </div>
+
+  <div class="warn">
+    <strong>Negative sale warning:</strong> If your closing balance is higher than opening + purchases (meaning more stock than possible), the app shows a warning. Review the figures before saving.
+  </div>
+
+  <h3>Day-End Reconciliation (bottom of the list)</h3>
+  <p>After entering closing balances, scroll to the bottom to complete the day-end summary:</p>
+  <ul>
+    <li><strong>Total Day Sales</strong> — calculated automatically from all products</li>
+    <li><strong>UPI Receipts</strong> — enter total UPI/card collections for the day</li>
+    <li><strong>Day Expenses</strong> — enter any cash expenses paid</li>
+    <li><strong>Cash for Deposit</strong> — calculated as Sales − UPI − Expenses (shown in red if negative)</li>
+    <li><strong>Notes</strong> — any remarks for the day</li>
+  </ul>
+  <p>Tap <strong>Save</strong> at the bottom of the reconciliation section to record the day summary.</p>
+
+  <h3>Search</h3>
+  <p>Tap the search icon in the toolbar to filter products by name or brand code. The search bar collapses when you tap the back button or press Done on the keyboard.</p>
+
+  <h3>Unsaved Changes</h3>
+  <p>If you try to leave the screen, change dates, or switch modes with unsaved changes, the app will ask: <strong>Save Now / Discard / Keep Editing</strong>. Your data is safe until you explicitly discard it.</p>
+
+  <h3>Daily Stock Menu (⋮)</h3>
+  <table>
+    <tr><th>Menu item</th><th>What it does</th></tr>
+    <tr><td>Export Daily Stock</td><td>Export the full stock sheet as an Excel file</td></tr>
+    <tr><td>Export Current Date</td><td>Export only today's closing balances as Excel</td></tr>
+    <tr><td>Export Date Range</td><td>Export a range of dates as Excel</td></tr>
+    <tr><td>Download Closing Template</td><td>Download an Excel template pre-filled with your products for bulk entry</td></tr>
+    <tr><td>Import Closing</td><td>Import closing balances from an Excel file</td></tr>
+    <tr><td>Restore from Cloud</td><td>Pull daily stock data down from your cloud workspace</td></tr>
+    <tr><td>Clear Current Date</td><td>Delete all entries for the selected date only</td></tr>
+    <tr><td>Clear ALL Daily Stock</td><td>Delete all daily stock data (requires typing "DELETE ALL" to confirm)</td></tr>
+  </table>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="purchases">5. Purchases</h2>
+
+  <p>Record every supplier delivery here. Purchases are automatically included in the daily stock calculation for the purchase date.</p>
+
+  <h3>Recording a New Purchase</h3>
+  <div class="step-grid">
+    <span class="step-num">1</span><span>Go to <span class="path">Home → Purchases</span>.</span>
+    <span class="step-num">2</span><span>Tap the <strong>+</strong> button (bottom-right).</span>
+    <span class="step-num">3</span><span>Select the <strong>product</strong> from the dropdown.</span>
+    <span class="step-num">4</span><span>Enter the <strong>purchase date</strong>, <strong>supplier name</strong>, and <strong>invoice number</strong>.</span>
+    <span class="step-num">5</span><span>For each size (QQ, PP, NN, DD), enter <strong>Boxes</strong> and <strong>Loose</strong> units and the <strong>unit price</strong>. Total units and cost are calculated automatically.</span>
+    <span class="step-num">6</span><span>Tap <strong>Save</strong>. The purchase is recorded and reflected immediately in the daily stock for that date.</span>
+  </div>
+
+  <div class="tip">
+    <strong>Adding multiple items from the same invoice:</strong> In the purchase list, long-press an existing purchase and select <strong>Insert Here</strong>. This opens a new purchase entry pre-filled with the same invoice number, date, and supplier — just change the product.
+  </div>
+
+  <h3>Editing or Deleting a Purchase</h3>
+  <p>Long-press any purchase in the list (or tap it) to open an action dialog with options to <strong>Edit</strong> or <strong>Delete</strong>. Deletions are permanent and immediately update the daily stock totals.</p>
+
+  <h3>Searching Purchases</h3>
+  <p>The search bar at the top filters by product name, product code, date, or invoice number. Date formats accepted: <code>dd/MM/yyyy</code>, <code>yyyy-MM-dd</code>, or partial match.</p>
+
+  <h3>Purchases Menu (⋮)</h3>
+  <table>
+    <tr><th>Menu item</th><th>What it does</th></tr>
+    <tr><td>Import from Excel</td><td>Bulk-import purchases from an Excel file (see template for format)</td></tr>
+    <tr><td>Export All</td><td>Export all purchase records as Excel</td></tr>
+    <tr><td>Export Filtered</td><td>Export purchases within a date range</td></tr>
+    <tr><td>Download Template</td><td>Get an Excel template pre-filled with your products</td></tr>
+    <tr><td>Delete by Date Range</td><td>Delete all purchases within a chosen date range</td></tr>
+    <tr><td>Multi-Select</td><td>Select multiple purchases to delete in one go</td></tr>
+    <tr><td>Download from Cloud</td><td>Pull purchase data from your cloud workspace</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>Duplicate protection:</strong> If you import or save a purchase with the same product + invoice number + date as an existing record, the app will detect it and ask whether to update the existing record or skip.
+  </div>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="reports">6. Reports</h2>
+
+  <p>Go to <span class="path">Home → Reports</span> to access all report types.</p>
+
+  <h3>Available Reports</h3>
+  <table>
+    <tr><th>Report</th><th>What it shows</th><th>Date selection</th></tr>
+    <tr><td><strong>Daily Stock Sheet</strong></td><td>Full table: opening, purchases, closing, and calculated sales for all products and sizes</td><td>Single date</td></tr>
+    <tr><td><strong>Closing Balances</strong></td><td>End-of-day stock quantities per product across all sizes</td><td>Single date</td></tr>
+    <tr><td><strong>Purchase Report</strong></td><td>All purchases within a date range, grouped by invoice</td><td>From / To date range</td></tr>
+    <tr><td><strong>Brand-Wise Account</strong></td><td>Summary of sales and stock per brand for a selected date; optional "Include Zero" checkbox to show all products</td><td>Single date</td></tr>
+    <tr><td><strong>Monthly Sale Data</strong></td><td>Day-by-day summary table: Sales, UPI, Expenses, Cash Deposit, Purchases, Notes for the whole month</td><td>Month selector</td></tr>
+  </table>
+
+  <h3>Monthly Summary Features</h3>
+  <ul>
+    <li>Navigate months with <strong>◀</strong> and <strong>▶</strong> arrows, or tap the month name to jump to any month/year.</li>
+    <li>Days with no saved day-end reconciliation are highlighted in amber with a <strong>*</strong> marker.</li>
+    <li>Days where closing balances were updated after the reconciliation was saved are marked <strong>🔄</strong> (stale — consider re-entering day-end for accuracy).</li>
+    <li>Column totals are shown at the bottom with cash amounts in red if negative.</li>
+  </ul>
+
+  <h3>Monthly Summary Menu (⋮)</h3>
+  <ul>
+    <li><strong>Share</strong> — Share the report as a colour-coded HTML file</li>
+    <li><strong>Print / Save as PDF</strong> — Print or save using your device's print service</li>
+    <li><strong>Import Reconciliation from Cloud</strong> — Pull day-end reconciliation data from your cloud workspace</li>
+    <li><strong>Delete Reconciliation Range</strong> — Remove day-end records for a date range</li>
+  </ul>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="products">7. Products</h2>
+
+  <p>Go to <span class="path">Home → Products</span> to manage all product-related settings.</p>
+
+  <h3>Product List</h3>
+  <p>Add, edit, or remove products. Each product has:</p>
+  <ul>
+    <li><strong>Brand code</strong> (primary identifier, e.g. <code>W1249</code>) and optional alias codes for import matching</li>
+    <li><strong>Product name</strong> displayed in the app</li>
+    <li><strong>Size variants</strong> — QQ, PP, NN, DD (enable only the sizes you carry)</li>
+    <li><strong>Purchase price</strong> and <strong>sale price</strong> per unit for each size</li>
+    <li><strong>Units per box</strong> for each size (used to convert boxes → loose units)</li>
+    <li><strong>Active / Inactive</strong> status — inactive products are hidden from daily stock entry but their history is preserved</li>
+  </ul>
+
+  <h3>Download Standard Product List</h3>
+  <p>If you are registered, you can download a pre-configured product list maintained by the administrator. Go to <span class="path">Products → Download Products</span>.</p>
+  <div class="warn">
+    The standard list is a reference starting point — review all prices and sizes before using for live trading. Your edits and saved records are the authoritative data.
+  </div>
+
+  <h3>Product Order</h3>
+  <p>Control the order in which products appear on the daily stock screen.</p>
+  <ul>
+    <li>Toggle the <strong>Edit switch</strong> to enter edit mode.</li>
+    <li><strong>Long-press and drag</strong> any product to reorder it.</li>
+    <li>Alternatively, type a number in the order badge and tap <strong>Renumber &amp; Save</strong>.</li>
+    <li>Long-press a product to <strong>Deactivate</strong> it (moves it to the Inactive section at the bottom). Long-press an inactive product to <strong>Re-activate</strong> it.</li>
+    <li>Tap <strong>Renumber &amp; Save</strong> when done, or <strong>Discard</strong> to cancel changes.</li>
+  </ul>
+
+  <h3>Opening Stock Setup</h3>
+  <p>Enter the quantities you hold on your first trading day. This is done once (or corrected if needed).</p>
+  <div class="step-grid">
+    <span class="step-num">1</span><span>Go to <span class="path">Products → Opening Stock Setup</span>.</span>
+    <span class="step-num">2</span><span>If no data exists, select your <strong>first trading day</strong> and tap <strong>Begin Entry</strong>.</span>
+    <span class="step-num">3</span><span>Enter quantities in the grid (QQ, PP, NN, DD per product). Use the keyboard Next key to move between fields.</span>
+    <span class="step-num">4</span><span>Tap <strong>SAVE</strong> at the bottom. A confirmation shows the total units and value before you confirm.</span>
+  </div>
+  <div class="tip">
+    You can also import opening stock from a closing balance Excel file — use the ⋮ menu → <strong>Import from Excel</strong>.
+  </div>
+  <p>The opening stock date is locked once it is set and matches the earliest committed daily stock record. To correct quantities, tap <strong>✎ EDIT</strong>, make changes, and save again.</p>
+  <p>The bottom bar shows sync status and buttons to <strong>Upload to Cloud</strong> or <strong>Restore from Cloud</strong>.</p>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="settings">8. Settings</h2>
+
+  <p>Go to <span class="path">Home → Settings</span>.</p>
+
+  <h3>Language</h3>
+  <p>Tap the Language card to switch between <strong>English</strong> and <strong>Telugu</strong>. The change applies immediately throughout the app.</p>
+
+  <h3>Business Info</h3>
+  <p>Enter your business details. These appear as the header on all printed and exported reports.</p>
+  <ul>
+    <li><strong>Business name</strong> — required</li>
+    <li><strong>Owner / Contact name</strong> — optional</li>
+    <li><strong>Phone number</strong> — optional; if entered, must be 10 digits</li>
+    <li><strong>Licence / GST number</strong> — stored locally only, never shared with admin</li>
+    <li><strong>Address</strong> — optional, stored locally only</li>
+    <li><strong>City / Location</strong> — optional</li>
+  </ul>
+  <p>Tap <strong>Save &amp; Register</strong> to save locally and register with the administrator for cloud features. Once registered, the status chip shows ✓ Registered with the registration date.</p>
+
+  <h3>Drive Backup Card</h3>
+  <p>This card shows the state of your cloud backup. See <a href="#cloud-backup">Section 9</a> for the full cloud backup workflow.</p>
+
+  <h3>Sync Settings Card</h3>
+  <p>Enabled only when Drive Backup is active. Configure whether sync runs automatically (every 6 hours) or only when you manually trigger it from the Home screen Sync button.</p>
+
+  <h3>Error Log</h3>
+  <p>If the app encounters any technical errors, a log is saved on your device. The error log section appears at the bottom of Settings when errors exist. You can <strong>Share</strong> the log (useful when contacting support) or <strong>Clear</strong> it.</p>
+
+  <h3>Delete Account (⋮ menu in Business Info)</h3>
+  <p>The overflow menu in Business Info (tap ⋮ at the top-right) shows context-sensitive options:</p>
+  <table>
+    <tr><th>Your status</th><th>Menu option</th><th>What it does</th></tr>
+    <tr><td>Registered</td><td>Delete Account &amp; Data</td><td>Full account deletion — removes cloud data, registration, and sign-in account</td></tr>
+    <tr><td>Not registered</td><td>Clear Local Data</td><td>Deletes all inventory data stored on this device only</td></tr>
+    <tr><td>Deletion in progress (pending)</td><td>Complete Account Deletion</td><td>Finishes removing the Firebase sign-in account (required after re-login)</td></tr>
+  </table>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="cloud-backup">9. Cloud Backup</h2>
+
+  <p>Cloud backup is <strong>optional</strong>. The app works fully offline without it. Enabling cloud backup stores your inventory data in a private Google Sheet managed by the administrator.</p>
+
+  <div class="note">
+    <strong>Your data, your control.</strong> Signing in with Google does not start any cloud sync. You must explicitly enable backup and accept the terms before any data leaves your device.
+  </div>
+
+  <h3>How to Enable Cloud Backup</h3>
+  <div class="step-grid">
+    <span class="step-num">1</span><span><strong>Register</strong> — Go to <span class="path">Settings → Business Info</span>. Fill in your business name and tap <strong>Save &amp; Register</strong>. This sends your details to the admin.</span>
+    <span class="step-num">2</span><span><strong>Request workspace</strong> — Go to <span class="path">Settings → Drive Backup</span> and tap <strong>Request Drive Backup</strong>. Read and accept the consent terms, then tap <strong>I Agree — Enable Backup</strong>.</span>
+    <span class="step-num">3</span><span><strong>Workspace created</strong> — The app contacts the administrator's system. If your registration is approved, a private workspace sheet is created automatically and cloud backup activates immediately.</span>
+    <span class="step-num">4</span><span><strong>If pending</strong> — The Drive Backup card shows "Pending". The admin reviews new registrations and will activate your workspace. Check back after a short wait.</span>
+  </div>
+
+  <h3>How Sync Works</h3>
+  <ul>
+    <li>Once active, the app syncs automatically every <strong>6 hours</strong> in the background.</li>
+    <li>To sync immediately, tap the <strong>Sync button</strong> on the Home screen.</li>
+    <li>To stop automatic sync (manual-only), go to <span class="path">Settings → Drive Backup → Deactivate</span>. Manual sync from the Home screen remains available.</li>
+  </ul>
+
+  <h3>What Is Synced</h3>
+  <table>
+    <tr><th>Data type</th><th>Synced to cloud</th></tr>
+    <tr><td>Daily stock entries</td><td>✓ Yes</td></tr>
+    <tr><td>Purchase records</td><td>✓ Yes</td></tr>
+    <tr><td>Day-end reconciliation</td><td>✓ Yes</td></tr>
+    <tr><td>Opening stock</td><td>✓ Yes</td></tr>
+    <tr><td>Product list</td><td>Read-only download from admin</td></tr>
+    <tr><td>Local business info, GST, address</td><td>✗ Never (stays on device)</td></tr>
+  </table>
+
+  <div class="warn">
+    The administrator has read access to all records synced to your workspace. This is the basis on which the free cloud workspace is provided. Do not enable backup if you do not wish the admin to see your records.
+  </div>
+
+
+  <h3>Viewer vs Editor Role</h3>
+  <p>The administrator assigns each account one of two roles. Roles are set in Firestore and applied automatically when you sign in.</p>
+  <table>
+    <tr><th>Role</th><th>What you can do</th></tr>
+    <tr><td><strong>Editor</strong> (default)</td><td>Full access — enter and edit data, trigger sync up to cloud and down from cloud, all buttons active</td></tr>
+    <tr><td><strong>Viewer</strong></td><td>Read-only access — sync data <em>down</em> from cloud only; data entry, save, and destructive actions are hidden</td></tr>
+  </table>
+  <p>Most users are Editors. Contact the administrator if you need to change your role.</p>
+
+  <h3>Revoke or Delete</h3>
+  <ul>
+    <li><strong>Deactivate</strong> — Stops future automatic syncs. Previously synced data remains in the cloud sheet until you delete your account.</li>
+    <li><strong>Delete Account &amp; Data</strong> — Permanently removes all cloud data, your registration, and your sign-in account. Go to <span class="path">Settings → Business Info → ⋮ → Delete Account &amp; Data</span>.</li>
+  </ul>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="data-management">10. Data Management &amp; Excel</h2>
+
+  <h3>Excel Export</h3>
+  <p>Export data to <code>.xlsx</code> files that open in Microsoft Excel, Google Sheets, or any spreadsheet app.</p>
+  <table>
+    <tr><th>What to export</th><th>Where to find it</th></tr>
+    <tr><td>Daily stock (full sheet)</td><td>Daily Stock → ⋮ → Export Daily Stock</td></tr>
+    <tr><td>Closing balances only</td><td>Daily Stock → ⋮ → Export Current Date</td></tr>
+    <tr><td>Date range of daily stock</td><td>Daily Stock → ⋮ → Export Date Range</td></tr>
+    <tr><td>All purchases</td><td>Purchases → ⋮ → Export All</td></tr>
+    <tr><td>Purchases (date range)</td><td>Purchases → ⋮ → Export Filtered</td></tr>
+    <tr><td>Monthly summary (HTML/PDF)</td><td>Reports → Monthly Sale Data → ⋮ → Share or Print</td></tr>
+  </table>
+  <p>Exported files are saved to your device's Downloads folder (or you can share them directly via the Share button shown after export).</p>
+
+  <h3>Excel Import</h3>
+  <p>You can bulk-import data from Excel files:</p>
+  <table>
+    <tr><th>What to import</th><th>Where to find it</th></tr>
+    <tr><td>Closing balances</td><td>Daily Stock → ⋮ → Import Closing</td></tr>
+    <tr><td>Purchases</td><td>Purchases → ⋮ → Import from Excel</td></tr>
+    <tr><td>Opening stock</td><td>Products → Opening Stock → ⋮ → Import from Excel</td></tr>
+  </table>
+  <div class="tip">
+    Always download the template first (<strong>Download Template</strong> in the respective menu) to get the correct column layout. Import will check for unknown product codes and duplicate records before committing.
+  </div>
+
+  <h3>Import Result Summary</h3>
+  <p>After any import, the app shows a result dialog with:</p>
+  <ul>
+    <li><strong>New</strong> — records imported successfully</li>
+    <li><strong>Skipped</strong> — already exist (same product + date or invoice + date)</li>
+    <li><strong>Failed</strong> — product code not found or data format error</li>
+  </ul>
+  <p>A <strong>Copy List</strong> button lets you copy the issue details to clipboard for review.</p>
+
+  <hr />
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <h2 id="help-support">11. Help &amp; Support</h2>
+
+  <p>Go to <span class="path">Home → Settings → Help &amp; Support</span>.</p>
+
+  <h3>User Guide</h3>
+  <p>Tap <strong>User Guide</strong> to open this guide in your browser. No login required.</p>
+
+  <h3>Contact Support</h3>
+  <p>Tap <strong>Ask for Help</strong> to contact the administrator by email. The app pre-fills a message template with your app version — you choose what additional details to include. No data is sent automatically.</p>
+  <p><strong>Support email:</strong> <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a></p>
+  <p>WhatsApp support is planned as a future feature.</p>
+
+  <h3>Import Test Data</h3>
+  <p>Available only on fresh installs with no existing daily stock data. Loads a sample set of opening balances and 7 days of closing stock so you can explore the app before entering your real data.</p>
+  <ol>
+    <li>App registration is required to access the admin's drive space for test data.</li>
+    <li>Select the date you want as your sample opening balance day.</li>
+    <li>Confirm the import — the app downloads and loads the sample data.</li>
+  </ol>
+  <p>Replace sample data with your real figures when you are ready to begin live trading.</p>
+
+  <hr />
+
+  <div class="note">
+    <strong>All your data stays on your device</strong> unless you explicitly enable cloud backup. The app works fully offline — close stock, record purchases, view reports, and export to Excel without any internet connection.
+  </div>
+
+  <footer>
+    WinEntry — Simple Inventory for Retailer &nbsp;|&nbsp; &copy; 2026 Simhadri Systems &nbsp;|&nbsp;
+    <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>
+  </footer>
+
+</div>
+</body>
+</html>

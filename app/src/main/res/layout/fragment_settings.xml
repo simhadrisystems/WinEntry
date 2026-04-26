@@ -32,19 +32,6 @@
             android:orientation="vertical"
             android:padding="12dp">
 
-            <!-- ── LANGUAGE ────────────────────────────────────────── -->
-            <TextView
-                android:id="@+id/textSectionLanguage"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="LANGUAGE"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
-
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardLanguage"
                 android:layout_width="match_parent"
@@ -89,7 +76,7 @@
                             android:layout_height="wrap_content"
                             android:text="App Language"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:id="@+id/textLanguageDesc"
@@ -111,20 +98,6 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── BUSINESS ────────────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/textSectionBusiness"
-                android:text="BUSINESS"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardBusinessInfo"
@@ -171,7 +144,7 @@
                             android:id="@+id/textBusinessInfoTitle"
                             android:text="Business Info"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:id="@+id/textBusinessInfoDesc"
@@ -193,20 +166,6 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── SYNC ─────────────────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/textSectionSync"
-                android:text="SYNC"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardSyncSettings"
@@ -236,7 +195,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_sync"
+                            android:src="@drawable/ic_settings_schedule"
                             android:tint="@color/settings_sync"
                             android:scaleType="fitCenter" />
                     </FrameLayout>
@@ -253,7 +212,7 @@
                             android:id="@+id/textSyncSettingsTitle"
                             android:text="Sync Settings"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:id="@+id/textSyncSettingsDesc"
@@ -275,20 +234,6 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── CLOUD BACKUP ───────────────────────────────────── -->
-            <TextView
-                android:id="@+id/textSectionMyDrive"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="CLOUD BACKUP"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardMyDrive"
@@ -319,7 +264,7 @@
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_sync"
+                            android:src="@drawable/ic_settings_drive_backup"
                             android:tint="@color/settings_sync"
                             android:scaleType="fitCenter" />
                     </FrameLayout>
@@ -336,7 +281,7 @@
                             android:layout_height="wrap_content"
                             android:text="Request Drive Backup"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textAppearance="@style/TextAppearance.App.CardTitle" />
                         <TextView
                             android:id="@+id/textMyDriveDesc"
@@ -358,20 +303,6 @@
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── SUPPORT ────────────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/textSectionSupport"
-                android:text="SUPPORT"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardHelpSupport"
@@ -418,7 +349,7 @@
                             android:id="@+id/textHelpSupportTitle"
                             android:text="Help &amp; Support"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:id="@+id/textHelpSupportDesc"

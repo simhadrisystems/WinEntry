@@ -10,13 +10,6 @@
         app:showAsAction="ifRoom|collapseActionView"
         app:actionViewClass="androidx.appcompat.widget.SearchView" />
 
-    <!-- NEW: download product master data from Google Sheets -->
-    <item
-        android:id="@+id/action_sync_products"
-        android:title="⬇ Update products from cloud"
-        android:orderInCategory="1"
-        app:showAsAction="never" />
-
     <!-- Move to menu only (no toolbar icons) -->
     <item
         android:id="@+id/action_import"

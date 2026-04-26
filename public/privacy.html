@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — WinEntry</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #ffffff;
+      padding: 0 16px;
+    }
+    .container { max-width: 780px; margin: 48px auto 80px; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; color: #0d1b2a; }
+    .subtitle { color: #555; font-size: 14px; margin-bottom: 36px; }
+    h2 {
+      font-size: 18px; font-weight: 600; color: #0d1b2a;
+      margin: 32px 0 10px; border-left: 4px solid #2d6cdf;
+      padding-left: 12px;
+    }
+    p { margin-bottom: 14px; }
+    ul { margin: 8px 0 14px 20px; }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%; border-collapse: collapse;
+      margin: 14px 0 20px; font-size: 15px;
+    }
+    th {
+      background: #f0f4ff; text-align: left;
+      padding: 10px 14px; font-weight: 600;
+      border: 1px solid #dde3f0;
+    }
+    td { padding: 9px 14px; border: 1px solid #dde3f0; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafbff; }
+    .highlight {
+      background: #f0f7ff; border-left: 4px solid #2d6cdf;
+      padding: 14px 18px; border-radius: 4px; margin: 16px 0;
+    }
+    a { color: #2d6cdf; }
+    footer {
+      margin-top: 60px; padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 13px; color: #888;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Privacy Policy</h1>
+  <p class="subtitle">WinEntry — Inventory Management App &nbsp;|&nbsp; Effective date: 16 April 2026 &nbsp;|&nbsp; Last updated: 25 April 2026 (v2.2)</p>
+
+  <p>
+    WinEntry ("the App") is an inventory management application designed for
+    retail businesses that manage products as countable units (such as packaged
+    or bottled items), across multiple brands and sizes. This Privacy Policy
+    explains what information is collected, how it is used, and your rights
+    regarding that information.
+  </p>
+  <p>
+    By using WinEntry, you agree to the practices described in this policy.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>1. Who We Are</h2>
+  <p>
+    WinEntry is developed and operated by <strong>Simhadri Systems</strong>
+    (<a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>).
+    This is a privately operated business application — it is not a consumer
+    data product and does not collect personal data beyond what is necessary for
+    business operations.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>2. Our Data Principle</h2>
+  <div class="highlight" style="background:#f0fff4; border-left-color:#059669;">
+    Your inventory data is never transmitted to any cloud service without your
+    knowledge. Cloud backup requires your explicit opt-in. Once activated, the app
+    performs automatic background sync (every 6 hours) to keep your workspace up
+    to date — you are informed of this at the point of activation. You can
+    deactivate automatic sync and switch to manual-only sync at any time from
+    Settings (see Section 5). The app does not run background data collection,
+    analytics pipelines, or any form of tracking.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>3. What Information Is Collected</h2>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    3a. Information you provide
+  </h2>
+  <ul>
+    <li>
+      <strong>Business details</strong> (Settings → Business Info) — Stored locally
+      on your device. <strong>Business name is the only required field</strong>;
+      owner/contact name, phone number, and location are optional and can be left blank.
+      When you tap <em>"Save &amp; Register"</em> to request a cloud workspace, your
+      business name and any optional fields you have filled in are shared with the app
+      administrator solely for provisioning purposes.
+    </li>
+    <li>
+      <strong>Licence number and address</strong> — Stored locally on your device only.
+      These fields are <strong>never transmitted</strong> to the administrator or any
+      cloud service.
+    </li>
+    <li>
+      <strong>Inventory records</strong> — Daily stock entries, purchase records,
+      day-end reconciliation figures. Stored locally in a database on your device.
+      Cloud sync is optional and entirely user-initiated (see Section 5).
+    </li>
+  </ul>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    3b. Information obtained through Google Sign-In
+  </h2>
+  <p>
+    WinEntry uses Google Sign-In (Firebase Authentication) for user identity.
+    When you sign in, the following information is obtained from your Google account:
+  </p>
+  <table>
+    <tr><th>Data item</th><th>Why it is needed</th></tr>
+    <tr>
+      <td>Email address</td>
+      <td>Identifies your account; used as the name of your assigned cloud workspace
+      spreadsheet; shared with the app administrator for provisioning purposes.</td>
+    </tr>
+    <tr>
+      <td>Display name</td>
+      <td>Shown in admin records to help the administrator identify your account.</td>
+    </tr>
+    <tr>
+      <td>Profile photo</td>
+      <td>Displayed as a profile icon on the Home screen to identify the signed-in
+      user. Tapping the icon shows a dialog with your sign-in email address and a
+      Sign Out option. Fetched once per session and held in memory only. Never
+      stored to disk and never transmitted anywhere by the app.</td>
+    </tr>
+    <tr>
+      <td>Google Account UID</td>
+      <td>Internal unique identifier used to link your device to your cloud
+      workspace. Never displayed to users.</td>
+    </tr>
+  </table>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    3c. Sample / test data
+  </h2>
+  <p>
+    The app includes an optional <strong>Import Test Data</strong> feature
+    (Settings → Help &amp; Support → Import Test Data) that downloads a
+    pre-populated sample product list from the admin's standard product sheet.
+    This is available only on fresh installs with no existing daily stock records,
+    and is intended purely for exploration and initial setup:
+  </p>
+  <ul>
+    <li>Sample product codes, names, and quantities are reference values only.</li>
+    <li>You are expected to review and replace them with your actual business
+    data before live use.</li>
+    <li>No personal data is uploaded during this operation — it is a one-way
+    download.</li>
+  </ul>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    3d. Technical data and error logs
+  </h2>
+  <ul>
+    <li>
+      <strong>Android version</strong> — recorded once in the administrator's
+      user registry when you submit a workspace request. Used solely for
+      support and compatibility purposes. Device model is <strong>not</strong>
+      collected.
+    </li>
+    <li>
+      <strong>Error log</strong> — If the app encounters a technical error, a
+      brief record (timestamp, screen name, and error detail) is written to a
+      private file on your device. This file is accessible from the Settings
+      screen — you can share it manually when reporting a problem, or clear it
+      at any time. It is <strong>never transmitted automatically</strong>. No
+      third-party crash analytics service is used.
+    </li>
+  </ul>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    3e. Android device permissions requested
+  </h2>
+  <p>
+    WinEntry requests the following Android system permissions. No permission
+    is requested at install time for purposes beyond those described here.
+  </p>
+  <table>
+    <tr><th>Permission</th><th>Why it is needed</th></tr>
+    <tr>
+      <td><strong>Internet</strong></td>
+      <td>Required for Google Sign-In, Firebase Authentication, Firestore profile
+      reads, and Google Sheets API sync. The app works fully offline without this
+      — no data is sent automatically.</td>
+    </tr>
+    <tr>
+      <td><strong>Storage — Read</strong><br />
+        <small>(Files &amp; media — Android 9–12;<br />
+        system file picker on Android 13+)</small></td>
+      <td>Allows you to select and import Excel (.xlsx) files from your device
+      storage into the app. On Android 13 and above, the system file picker is
+      used — no broad storage permission is required.</td>
+    </tr>
+    <tr>
+      <td><strong>Storage — Write</strong><br />
+        <small>(Android 9 and below only)</small></td>
+      <td>Allows exported Excel reports and daily stock files to be saved to your
+      device's Downloads folder. On Android 10 and above, scoped storage is used
+      and no storage write permission is required.</td>
+    </tr>
+    <tr>
+      <td><strong>Receive Boot Completed</strong></td>
+      <td>Allows the app to reschedule its optional background cloud sync after
+      a device restart, so the periodic sync continues uninterrupted if you have
+      chosen to enable it.</td>
+    </tr>
+    <tr>
+      <td><strong>Wake Lock</strong></td>
+      <td>Prevents the CPU from sleeping while a background sync task runs to
+      completion. Used only during active sync operations.</td>
+    </tr>
+    <tr>
+      <td><strong>Print</strong></td>
+      <td>Enables printing of inventory reports and daily stock summaries to any
+      printer accessible from your Android device via the system print service.
+      No data is sent to any server during printing.</td>
+    </tr>
+  </table>
+  <p>
+    WinEntry does <strong>not</strong> request access to your Camera, Microphone,
+    Contacts, Location, Call Logs, SMS, or any other sensitive system resource.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>4. Google API Scopes Used</h2>
+  <p>
+    WinEntry requests the following Google OAuth scopes:
+  </p>
+  <table>
+    <tr><th>Scope</th><th>Purpose</th></tr>
+    <tr>
+      <td><code>openid</code>, <code>profile</code>, <code>email</code></td>
+      <td>Google Sign-In — identifies you and retrieves your email and display name.</td>
+    </tr>
+    <tr>
+      <td><code>https://www.googleapis.com/auth/spreadsheets</code></td>
+      <td>
+        Used for two specific operations only — <strong>not</strong> used for
+        routine inventory sync:<br /><br />
+        <strong>(1) Registration record</strong> — when you submit a workspace
+        request (Settings → Business Info → Save &amp; Register), the app writes
+        your registration details to the administrator's user registry sheet on your
+        behalf. This is a one-time write at the point of registration.<br /><br />
+        <strong>(2) Account deletion</strong> — when you delete your account, the
+        app clears your cloud inventory data and blanks your PII from the
+        administrator's registry records.
+      </td>
+    </tr>
+  </table>
+
+  <p>
+    <strong>Routine inventory sync does not use your Google credentials.</strong>
+    All purchases, daily stock, and day-end summary transfers are handled by a secure
+    server-side process managed by the administrator. Your personal Google credentials
+    are not used for these routine operations.
+  </p>
+  <p>
+    <strong>Your consent covers this arrangement.</strong>
+    When you enable cloud backup by tapping <em>"I Agree — Enable Backup"</em>, you
+    explicitly authorise the administrator to maintain and access your cloud workspace
+    on your behalf. Your personal credentials are used only for registration and account
+    deletion; all routine data transfers are handled securely by the administrator's
+    server-side system. You can withdraw this authorisation at any time by deactivating
+    cloud backup or deleting your account (see Section&nbsp;9).
+  </p>
+  <p>
+    <strong>Standard Product List and test data use a public API key.</strong>
+    WinEntry reads the admin-maintained Standard Product List and test data using a public
+    API key — your Google credentials are <strong>not</strong> used for those sheets.
+  </p>
+
+  <div class="highlight" style="background:#f0fff4; border-left-color:#059669; margin-top:16px;">
+    <strong>Zero impact on your personal Google Drive storage.</strong>
+    <p style="margin-top:8px; margin-bottom:0;">
+      All cloud backups are stored in a managed workspace hosted by the
+      Administrator (Simhadri Systems). Your inventory data does <strong>not</strong>
+      occupy any space in your personal Google Drive storage quota. The workspace
+      spreadsheet is owned and managed entirely by the Administrator — you never
+      need to share your own Drive space to use cloud backup. The workspace sheet
+      is <strong>not visible in your personal Google Drive</strong>; it exists only
+      within the administrator's managed Drive folder and is accessible exclusively
+      through a secure server-side process managed by the administrator.
+    </p>
+  </div>
+
+  <div class="highlight">
+    <strong>What WinEntry accesses — and what it never accesses:</strong>
+    <p style="margin-top:8px; margin-bottom:4px;"><em>Accessed by the app:</em></p>
+    <ul style="margin-top:4px;">
+      <li>Your cloud inventory workspace spreadsheet (in the administrator's Google Drive;
+      your personal credentials are used only for initial registration and account
+      deletion — routine sync is handled by a secure server-side process)</li>
+      <li>The admin-maintained Standard Product List and test data sheet (read-only,
+      via a public API key — no user credentials involved)</li>
+    </ul>
+    <p style="margin-top:12px; margin-bottom:4px;"><em>Never accessed:</em></p>
+    <ul style="margin-top:4px;">
+      <li>Your personal Google Drive files</li>
+      <li>Your Gmail, Google Calendar, Google Contacts, or any other Google service</li>
+      <li>Any data outside the two sheets described above</li>
+    </ul>
+  </div>
+
+  <div class="highlight" style="background:#fffbea; border-left-color:#d97706; margin-top:16px;">
+    <strong>Standard Product List — disclaimer:</strong>
+    <p style="margin-top:8px; margin-bottom:0;">
+      The admin-maintained Standard Product List (downloaded via Products → Download
+      Standard Product List) is a <strong>skeleton reference only</strong> — it contains
+      general product codes, names, sizes, and standard pack sizes as a starting point.
+      Prices in this list may be outdated or may not match your actual business prices.
+      You are expected to review and customise all fields — names, codes, sizes, prices —
+      to suit your requirements before live use. All fields are fully editable within the
+      app. The Standard Product List is <em>not</em> your product master data; your
+      edited and saved product records in the app are the authoritative master.
+    </p>
+  </div>
+
+  <div class="highlight" style="background:#f5f0ff; border-left-color:#7c3aed; margin-top:16px;">
+    <strong>Google API Services Limited Use Disclosure</strong>
+    <p style="margin-top:8px; margin-bottom:0;">
+      WinEntry's use and transfer to any other app of information received from
+      Google APIs will adhere to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy"
+         target="_blank" rel="noopener">
+        Google API Services User Data Policy
+      </a>, including the Limited Use requirements. Specifically:
+    </p>
+    <ul style="margin-top:8px; margin-bottom:0;">
+      <li>Google user data obtained via Google APIs is used only to provide or
+      improve the WinEntry inventory management features described in this policy.</li>
+      <li>Google user data is <strong>not</strong> transferred to third parties
+      except as necessary to provide or improve those features, or as required by law.</li>
+      <li>Google user data is <strong>not</strong> used or transferred for serving
+      advertisements, including retargeted advertising.</li>
+      <li>Google user data is <strong>not</strong> used or transferred to determine
+      a user's creditworthiness or for lending purposes.</li>
+      <li>Google user data is <strong>not</strong> sold to third parties under
+      any circumstances.</li>
+      <li>WinEntry does not allow humans to read Google user data unless
+      you have given explicit permission, it is necessary for security purposes,
+      it is required by law, or the use is limited to internal operations and
+      the data has been aggregated and anonymised.</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>5. How Your Data Is Used</h2>
+
+  <div class="highlight" style="background:#f0fff4; border-left-color:#059669;">
+    <strong>You are always in control of your data and when it is synced.</strong>
+    <p style="margin-top:8px; margin-bottom:0;">
+      Cloud backup in WinEntry is always <strong>optional and user-initiated</strong>.
+      You must explicitly request a workspace from the admin and accept the consent
+      terms before any inventory data leaves your device. Signing in with Google
+      alone does <em>not</em> start any cloud sync. You can use the app indefinitely
+      with local storage and Excel export only, without ever enabling cloud backup.
+    </p>
+  </div>
+
+  <div class="highlight" style="background:#fff0f0; border-left-color:#dc2626; margin-top:16px; margin-bottom:16px;">
+    <p style="margin-bottom:0;">
+      <strong>WinEntry does not sell your personal data to any third party, and
+      does not use your data for advertising, profiling, or any purpose unrelated
+      to the operation of the app.</strong> This applies to all data collected,
+      including Google account information obtained via Google Sign-In.
+    </p>
+  </div>
+
+  <ul style="margin-top:16px;">
+    <li>
+      <strong>Sync schedule — and how to control it</strong> — Once cloud backup is
+      active, the app performs a background sync approximately every 6 hours using
+      Android's WorkManager. You are informed of this at the point of consent. You
+      can also trigger a manual sync at any time from the Sync button on the Home
+      screen. To switch to manual-only, go to Settings → Drive Backup card →
+      Deactivate (stops automatic sync; manual sync from the Home screen remains
+      available). To re-enable automatic sync, reactivate the Drive Backup card.
+    </li>
+    <li>
+      <strong>Sign-in only — no automatic cloud access</strong> — Signing in with
+      Google creates your identity in Firebase so the admin can identify and
+      provision your workspace. It does not automatically connect you to any
+      spreadsheet. No inventory data leaves your device at sign-in.
+    </li>
+    <li>
+      <strong>Administrator read access</strong> — Once cloud backup is active, the
+      administrator has full read access to all records synced to your workspace
+      spreadsheet. This is a deliberate feature of the admin-managed workspace
+      model. If you do not want the administrator to see your data, do not enable
+      cloud backup.
+    </li>
+    <li>
+      <strong>Administrator provisioning</strong> — Your email, display name, and
+      any business registration details you provided (business name, and optionally
+      owner name, phone, and location) are shared with the app administrator
+      (<a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>)
+      solely for the purpose of setting up your cloud workspace.
+    </li>
+    <li>
+      <strong>No analytics, no advertising, no third-party sharing</strong> — Your
+      data is never used for advertising, profiling, or analytics purposes. Your
+      inventory data and business information are never shared with or sold to any
+      third party other than the services listed in Section 6.
+    </li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>6. Third-Party Services</h2>
+  <p>
+    We use Google-provided services only to enable core app functionality — sign-in,
+    secure data storage, and optional cloud backup. These services do not use your data
+    for advertising or profiling.
+  </p>
+  <table>
+    <tr><th>Service</th><th>Provider</th><th>Purpose</th><th>Their Privacy Policy</th></tr>
+    <tr>
+      <td>Firebase Authentication</td>
+      <td>Google LLC</td>
+      <td>User sign-in and identity management</td>
+      <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></td>
+    </tr>
+    <tr>
+      <td>Firebase Firestore</td>
+      <td>Google LLC</td>
+      <td>Stores user profile and workspace provisioning records</td>
+      <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></td>
+    </tr>
+    <tr>
+      <td>Firebase Cloud Functions</td>
+      <td>Google LLC<br />(Google Cloud)</td>
+      <td>
+        Server-side processes that securely transfer your inventory data between the
+        app and your cloud workspace. Also handles removal of your personal information
+        from administrator registry records when you delete your account.
+      </td>
+      <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></td>
+    </tr>
+    <tr>
+      <td>Google Sheets API</td>
+      <td>Google LLC</td>
+      <td>
+        Stores your cloud inventory workspace. The app never accesses your personal
+        Google Drive files or any spreadsheets you have created yourself. Used for:
+        (1) writing your registration details to the administrator's registry when you
+        register; (2) clearing your cloud data and removing your personal details when
+        you delete your account; (3) routine sync of inventory data via a secure
+        server-side process (your personal credentials are not involved);
+        (4) reading the admin-maintained Standard Product List and test data
+        (no personal credentials involved).
+      </td>
+      <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></td>
+    </tr>
+  </table>
+  <p>
+    The app contains no advertising SDKs, no analytics SDKs, and no
+    crash-reporting SDKs. All services above are operated by Google LLC.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>7. Data Storage and Retention</h2>
+  <ul>
+    <li>
+      <strong>On-device</strong> — Inventory data is stored in a local database on
+      your Android device. It remains on your device until you uninstall the app or
+      clear app data. This data is <strong>not included in Android's automatic device
+      backup</strong> — it stays on your device only.
+    </li>
+    <li>
+      <strong>Google Sheets</strong> — Your synced inventory records remain in your
+      assigned spreadsheet in the administrator's Google Drive workspace. The
+      administrator manages retention of the workspace spreadsheet. You can delete
+      all your cloud sheet data yourself using the in-app account deletion feature
+      (see Section 9), or contact us at
+      <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>
+      to request deletion without deleting your account.
+      <br /><br />
+      <strong>User responsibility for data backup:</strong> You are strongly advised
+      to periodically export your data using the app's built-in Excel export feature
+      as an independent local backup. The administrator will take reasonable care of
+      the cloud workspace, but is <strong>not responsible for any data loss</strong>
+      arising from Google service outages, spreadsheet deletion, sync failures, or
+      other circumstances beyond direct control.
+    </li>
+    <li>
+      <strong>Firebase Firestore</strong> — Your user profile record (email, name,
+      sheet ID) is retained for as long as your account is active. Accounts with
+      no cloud sync activity for more than <strong>3 months</strong> are considered
+      inactive and will be scheduled for data purge. You will receive a
+      <strong>7-day advance email notification</strong> to your registered Google
+      account address before any such purge is carried out, giving you the
+      opportunity to cancel or reactivate. You may also request deletion at any
+      time — see Section 9.
+    </li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>7a. Disclaimer &amp; Indemnity — Cloud Backup</h2>
+
+  <div class="highlight" style="background:#fff8f0; border-left-color:#e07000;">
+    <strong>Please read before enabling cloud backup.</strong>
+  </div>
+
+  <p>
+    Cloud backup is an <strong>optional, user-initiated feature</strong>. By
+    requesting and activating cloud backup, you acknowledge and agree to all of
+    the following:
+  </p>
+  <ul>
+    <li>
+      <strong>Data visibility.</strong> All inventory records synced to the cloud
+      will be visible to the app administrator. This is by design and cannot be
+      changed while cloud backup is active.
+    </li>
+    <li>
+      <strong>Risk of data loss.</strong> Synced data is stored on Google's
+      infrastructure. Data loss may occur due to Google service outages, accidental
+      deletion of the workspace spreadsheet, sync errors, or other circumstances
+      beyond the control of the app or its administrator.
+    </li>
+    <li>
+      <strong>No guarantee of availability.</strong> Cloud sync depends on internet
+      connectivity, Google API availability, and a valid admin-provisioned workspace.
+      The app provides no guarantee of continuous cloud sync availability.
+    </li>
+    <li>
+      <strong>No liability.</strong> The app developer and administrator shall not
+      be held liable for any loss, corruption, or unauthorised access to data stored
+      in the cloud workspace arising from circumstances beyond their direct control.
+    </li>
+    <li>
+      <strong>Your local data is safe.</strong> Enabling or disabling cloud backup
+      has no effect on data stored locally on your device. Local records and Excel
+      exports remain fully functional and under your exclusive control at all times.
+    </li>
+    <li>
+      <strong>Voluntary opt-in.</strong> Cloud backup requires you to explicitly
+      register via Settings → Business Info and accept the consent terms. You
+      can deactivate cloud backup at any time from Settings → Drive Backup card
+      → Deactivate. Deactivation stops all future automatic syncs immediately.
+      To delete data already written to the cloud spreadsheet, use the in-app
+      account deletion feature (Settings → Business Info → ⋮ →
+      Delete Account &amp; Data) or contact us at
+      <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>.
+    </li>
+  </ul>
+  <p>
+    By tapping <em>"I Agree — Enable Backup"</em> in the app, you confirm that
+    you have read, understood, and accepted these terms.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>8. Support Contact</h2>
+  <p>
+    When you contact support via Settings → Help &amp; Support, the app opens
+    your email client with a blank message template.
+    <strong>No personal data is pre-filled or automatically collected.</strong>
+    You compose the message yourself. The template suggests optional details —
+    such as your business name, phone number, and app version — that you may
+    choose to include if you would like faster resolution of your request.
+    Sharing any such details is entirely at your discretion.
+  </p>
+  <p>
+    WhatsApp support is planned as a future feature and is not currently available
+    in the app.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>9. Your Rights &amp; Account Deletion</h2>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    Delete your account — in-app (immediate, no waiting)
+  </h2>
+  <p>
+    If you have the app installed, you can delete your account and all associated
+    cloud data yourself — no administrator involvement and no waiting period.
+  </p>
+  <p><strong>Path:</strong> Settings → Business Info → ⋮ (top-right menu) → Delete Account &amp; Data</p>
+  <p>The following are permanently and immediately deleted. <strong>This cannot be undone.</strong></p>
+  <ul>
+    <li><strong>Account registration</strong> — your name, phone number, business name, location, display name, and app version are blanked from the administrator's user registry records. Your email address and a deletion timestamp are retained in the registry row as an administrative audit trail (see note below).</li>
+    <li><strong>Cloud inventory data</strong> — all daily stock records, purchase records, and day-end reconciliation records in your cloud workspace spreadsheet</li>
+    <li><strong>Sign-in account</strong> — your email and business profile are permanently removed from Firebase Authentication and Firestore</li>
+  </ul>
+  <div class="highlight" style="background:#f8f8ff; border-left-color:#6366f1; margin-top:8px; margin-bottom:8px;">
+    <strong>Audit record retained — what and why:</strong>
+    <p style="margin-top:8px; margin-bottom:0;">
+      When you delete your account, a minimal audit record is retained in an
+      administrator-side log. This record contains only your email address, the date
+      of deletion, and a deletion count. <strong>No inventory data, no name, no
+      phone number, no business details</strong> are included.
+    </p>
+    <p style="margin-top:8px; margin-bottom:0;">
+      This record is retained for <strong>security and fraud prevention purposes</strong> —
+      specifically to detect and prevent abuse of the free workspace registration system
+      (for example, repeatedly registering and deleting accounts to obtain resources).
+      It is an administrative record — not a user data record — and is not subject to
+      the account deletion flow. You may request removal of
+      this audit record separately by contacting
+      <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a>.
+    </p>
+  </div>
+  <p>
+    <strong>Local device data:</strong> Inventory data stored on your device is
+    <strong>not</strong> deleted automatically. After the cloud deletion completes,
+    you will be asked separately whether you also want to clear it from the device.
+    The choice is yours — local data is under your exclusive control.
+  </p>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    Delete your account — web form (if you no longer have the app)
+  </h2>
+  <p>
+    If you no longer have the app installed, submit a deletion request using the
+    web form at:<br />
+    <a href="https://sites.google.com/view/winentryapp/account-deletion"
+       target="_blank" rel="noopener">
+      https://sites.google.com/view/winentryapp/account-deletion
+    </a>
+  </p>
+  <p>
+    Requests submitted via the web form are processed by the administrator within
+    <strong>7 days</strong>. A confirmation email will be sent to the address you
+    provide once deletion is complete.
+  </p>
+
+  <h2 style="font-size:15px; border:none; padding:0; margin:20px 0 8px; color:#333;">
+    Other rights
+  </h2>
+  <ul>
+    <li>
+      <strong>Access</strong> — You can access your synced inventory data through
+      the app by performing a down-sync (Sync button → pulls latest cloud records
+      into your local database) and then viewing it within the app, exporting it
+      to Excel, or both. Direct access to the raw Google Spreadsheet in the
+      administrator's workspace is not provided to end users.
+    </li>
+    <li>
+      <strong>Deactivate or control cloud backup</strong> — Go to Settings → Drive
+      Backup card → Deactivate at any time. This stops all future automatic syncs
+      immediately. Manual sync from the Home screen remains available. Your local
+      data and Excel exports are unaffected.
+    </li>
+    <li>
+      <strong>Revoke Google access</strong> — You can revoke WinEntry's access to
+      your Google account at any time from your Google Account settings:
+      <em>Google Account → Security → Third-party apps with account access</em>.
+      Revoking access will disable Google Sign-In (you will be signed out) and
+      prevent registration record writes. Note: because routine inventory sync runs
+      via a secure server-side process and does not use your personal Google
+      credentials, revoking Google access alone does <strong>not</strong> stop
+      ongoing background sync. To fully stop sync,
+      also disable cloud backup from Settings → Drive Backup card → Deactivate,
+      or delete your account.
+    </li>
+    <li>
+      <strong>Sign out</strong> — Signing out from within the app removes all
+      locally cached credentials and sheet IDs from your device.
+    </li>
+    <li>
+      <strong>Update registration details</strong> — Your registered business name,
+      owner name, phone, and location can be updated at any time from
+      Settings → Business Info.
+    </li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>10. Children's Privacy</h2>
+  <p>
+    WinEntry is a business application intended for use by adults in a commercial
+    context. It is not directed at children under the age of 13. We do not
+    knowingly collect personal information from children.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>11. Security</h2>
+  <p>
+    All data in transit is encrypted via HTTPS/TLS. WinEntry never stores your
+    Google password — account credentials are managed entirely by Google's
+    authentication infrastructure. Administrator credentials used for secure
+    server-side operations are stored safely and are never embedded in the app
+    or its code. Your app data is not included in Android's automatic device
+    backup.
+  </p>
+  <p>
+    Inventory sync is handled by a secure server-side process that runs on behalf of
+    the administrator. This process can only access administrator-managed workspace
+    spreadsheets — it has no access to your personal Google Drive files, Gmail,
+    Calendar, or any other Google service.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>12. Changes to This Policy</h2>
+  <p>
+    If this policy is updated, the "Last updated" date at the top of this page
+    will be changed. Continued use of the app after changes constitutes acceptance
+    of the revised policy. For significant changes, a notice will be shown inside
+    the app.
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>13. Contact</h2>
+  <p>
+    For any questions, data requests, or concerns about this Privacy Policy,
+    contact:
+  </p>
+  <p>
+    <strong>Simhadri Systems</strong><br />
+    Email: <a href="mailto:simhadrisystems@gmail.com">simhadrisystems@gmail.com</a><br />
+    App: WinEntry — Simple Inventory for Retailer
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <h2>Google API Services Limited Use Disclosure</h2>
+  <p>
+    WinEntry's use and transfer to any other app of information received from Google APIs
+    will adhere to the
+    <a href="https://developers.google.com/terms/api-services-user-data-policy"
+       target="_blank" rel="noopener">Google API Services User Data Policy</a>,
+    including the Limited Use requirements.
+  </p>
+
+  <footer>
+    &copy; 2026 Simhadri Systems. All rights reserved.
+    &nbsp;|&nbsp; <a href="mailto:simhadrisystems@gmail.com">Contact</a>
+  </footer>
+
+</div>
+</body>
+</html>

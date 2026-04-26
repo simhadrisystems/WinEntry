@@ -7,11 +7,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.simhadri.winentry.R
 import com.simhadri.winentry.databinding.FragmentReportsBinding
+import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
+import com.simhadri.winentry.utils.UserRegistrationManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -136,7 +139,22 @@ class ReportsFragment : Fragment() {
 
         // ── Monthly Sale Data ─────────────────────────────────────
         binding.cardMonthlySaleData.setOnClickListener {
-            findNavController().navigate(R.id.action_reports_to_monthlySummary)
+            UserRegistrationManager.ensureRegistered(
+                context = requireContext(),
+                scope   = viewLifecycleOwner.lifecycleScope,
+                onNotRegistered = {
+                    AppDialogs.confirm(
+                        context     = requireContext(),
+                        title       = "Registration Required",
+                        message     = "This feature requires app registration.\n\n" +
+                            "Go to Business Info to register.",
+                        actionLabel = "Go to Business Info"
+                    ) { findNavController().navigate(R.id.businessInfoFragment) }
+                },
+                onReady = {
+                    findNavController().navigate(R.id.action_reports_to_monthlySummary)
+                }
+            )
         }
     }
 
@@ -172,6 +190,10 @@ class ReportsFragment : Fragment() {
 
     private fun applyLanguage() {
         val lang = LangPrefs.get(requireContext())
+        val te = lang == AppStrings.Lang.TE
+        val titleSp = if (te) 18f else 16f
+        val descSp  = if (te) 11f else 13f
+
         binding.toolbar.title                       = AppStrings.reportsToolbarTitle.get(lang)
         binding.textSectionDailyReports.text        = AppStrings.reportsSectionDaily.get(lang)
         binding.textDailySheetTitle.text            = AppStrings.reportsDailySheetTitle.get(lang)
@@ -182,18 +204,29 @@ class ReportsFragment : Fragment() {
         binding.textClosingBalancesDesc.text        = AppStrings.reportsClosingBalancesDesc.get(lang)
         binding.textBrandWiseTitle.text             = AppStrings.reportsBrandWiseTitle.get(lang)
         binding.textBrandWiseDesc.text              = AppStrings.reportsBrandWiseDesc.get(lang)
+        binding.textSectionMonthlyReports.text      = AppStrings.reportsSectionMonthly.get(lang)
         binding.textSectionPeriodReports.text       = AppStrings.reportsSectionPeriod.get(lang)
         binding.textPurchaseReportTitle.text        = AppStrings.reportsPurchaseReportTitle.get(lang)
         binding.textPurchaseReportDesc.text         = AppStrings.reportsPurchaseReportDesc.get(lang)
-        binding.textSectionMonthlyReports.text      = AppStrings.reportsSectionMonthly.get(lang)
-        binding.textMonthlyPurchasesTitle.text      = AppStrings.reportsMonthlyPurchasesTitle.get(lang)
-        binding.textMonthlyPurchasesDesc.text       = AppStrings.reportsMonthlyPurchasesDesc.get(lang)
         val viewLabel = AppStrings.reportsViewButton.get(lang)
         binding.btnDailySheetView.text              = viewLabel
         binding.btnClosingView.text                 = viewLabel
         binding.btnPurchaseView.text                = viewLabel
         binding.btnBrandWiseView.text               = viewLabel
         binding.checkIncludeZero.text               = AppStrings.reportsIncludeZero.get(lang)
+        binding.tvReportsBusinessInfoNote.text      = AppStrings.reportsBusinessInfoNote.get(lang)
+
+        for (v in listOf(binding.textSectionDailyReports, binding.textSectionPeriodReports,
+                         binding.textSectionMonthlyReports))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11f)
+        for (v in listOf(binding.textDailySheetTitle, binding.textMonthlySaleTitle,
+                         binding.textClosingBalancesTitle, binding.textBrandWiseTitle,
+                         binding.textPurchaseReportTitle))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
+        for (v in listOf(binding.textDailySheetDesc, binding.textMonthlySaleDesc,
+                         binding.textClosingBalancesDesc, binding.textBrandWiseDesc,
+                         binding.textPurchaseReportDesc))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 
     private fun navigateToViewer(reportType: String, date: String, title: String, includeZero: Boolean = false) {

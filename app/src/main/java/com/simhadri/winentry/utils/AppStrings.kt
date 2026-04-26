@@ -39,8 +39,8 @@ object AppStrings {
         te = "ఒక విభాగాన్ని ఎంచుకొని ప్రారంభించు"
     )
     val homeDailyStockTitle = L(
-        en = "Daily Stock Entry",
-        te = "రోజువారీ స్టాక్ నమోదు"
+        en = "Daily Closing Stock Entry",
+        te = "రోజువారీ ముగింపు స్టాక్ నమోదు"
     )
     val homeDailyStockDesc = L(
         en = "Enter Closing Balance, log purchases, commit sales & expenses",
@@ -123,6 +123,31 @@ object AppStrings {
         en = "Auto-sync enable and last sync status",
         te = "తనకుతాను సింక్ చేసే అనుమతి, చివరిగా సింక్ అయిన సమయం"
     )
+    val settingsDriveBackupActiveTitle = L(
+        en = "Drive Backup Active",
+        te = "డ్రైవ్ బ్యాకప్ సక్రియంగా ఉంది"
+    )
+    val settingsDriveBackupActiveDesc = L(
+        en = "Syncing to admin-managed workspace",
+        te = "నిర్వాహకుని వర్క్‌స్పేస్‌కు సమకాలీకరిస్తోంది"
+    )
+    val settingsDriveBackupPendingTitle = L(
+        en = "Drive Backup Pending",
+        te = "డ్రైవ్ బ్యాకప్ పెండింగ్‌లో ఉంది"
+    )
+    val settingsDriveBackupPendingDesc = L(
+        en = "Awaiting admin setup — tap to send reminder",
+        te = "నిర్వాహకుని సెటప్ కోసం వేచి ఉంది — రిమైండర్ పంపడానికి నొక్కండి"
+    )
+    val settingsDriveBackupRequestTitle = L(
+        en = "Request Drive Backup",
+        te = "డ్రైవ్ బ్యాకప్ అభ్యర్థించు"
+    )
+    val settingsDriveBackupRequestDesc = L(
+        en = "Tap to request cloud backup from admin",
+        te = "నిర్వాహకునిచే క్లౌడ్ బ్యాకప్ కోసం నొక్కండి"
+    )
+
     val settingsSectionSupport = L(
         en = "SUPPORT",
         te = "మద్దతు"
@@ -179,6 +204,30 @@ object AppStrings {
     val productsMenuMasterDesc = L(
         en = "Product codes, sizes and pricing",
         te = "సరకుల కోడ్‌లు, సైజులు మరియు ధరలు"
+    )
+    val productListToolbarTitle = L(
+        en = "Product Master Data",
+        te = "సరకుల మాస్టర్ డేటా"
+    )
+    val purchasesToolbarTitle = L(
+        en = "Purchases",
+        te = "కొనుగోళ్లు"
+    )
+    val purchasesSelectMode = L(
+        en = "Select Purchases",
+        te = "కొనుగోళ్లు ఎంచుకోండి"
+    )
+    val productsMenuSectionCloud = L(
+        en = "CLOUD UPDATE",
+        te = "క్లౌడ్ నవీకరణ"
+    )
+    val productsMenuDownloadTitle = L(
+        en = "Download Standard Product List",
+        te = "స్టాండర్డ్ సరకుల జాబితా డౌన్‌లోడ్"
+    )
+    val productsMenuDownloadDesc = L(
+        en = "Import admin's standard product list as a starting point",
+        te = "అడ్మిన్ స్టాండర్డ్ జాబితాను ప్రారంభ బిందువుగా దిగుమతి చేయండి"
     )
 
     // ─────────────────────────────────────────────────────────────────
@@ -256,5 +305,13 @@ object AppStrings {
     val reportsIncludeZero = L(
         en = "Include products with zero activity",
         te = "అమ్మకాలు లేని సరకులను కూడా చేర్చు"
+    )
+    val reportsBusinessInfoNote = L(
+        en = "Business name and owner details from Settings \u2192 Business Info appear as report headers on all reports.",
+        te = "Settings \u2192 Business Info లో నమోదు చేసిన వ్యాపారం పేరు మరియు యజమాని వివరాలు అన్ని రిపోర్టులలో శీర్షికగా కనిపిస్తాయి."
+    )
+    val businessInfoGuidanceNote = L(
+        en = "Details saved here appear as the business header on all reports and on the Home screen.",
+        te = "ఇక్కడ నమోదు చేసిన వివరాలు అన్ని రిపోర్టులలో మరియు హోమ్ స్క్రీన్‌లో వ్యాపారం శీర్షికగా కనిపిస్తాయి."
     )
 }

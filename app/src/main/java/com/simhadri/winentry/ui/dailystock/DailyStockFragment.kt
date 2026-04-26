@@ -29,8 +29,10 @@ import com.simhadri.winentry.R
 import com.simhadri.winentry.data.entity.DailyEntry
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.databinding.FragmentDailyStockBinding
+import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockExcelHelper
 import com.simhadri.winentry.utils.DailyStockImportHelper
+import com.simhadri.winentry.utils.UserRegistrationManager
 import com.simhadri.winentry.ui.dailystock.DailyStockDataViewModel
 import com.simhadri.winentry.ui.dailystock.DayReconciliationViewModel  // ← NEW: import for reconciliation dialog
 import kotlinx.coroutines.delay
@@ -128,7 +130,7 @@ class DailyStockFragment : Fragment() {
     // ═══════════════════════════════════════════════════════════════
     private fun setupToolbarMenu() {
         // Back / home navigation arrow on the toolbar
-        binding.toolbar.setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
+        binding.toolbar.setNavigationIcon(R.drawable.ic_chevron_left)
         binding.toolbar.setNavigationOnClickListener {
             if (viewModel.hasUnsavedChanges.value == true) {
                 showUnsavedChangesDialog(
@@ -180,7 +182,23 @@ class DailyStockFragment : Fragment() {
         return when (itemId) {
             R.id.action_export_daily_stock        -> { exportDailyStock();         true }
             R.id.action_export_current_date       -> { exportCurrentDate();        true }
-            R.id.action_export_date_range         -> { exportDateRange();          true }
+            R.id.action_export_date_range         -> {
+                UserRegistrationManager.ensureRegistered(
+                    context = requireContext(),
+                    scope   = viewLifecycleOwner.lifecycleScope,
+                    onNotRegistered = {
+                        AppDialogs.confirm(
+                            context     = requireContext(),
+                            title       = "Registration Required",
+                            message     = "This feature requires app registration.\n\n" +
+                                "Go to Business Info to register.",
+                            actionLabel = "Go to Business Info"
+                        ) { findNavController().navigate(R.id.businessInfoFragment) }
+                    },
+                    onReady = { exportDateRange() }
+                )
+                true
+            }
             R.id.action_download_closing_template -> { downloadClosingTemplate();  true }
             R.id.action_import_closing            -> { importClosing();            true }
             R.id.action_clear_date_data           -> { clearCurrentDateData();     true }

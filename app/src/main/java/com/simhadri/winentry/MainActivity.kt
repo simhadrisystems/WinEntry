@@ -63,9 +63,8 @@ class MainActivity : AppCompatActivity() {
                 .setMessage(
                     "Cloud backup is not set up yet.\n\n" +
                     "Your data is safely stored on this device.\n\n" +
-                    "To enable cloud backup:\n" +
-                    "\u2022 Ask your administrator to provision your workspace, OR\n" +
-                    "\u2022 Go to Settings \u2192 My Drive Backup to use your own Google Drive"
+                    "To enable cloud backup, go to Settings \u2192 Drive Backup " +
+                    "and request a workspace from the administrator."
                 )
                 .setPositiveButton("Open Settings") { _, _ ->
                     // navController is a lateinit field set in onCreate()

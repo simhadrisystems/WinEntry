@@ -12,18 +12,18 @@
 # ── App resources referenced in layouts ──────────────────────────────────
 # R8 resource shrinking removes mipmap/ic_launcher if only referenced in
 # XML layouts (not in code). Keep all app icon variants explicitly.
--keep class com.simple.simpleinventory.R$mipmap { *; }
--keep class com.simple.simpleinventory.R$drawable { *; }
--keep class com.simple.simpleinventory.R$layout { *; }
--keep class com.simple.simpleinventory.R$id { *; }
--keep class com.simple.simpleinventory.R$navigation { *; }
+-keep class com.simhadri.winentry.R$mipmap { *; }
+-keep class com.simhadri.winentry.R$drawable { *; }
+-keep class com.simhadri.winentry.R$layout { *; }
+-keep class com.simhadri.winentry.R$id { *; }
+-keep class com.simhadri.winentry.R$navigation { *; }
 # Room entities, Firestore models and data classes use reflection for
 # field access — R8 must not rename or remove their fields.
 
--keep class com.simple.simpleinventory.data.entity.** { *; }
--keep class com.simple.simpleinventory.data.repository.** { *; }
--keep class com.simple.simpleinventory.data.UserProfile { *; }
--keepclassmembers class com.simple.simpleinventory.** {
+-keep class com.simhadri.winentry.data.entity.** { *; }
+-keep class com.simhadri.winentry.data.repository.** { *; }
+-keep class com.simhadri.winentry.data.UserProfile { *; }
+-keepclassmembers class com.simhadri.winentry.** {
     public <init>(...);
 }
 
@@ -49,7 +49,7 @@
     @com.google.firebase.firestore.ServerTimestamp <fields>;
 }
 # Keep all classes that Firestore deserializes into (toObject calls)
--keep class com.simple.simpleinventory.data.UserProfile { *; }
+-keep class com.simhadri.winentry.data.UserProfile { *; }
 
 # ── Google Sign-In / GMS ─────────────────────────────────────────────────
 -keep class com.google.android.gms.auth.** { *; }
@@ -88,8 +88,33 @@
 # POI uses Class.newInstance() to instantiate XML handlers via reflection.
 # R8 removes constructors it can't see being called directly — which breaks
 # POI's internal service loader pattern at runtime with InstantiationException.
-# Keep ALL POI classes with ALL members including no-arg constructors.
--keep class org.apache.poi.** { *; }
+#
+# IMPORTANT: do NOT use the wildcard "-keep class org.apache.poi.** { *; }".
+# XSLF (PowerPoint/SVG) is bundled in the same jar but is unused here.
+# Its SVGUserAgent.getViewbox() returns java.awt.geom.Rectangle2D which does
+# not exist on Android. R8 emits an un-suppressable "type check" verifier
+# diagnostic (distinct from missing-class warnings, unaffected by -dontwarn)
+# for every kept class whose method signatures reference an unresolvable type.
+# The fix: keep only the packages needed for XSSF (xlsx) and omit the XSLF,
+# HSLF, XWPF, HWPF, EMF, WMF packages that reference java.awt.*.
+-keep class org.apache.poi.ss.** { *; }
+-keep class org.apache.poi.xssf.** { *; }
+-keep class org.apache.poi.hssf.** { *; }
+-keep class org.apache.poi.ooxml.** { *; }
+-keep class org.apache.poi.openxml4j.** { *; }
+-keep class org.apache.poi.util.** { *; }
+-keep class org.apache.poi.poifs.** { *; }
+-keep class org.apache.poi.common.** { *; }
+-keep class org.apache.poi.ddf.** { *; }
+-keep class org.apache.poi.extractor.** { *; }
+-keep class org.apache.poi.wp.** { *; }
+# Intentionally NOT kept (unused, reference java.awt.* which isn't on Android):
+#   org.apache.poi.xslf.**  – PowerPoint OOXML  (SVGUserAgent → java.awt.geom.*)
+#   org.apache.poi.hslf.**  – Legacy PowerPoint
+#   org.apache.poi.xwpf.**  – Word OOXML
+#   org.apache.poi.hwpf.**  – Legacy Word
+#   org.apache.poi.hemf.**  – Enhanced MetaFile
+#   org.apache.poi.hwmf.**  – Windows MetaFile
 -keep class org.apache.xmlbeans.** { *; }
 -keep class org.openxmlformats.** { *; }
 -keep class schemasMicrosoftComOfficeOffice.** { *; }
@@ -147,7 +172,7 @@
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
 # Keep SyncWorker specifically
--keep class com.simple.simpleinventory.sync.SyncWorker { *; }
+-keep class com.simhadri.winentry.sync.SyncWorker { *; }
 
 # ── Navigation Component ──────────────────────────────────────────────────
 -keepnames class androidx.navigation.** { *; }

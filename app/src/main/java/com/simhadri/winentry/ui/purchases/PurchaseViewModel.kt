@@ -690,7 +690,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
      */
     suspend fun getProductsForImport(): List<Product> {
         return try {
-            productDao.getAllActiveProductsSync()
+            productDao.getAllProductsSync()  // inactive products can still appear in historic imports
         } catch (e: Exception) {
             android.util.Log.e("PurchaseViewModel", "Failed to load products for import: ${e.message}", e)
             emptyList()

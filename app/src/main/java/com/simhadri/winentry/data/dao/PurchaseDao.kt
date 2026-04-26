@@ -135,6 +135,15 @@ interface PurchaseDao {
     suspend fun getAllTxnIds(): List<String>
 
     /**
+     * Hard-delete any soft-deleted (PENDING_DELETE) tombstone that shares the given txnId.
+     * Called when restoring a purchase from cloud: if a matching tombstone exists it would
+     * cause the next sync to delete the just-restored cloud row, so we cancel it here.
+     */
+    @Query("DELETE FROM purchases WHERE txnId = :txnId AND isDeleted = 1")
+    suspend fun cancelPendingDeleteByTxnId(txnId: String)
+
+
+    /**
      * Lightweight projection for import-sheet dedup.
      * Returns invoiceNumber, productCode and purchaseDate for all live rows.
      * Used to build the "invoiceNumber|productCode|date" key set that prevents

@@ -20,7 +20,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             app:title="Business Info"
-            app:navigationIcon="@drawable/ic_chevron_left" />
+            app:navigationIcon="@drawable/ic_chevron_left"
+            app:menu="@menu/menu_business_info" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -38,13 +39,26 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Guidance note -->
+            <TextView
+                android:id="@+id/tvBusinessInfoNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Details saved here appear as the business header on all reports and on the Home screen."
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:background="?attr/colorSurfaceVariant"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:layout_marginBottom="16dp" />
+
             <!-- Section: Owner -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="OWNER"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
@@ -53,7 +67,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Owner / Contact Name"
+                android:hint="Owner / Contact Name (optional)"
                 android:layout_marginBottom="12dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
@@ -66,46 +80,32 @@
                     android:inputType="textCapWords" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <LinearLayout
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="0dp"
+                android:hint="Phone (optional, 10 digits)"
+                android:layout_marginBottom="12dp"
+                app:boxBackgroundColor="@android:color/white"
+                app:hintTextColor="#37474F"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editPhone"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="Phone"
-                    app:boxBackgroundColor="@android:color/white"
-                    app:hintTextColor="#37474F"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/editPhone"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textColor="#212121"
-                        android:inputType="phone" />
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:textColor="#212121"
+                    android:inputType="phone" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="Email (optional)"
-                    android:layout_marginStart="8dp"
-                    app:boxBackgroundColor="@android:color/white"
-                    app:hintTextColor="#37474F"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/editEmail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textColor="#212121"
-                        android:inputType="textEmailAddress" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
+            <!-- Account email — auto-populated from Firebase Auth, read-only -->
+            <TextView
+                android:id="@+id/tvAccountEmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginBottom="12dp"
+                android:layout_marginStart="4dp" />
 
             <!-- Section: Business -->
             <TextView
@@ -113,7 +113,7 @@
                 android:layout_height="wrap_content"
                 android:text="BUSINESS"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
@@ -133,7 +133,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="#212121"
-                    android:textStyle="bold"
+                    android:fontFamily="@font/ramabhadra_regular"
                     android:inputType="textCapWords" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -159,7 +159,7 @@
                 android:layout_height="wrap_content"
                 android:text="ADDRESS"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
@@ -169,7 +169,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Address Line 1"
+                android:hint="Address Line 1 (optional)"
                 android:layout_marginBottom="12dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
@@ -201,7 +201,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="City / Location"
+                android:hint="City / Location (optional)"
                 android:layout_marginBottom="24dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
@@ -214,12 +214,23 @@
                     android:inputType="textCapWords" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Save Button -->
+            <!-- Registration Status -->
+            <TextView
+                android:id="@+id/tvRegistrationStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="○ Not Registered"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:gravity="center"
+                android:paddingBottom="8dp" />
+
+            <!-- Save Button (label set dynamically) -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonSave"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Save Business Info"
+                android:text="Save &amp; Register"
                 android:textSize="16sp"
                 android:backgroundTint="#FF1976D2"
                 android:layout_marginBottom="16dp" />

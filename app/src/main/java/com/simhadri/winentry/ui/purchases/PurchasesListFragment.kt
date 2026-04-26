@@ -21,6 +21,10 @@ import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.databinding.FragmentPurchasesListBinding
 import com.simhadri.winentry.helpers.PurchaseExcelHelper
+import com.simhadri.winentry.utils.AppDialogs
+import com.simhadri.winentry.utils.AppStrings
+import com.simhadri.winentry.utils.LangPrefs
+import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -73,6 +77,8 @@ class PurchasesListFragment : Fragment() {
     }
 
     private fun setupToolbar() {
+        val lang = LangPrefs.get(requireContext())
+        binding.textToolbarTitle.text = AppStrings.purchasesToolbarTitle.get(lang)
         binding.toolbar.setNavigationOnClickListener {
             if (isMultiSelectMode) {
                 endMultiSelectMode()
@@ -115,7 +121,20 @@ class PurchasesListFragment : Fragment() {
                     true
                 }
                 R.id.action_export -> {
-                    exportToExcelDirect()
+                    UserRegistrationManager.ensureRegistered(
+                        context = requireContext(),
+                        scope   = viewLifecycleOwner.lifecycleScope,
+                        onNotRegistered = {
+                            AppDialogs.confirm(
+                                context     = requireContext(),
+                                title       = "Registration Required",
+                                message     = "This feature requires app registration.\n\n" +
+                                    "Go to Business Info to register.",
+                                actionLabel = "Go to Business Info"
+                            ) { findNavController().navigate(R.id.businessInfoFragment) }
+                        },
+                        onReady = { exportToExcelDirect() }
+                    )
                     true
                 }
                 R.id.action_export_filtered -> {
@@ -150,6 +169,10 @@ class PurchasesListFragment : Fragment() {
                     downloadPurchasesFromCloud()
                     true
                 }
+                R.id.action_restore_purchases_cloud -> {
+                    restorePurchasesFromCloud()
+                    true
+                }
                 else -> false
             }
         }
@@ -173,6 +196,20 @@ class PurchasesListFragment : Fragment() {
             )
         }
     }
+
+    private fun restorePurchasesFromCloud() {
+        lifecycleScope.launch {
+            val products = viewModel.getProductsForImport()
+            SyncHelper.restorePurchasesFromCloud(
+                context    = requireContext(),
+                scope      = lifecycleScope,
+                anchorView = binding.root,
+                products   = products,
+                onRefresh  = { /* allPurchases LiveData refreshes automatically via Room */ }
+            )
+        }
+    }
+
 
 // Replaced old with new code
     private fun setupRecyclerView() {
@@ -660,8 +697,8 @@ class PurchasesListFragment : Fragment() {
     private fun startMultiSelectMode() {
         isMultiSelectMode = true
         adapter.isMultiSelectMode = true
-        binding.toolbar.title = "Select Purchases"
-        
+        binding.textToolbarTitle.text = AppStrings.purchasesSelectMode.get(LangPrefs.get(requireContext()))
+
         // Hide FAB during selection
         binding.fabAdd.visibility = android.view.View.INVISIBLE
         
@@ -681,8 +718,8 @@ class PurchasesListFragment : Fragment() {
     private fun endMultiSelectMode() {
         isMultiSelectMode = false
         adapter.clearSelection()
-        binding.toolbar.title = "Purchases"
-        
+        binding.textToolbarTitle.text = AppStrings.purchasesToolbarTitle.get(LangPrefs.get(requireContext()))
+
         // Show FAB again
         binding.fabAdd.visibility = android.view.View.VISIBLE
         
@@ -695,10 +732,10 @@ class PurchasesListFragment : Fragment() {
     private fun updateMultiSelectMode(count: Int) {
         if (isMultiSelectMode) {
             if (count > 0) {
-                binding.toolbar.title = "$count selected"
+                binding.textToolbarTitle.text = "$count selected"
                 // Show menu options for delete and select all
             } else {
-                binding.toolbar.title = "Select Purchases"
+                binding.textToolbarTitle.text = AppStrings.purchasesSelectMode.get(LangPrefs.get(requireContext()))
             }
         }
     }

@@ -65,10 +65,13 @@ function getAdminAuth() {
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 
-/** Drive folder where all user sheets live. Owned by tomsrao@gmail.com. */
-const SHARED_FOLDER_ID = "1MZq03EyglI4JR3pr_5siStY7JC0RLKII";
+/** Drive folder where all user sheets live. Owned by simhadrisystems@gmail.com. */
+const SHARED_FOLDER_ID = "1WjjaEH1Ps37xl_XBsbia_0mXXLMBLqpL";
 
-const ADMIN_EMAIL = "tomsrao@gmail.com";
+const ADMIN_EMAIL = "simhadrisystems@gmail.com";
+
+/** Service account that owns write access to every user sheet. */
+const SERVICE_ACCOUNT_EMAIL = "firebase-adminsdk-fbsvc@winentry-a87f2.iam.gserviceaccount.com";
 
 /** Admin user registry sheet. Share with App Engine SA as Editor. */
 const REGISTRY_SHEET_ID = "1L4PpNtS2AxfhP2XwnPYVD8ltUSPUJSUcAZbVm7yn5LM";
@@ -272,17 +275,18 @@ async function createUserSheetForUser(uid, email, displayName, extraData = {}) {
     console.warn("Header formatting skipped (non-fatal):", err.message);
   }
 
-  // ── Share with user ─────────────────────────────────────────────────────────
+  // ── Share with service account (writer) — NOT with the user Gmail ──────────
+  // The sheet is invisible in the user's Google Drive. All sync goes through
+  // the syncUserSheet Cloud Function, which authenticates via service account.
   try {
-    if (email) {
-      await drive.permissions.create({
-        fileId: spreadsheetId,
-        requestBody: { type: "user", role: "writer", emailAddress: email },
-        sendNotificationEmail: false
-      });
-    }
+    await drive.permissions.create({
+      fileId: spreadsheetId,
+      requestBody: { type: "user", role: "writer", emailAddress: SERVICE_ACCOUNT_EMAIL },
+      sendNotificationEmail: false
+    });
+    console.log(`Granted SA writer access on ${spreadsheetId}`);
   } catch (err) {
-    console.warn("Sharing with user failed (non-fatal):", err.message);
+    console.warn("SA permission grant failed (non-fatal):", err.message);
   }
 
   // ── Write /users/{uid} to Firestore ────────────────────────────────────────
@@ -327,6 +331,31 @@ async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_cr
     } catch (_) { registeredAt = new Date().toISOString(); }
     const processedAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
 
+    // ── Re-registration detection ─────────────────────────────────────────────
+    // Check account_deletions/{emailKey} to detect users who deleted and re-registered.
+    // This collection persists beyond account deletion — it is admin audit data, not user data.
+    let reRegNote = "";
+    try {
+      const emailKey = (data.email || "").trim().toLowerCase()
+        .replace(/@/g, "_at_").replace(/\./g, "_");
+      if (emailKey) {
+        const deletionDoc = await db.collection("account_deletions").doc(emailKey).get();
+        if (deletionDoc.exists) {
+          const d = deletionDoc.data();
+          const count = d.deletionCount || 0;
+          if (count > 0) {
+            const lastDate = d.lastDeletedAt && d.lastDeletedAt.toDate
+              ? d.lastDeletedAt.toDate().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" })
+              : "";
+            reRegNote = `Re-registration #${count + 1} (prev account deleted${lastDate ? ": " + lastDate : ""})`;
+            console.log(`appendToRegistry — re-registration detected for ${data.email}: ${reRegNote}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Re-registration check failed (non-fatal):", err.message);
+    }
+
     // ── 1. UserRegistry tab (12 cols — CF format) ─────────────────────────────
     // A=No  B=Registered At  C=Email  D=Owner Name  E=Business Name
     // F=Phone  G=Location  H=UID  I=Android/App Version  J=Status  K=Sheet Assigned  L=Sheet URL
@@ -344,7 +373,10 @@ async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_cr
     if (status === "registered_only" && urMatchIdx > 0 && !forceWriteRegistry) {
       console.log(`UserRegistry — uid=${uid} already registered, skipping registered_only write`);
     } else {
-      const urRow = [urRowNum, registeredAt, data.email || "", data.ownerName || "", data.businessName || "", data.phone || "", data.location || "", uid, versionInfo, status, sheetId || "", sheetUrl || ""];
+      // Re-registration note goes into Sheet URL column (last available) for UserRegistry
+      // since that tab has no dedicated Notes column.
+      const urSheetUrl = reRegNote || sheetUrl || "";
+      const urRow = [urRowNum, registeredAt, data.email || "", data.ownerName || "", data.businessName || "", data.phone || "", data.location || "", uid, versionInfo, status, sheetId || "", urSheetUrl];
       if (urMatchIdx > 0) {
         await sheets.spreadsheets.values.update({ spreadsheetId: REGISTRY_SHEET_ID, range: `${UR_TAB}!A${urMatchIdx + 1}`, valueInputOption: "RAW", requestBody: { values: [urRow] } });
       } else {
@@ -371,7 +403,7 @@ async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_cr
     if (status === "registered_only" && arMatchIdx > 0 && !forceWriteRegistry) {
       console.log(`AppRequests — uid=${uid} already registered, skipping registered_only write`);
     } else {
-      const arRow = [arRowNum, registeredAt, data.email || "", data.ownerName || "", data.businessName || "", displayName, data.location || "", data.phone || "", uid, versionInfo, status, sheetId || "", sheetUrl || "", processedAt, "editor", ""];
+      const arRow = [arRowNum, registeredAt, data.email || "", data.ownerName || "", data.businessName || "", displayName, data.location || "", data.phone || "", uid, versionInfo, status, sheetId || "", sheetUrl || "", processedAt, "editor", reRegNote];
       if (arMatchIdx > 0) {
         await sheets.spreadsheets.values.update({ spreadsheetId: REGISTRY_SHEET_ID, range: `${AR_TAB}!A${arMatchIdx + 1}`, valueInputOption: "RAW", requestBody: { values: [arRow] } });
       } else {
@@ -383,6 +415,304 @@ async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_cr
   } catch (err) {
     console.error("Registry append failed:", err.message);
   }
+}
+
+// ── HELPER: soft-delete both registry tab rows for uid ────────────────────────
+// Blanks all PII fields (name, phone, business, location, version, sheet refs)
+// while retaining Row#, Registered At, Email (abuse detection), UID, Role, and
+// a deletion timestamp in the Notes / Sheet URL column.
+// Called from deleteUserRegistration before the Firebase Auth account is removed.
+
+async function softDeleteRegistryRows(uid) {
+  const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+  const sheets = google.sheets({ version: "v4", auth });
+  const deletedAt = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata", day: "2-digit", month: "short",
+    year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true
+  });
+
+  // UserRegistry: UID at col H (index 7), 12 cols A–L
+  // Keep: A(Row#), B(Registered At), C(Email), H(UID)
+  // Blank: D(Owner), E(Business), F(Phone), G(Location), I(Version), K(Sheet Assigned)
+  // Set:   J(Status) = "account_deleted", L(Sheet URL) = deletion timestamp
+  try {
+    const urData = (await sheets.spreadsheets.values.get({
+      spreadsheetId: REGISTRY_SHEET_ID, range: "UserRegistry!A:L"
+    })).data.values || [];
+    const urIdx = urData.findIndex((r, i) => i > 0 && r[7] === uid);
+    if (urIdx > 0) {
+      const r = urData[urIdx];
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: REGISTRY_SHEET_ID,
+        range: `UserRegistry!A${urIdx + 1}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [[
+          r[0] || "",         // A Row#          — keep
+          r[1] || "",         // B Registered At — keep for audit
+          r[2] || "",         // C Email         — keep for abuse detection
+          "",                 // D Owner Name    — blanked
+          "",                 // E Business Name — blanked
+          "",                 // F Phone         — blanked
+          "",                 // G Location      — blanked
+          uid,                // H UID           — keep for audit
+          "",                 // I Version       — blanked
+          "account_deleted",  // J Status
+          "",                 // K Sheet Assigned — blanked
+          `Deleted: ${deletedAt}` // L Sheet URL — repurposed as deletion note
+        ]] }
+      });
+      console.log(`UserRegistry soft-deleted uid=${uid} at row ${urIdx + 1}`);
+    } else {
+      console.log(`UserRegistry: no row found for uid=${uid} — skipping soft-delete`);
+    }
+  } catch (err) {
+    console.warn("UserRegistry soft-delete failed:", err.message);
+  }
+
+  // AppRequests: UID at col I (index 8), 16 cols A–P
+  // Keep: A(Row#), B(Registered At), C(Email), I(UID), N(Processed At), O(Role)
+  // Blank: D(Owner), E(Business), F(Display), G(Location), H(Phone), J(Version), L(SheetID), M(SheetURL)
+  // Set:   K(Status) = "account_deleted", P(Notes) = deletion timestamp
+  try {
+    const arData = (await sheets.spreadsheets.values.get({
+      spreadsheetId: REGISTRY_SHEET_ID, range: "AppRequests!A:P"
+    })).data.values || [];
+    const arIdx = arData.findIndex((r, i) => i > 0 && r[8] === uid);
+    if (arIdx > 0) {
+      const r = arData[arIdx];
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: REGISTRY_SHEET_ID,
+        range: `AppRequests!A${arIdx + 1}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [[
+          r[0] || "",         // A Row#          — keep
+          r[1] || "",         // B Registered At — keep for audit
+          r[2] || "",         // C Email         — keep for abuse detection
+          "",                 // D Owner Name    — blanked
+          "",                 // E Business Name — blanked
+          "",                 // F Display Name  — blanked
+          "",                 // G Location      — blanked
+          "",                 // H Phone         — blanked
+          uid,                // I UID           — keep for audit
+          "",                 // J Version       — blanked
+          "account_deleted",  // K Status
+          "",                 // L Sheet ID      — blanked
+          "",                 // M Sheet URL     — blanked
+          r[13] || "",        // N Processed At  — keep for audit
+          r[14] || "",        // O Role          — keep for audit
+          `Deleted: ${deletedAt}` // P Notes
+        ]] }
+      });
+      console.log(`AppRequests soft-deleted uid=${uid} at row ${arIdx + 1}`);
+    } else {
+      console.log(`AppRequests: no row found for uid=${uid} — skipping soft-delete`);
+    }
+  } catch (err) {
+    console.warn("AppRequests soft-delete failed:", err.message);
+  }
+}
+
+// ── SYNC HELPERS (used by syncUserSheet CF) ───────────────────────────────────
+
+// Sheets date serial → "yyyy-MM-dd". Handles both integer serials and
+// decimal strings (e.g. "46087.0") produced by UNFORMATTED_VALUE reads.
+function serialToDateStr(serial) {
+  const epoch = new Date(Date.UTC(1899, 11, 30));
+  const d = new Date(epoch.getTime() + Math.round(parseFloat(serial)) * 86400000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+}
+
+// Normalise any date representation to "yyyy-MM-dd".
+// Handles: "yyyy-MM-dd" string, Sheets serial number, or falls back to raw string.
+function normalizeDate(val) {
+  if (val == null) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const num = parseFloat(s);
+  if (!isNaN(num) && num > 1000) return serialToDateStr(num);
+  return s;
+}
+
+async function writePurchases(sheets, spreadsheetId, rows) {
+  if (!rows.length) return { written: 0, updated: 0, inserted: 0 };
+
+  const existing = (await sheets.spreadsheets.values.get({
+    spreadsheetId, range: "Purchases!A:A"
+  })).data.values || [];
+
+  const txnIdToRow = {};
+  for (let i = 1; i < existing.length; i++) {
+    const id = existing[i] && existing[i][0];
+    if (id) txnIdToRow[id] = i + 1;
+  }
+
+  const updateData = [];
+  const newRows    = [];
+  for (const row of rows) {
+    const txnId = row[0];
+    if (txnIdToRow[txnId]) {
+      updateData.push({ range: `Purchases!A${txnIdToRow[txnId]}`, values: [row] });
+    } else {
+      newRows.push(row);
+    }
+  }
+
+  if (updateData.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: "RAW", data: updateData }
+    });
+  }
+  if (newRows.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId, range: "Purchases!A:AB",
+      valueInputOption: "RAW", insertDataOption: "INSERT_ROWS",
+      requestBody: { values: newRows }
+    });
+  }
+  return { written: rows.length, updated: updateData.length, inserted: newRows.length };
+}
+
+async function deletePurchases(sheets, spreadsheetId, txnIds) {
+  if (!txnIds.length) return { deleted: 0 };
+
+  const [existingRes, metaRes] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "Purchases!A:A" }),
+    sheets.spreadsheets.get({ spreadsheetId })
+  ]);
+
+  const existing = existingRes.data.values || [];
+  const purchasesSheet = metaRes.data.sheets.find(s => s.properties.title === "Purchases");
+  if (!purchasesSheet) return { deleted: 0, error: "Purchases tab not found" };
+  const sheetId = purchasesSheet.properties.sheetId;
+
+  const txnSet = new Set(txnIds);
+  const rowIndices = [];
+  for (let i = 1; i < existing.length; i++) {
+    const id = existing[i] && existing[i][0];
+    if (id && txnSet.has(id)) rowIndices.push(i); // 0-based; row 0 is header
+  }
+  if (!rowIndices.length) return { deleted: 0 };
+
+  // Sort descending so deleting later rows doesn't shift earlier indices
+  rowIndices.sort((a, b) => b - a);
+  const requests = rowIndices.map(idx => ({
+    deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: idx, endIndex: idx + 1 } }
+  }));
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  return { deleted: rowIndices.length };
+}
+
+async function writeDailyStock(sheets, spreadsheetId, rows) {
+  if (!rows.length) return { written: 0, updated: 0, inserted: 0 };
+
+  // UNFORMATTED_VALUE returns raw serial numbers for date-formatted cells;
+  // normalizeDate() converts both serials and "yyyy-MM-dd" strings uniformly.
+  const existing = (await sheets.spreadsheets.values.get({
+    spreadsheetId, range: "DailyStock!A:B",
+    valueRenderOption: "UNFORMATTED_VALUE"
+  })).data.values || [];
+
+  const keyToRow = {};
+  for (let i = 1; i < existing.length; i++) {
+    const rawDate = existing[i] && existing[i][0];
+    const code    = existing[i] && existing[i][1];
+    if (rawDate != null && code) keyToRow[`${normalizeDate(rawDate)}|${code}`] = i + 1;
+  }
+
+  const updateData = [];
+  const newRows    = [];
+  for (const row of rows) {
+    const key = `${row[0]}|${row[1]}`;
+    if (keyToRow[key]) {
+      updateData.push({ range: `DailyStock!A${keyToRow[key]}`, values: [row] });
+    } else {
+      newRows.push(row);
+    }
+  }
+
+  if (updateData.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: "RAW", data: updateData }
+    });
+  }
+  if (newRows.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId, range: "DailyStock!A:X",
+      valueInputOption: "RAW", insertDataOption: "INSERT_ROWS",
+      requestBody: { values: newRows }
+    });
+  }
+  return { written: rows.length, updated: updateData.length, inserted: newRows.length };
+}
+
+async function writeDaySummary(sheets, spreadsheetId, rows) {
+  if (!rows.length) return { written: 0, updated: 0, inserted: 0 };
+
+  const existing = (await sheets.spreadsheets.values.get({
+    spreadsheetId, range: "DaySummary!A:A",
+    valueRenderOption: "UNFORMATTED_VALUE"
+  })).data.values || [];
+
+  const dateToRow = {};
+  for (let i = 1; i < existing.length; i++) {
+    const rawDate = existing[i] && existing[i][0];
+    if (rawDate != null) dateToRow[normalizeDate(rawDate)] = i + 1;
+  }
+
+  const updateData = [];
+  const newRows    = [];
+  for (const row of rows) {
+    const date = normalizeDate(row[0]);
+    if (dateToRow[date]) {
+      updateData.push({ range: `DaySummary!A${dateToRow[date]}`, values: [row] });
+    } else {
+      newRows.push(row);
+    }
+  }
+
+  if (updateData.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: "RAW", data: updateData }
+    });
+  }
+  if (newRows.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId, range: "DaySummary!A:F",
+      valueInputOption: "RAW", insertDataOption: "INSERT_ROWS",
+      requestBody: { values: newRows }
+    });
+  }
+  return { written: rows.length, updated: updateData.length, inserted: newRows.length };
+}
+
+async function readAll(sheets, spreadsheetId) {
+  // UNFORMATTED_VALUE → date cells return serial numbers, which Android already
+  // knows how to parse (readDailyStockFromSheet does the same conversion).
+  const [purchasesRes, dailyStockRes, daySummaryRes, purchaseImportRes] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "Purchases!A2:AB", valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "DailyStock!A2:X", valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "DaySummary!A2:F", valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "PurchaseImport!A1:L" })
+      .catch(() => ({ data: { values: null } }))  // tab may not exist yet
+  ]);
+  return {
+    purchases:      purchasesRes.data.values      || [],
+    dailyStock:     dailyStockRes.data.values     || [],
+    daySummary:     daySummaryRes.data.values     || [],
+    purchaseImport: purchaseImportRes.data.values || []
+  };
+}
+
+async function clearAll(sheets, spreadsheetId) {
+  await Promise.all([
+    sheets.spreadsheets.values.clear({ spreadsheetId, range: "Purchases!A2:ZZ",  requestBody: {} }),
+    sheets.spreadsheets.values.clear({ spreadsheetId, range: "DailyStock!A2:ZZ", requestBody: {} }),
+    sheets.spreadsheets.values.clear({ spreadsheetId, range: "DaySummary!A2:ZZ", requestBody: {} })
+  ]);
+  return { cleared: true };
 }
 
 // ── HTTP FUNCTION: createUserSheet ────────────────────────────────────────────
@@ -624,4 +954,141 @@ exports.onAdminRequestCreated = functions
 
     // ── 3. Append to admin UserRegistry sheet (with actual sheetId) ───────
     await appendToRegistry(uid, data, sheetId, sheetUrl);
+  });
+
+// ── HTTP FUNCTION: syncUserSheet ──────────────────────────────────────────────
+// All app ↔ sheet data transfer goes through here. The service account holds
+// writer access to every user sheet; the user's Gmail is never granted access.
+//
+// Operations:
+//   write_purchases  — upsert rows by TxnId (col A)
+//   delete_purchases — delete rows by TxnId array
+//   write_daily_stock — upsert rows by Date+ProductCode (cols A+B)
+//   write_day_summary — upsert rows by Date (col A)
+//   read_all          — return all rows from Purchases, DailyStock, DaySummary
+
+exports.syncUserSheet = functions
+  .region("asia-south1")
+  .runWith({ timeoutSeconds: 120, memory: "512MB" })
+  .https.onRequest(async (req, res) => {
+
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      return res.status(204).send("");
+    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Missing token" });
+
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const uid = decodedToken.uid;
+    const { operation, rows, txnIds } = req.body;
+
+    // Resolve user's sheet from Firestore
+    let spreadsheetId;
+    try {
+      const userDoc = await db.collection("users").doc(uid).get();
+      if (!userDoc.exists || !userDoc.data().userSheetId) {
+        return res.status(404).json({ error: "no_sheet", message: "User sheet not found. Complete registration first." });
+      }
+      spreadsheetId = userDoc.data().userSheetId;
+    } catch (err) {
+      return res.status(500).json({ error: "Firestore lookup failed: " + err.message });
+    }
+
+    // Service account auth — the SA has writer access to user sheets
+    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    console.log(`syncUserSheet [${operation}] — uid=${uid}, spreadsheetId=${spreadsheetId}`);
+
+    try {
+      switch (operation) {
+        case "write_purchases":
+          return res.status(200).json(await writePurchases(sheets, spreadsheetId, rows || []));
+        case "delete_purchases":
+          return res.status(200).json(await deletePurchases(sheets, spreadsheetId, txnIds || []));
+        case "write_daily_stock":
+          return res.status(200).json(await writeDailyStock(sheets, spreadsheetId, rows || []));
+        case "write_day_summary":
+          return res.status(200).json(await writeDaySummary(sheets, spreadsheetId, rows || []));
+        case "read_all":
+          return res.status(200).json(await readAll(sheets, spreadsheetId));
+        case "clear_all":
+          return res.status(200).json(await clearAll(sheets, spreadsheetId));
+        default:
+          return res.status(400).json({ error: `Unknown operation: ${operation}` });
+      }
+    } catch (err) {
+      console.error(`syncUserSheet [${operation}] failed — uid=${uid}:`, err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+// ── HTTP FUNCTION: deleteUserRegistration ─────────────────────────────────────
+// Called during account deletion (before Firebase Auth account is removed).
+// 1. Soft-deletes the user's rows in both UserRegistry and AppRequests registry tabs
+//    — blanks PII, sets status = "account_deleted", records deletion timestamp.
+// 2. Upserts account_deletions/{emailKey} in Firestore to track repeat registrations.
+//    This collection is NOT part of the user's account and survives account deletion.
+//
+// Non-fatal: if registry soft-delete fails, account deletion continues on the client.
+
+exports.deleteUserRegistration = functions
+  .region("asia-south1")
+  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .https.onRequest(async (req, res) => {
+
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      return res.status(204).send("");
+    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Missing token" });
+
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const uid   = decodedToken.uid;
+    const email = (req.body.email || "").trim().toLowerCase();
+
+    try {
+      // 1. Soft-delete registry rows — blanks PII, preserves audit fields
+      await softDeleteRegistryRows(uid);
+
+      // 2. Upsert account_deletions/{emailKey} — admin audit record, never deleted
+      if (email) {
+        const emailKey = email.replace(/@/g, "_at_").replace(/\./g, "_");
+        await db.collection("account_deletions").doc(emailKey).set({
+          email,
+          deletionCount:  admin.firestore.FieldValue.increment(1),
+          lastDeletedAt:  admin.firestore.FieldValue.serverTimestamp(),
+          lastDeletedUid: uid
+        }, { merge: true });
+        console.log(`account_deletions upserted — email=${email}, uid=${uid}`);
+      }
+
+      console.log(`deleteUserRegistration complete — uid=${uid}`);
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error("deleteUserRegistration failed:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
   });

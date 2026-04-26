@@ -19,7 +19,9 @@ import com.simhadri.winentry.R
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
 import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.databinding.FragmentProductListBinding
+import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.ExcelHelper
+import com.simhadri.winentry.utils.LangPrefs
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -78,6 +80,7 @@ class ProductListFragment : Fragment() {
         binding.toolbar.setNavigationOnClickListener {
             findNavController().navigateUp()
         }
+        binding.textToolbarTitle.text = AppStrings.productListToolbarTitle.get(LangPrefs.get(requireContext()))
 
         // Use toolbar menu instead of activity menu to avoid conflicts with Daily Stock
         binding.toolbar.inflateMenu(R.menu.menu_product)
@@ -147,14 +150,6 @@ class ProductListFragment : Fragment() {
                     }
                     R.id.action_delete_all -> {
                         deleteAllProducts()
-                        true
-                    }
-                    R.id.action_sync_products -> {
-                        SyncHelper.syncProductsFromCloud(
-                            context     = requireContext(),
-                            scope       = lifecycleScope,
-                            anchorView  = binding.root
-                        )
                         true
                     }
                     else -> false

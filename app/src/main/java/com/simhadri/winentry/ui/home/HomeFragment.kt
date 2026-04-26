@@ -38,6 +38,13 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
 
+    companion object {
+        // In-process cache — survives fragment recreation, cleared only when the
+        // URL changes (different account) or the process is killed.
+        private var cachedPhotoUrl: String? = null
+        private var cachedPhotoBitmap: android.graphics.Bitmap? = null
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -62,13 +69,16 @@ class HomeFragment : Fragment() {
     // ═══════════════════════════════════════════════════════════════
 
     private fun showTestDataHintIfNeeded() {
-        val prefs = requireContext().getSharedPreferences("inventory_prefs", android.content.Context.MODE_PRIVATE)
+        val ctx = context ?: return
+        val prefs = ctx.getSharedPreferences("inventory_prefs", android.content.Context.MODE_PRIVATE)
         if (prefs.getBoolean("test_data_hint_shown", false)) return
+        val db = AppDatabase.getInstance(ctx)
         viewLifecycleOwner.lifecycleScope.launch {
             val hasData = withContext(Dispatchers.IO) {
-                AppDatabase.getInstance(requireContext()).dailyStockDao().getEarliestCommittedDate() != null
+                db.dailyStockDao().getEarliestCommittedDate() != null
             }
             if (!hasData) {
+                if (_binding == null) return@launch
                 prefs.edit().putBoolean("test_data_hint_shown", true).apply()
                 Snackbar.make(
                     binding.root,
@@ -184,6 +194,10 @@ class HomeFragment : Fragment() {
 
     private fun applyLanguage() {
         val lang = LangPrefs.get(requireContext())
+        val te = lang == AppStrings.Lang.TE
+        val titleSp = if (te) 19f else 17f
+        val descSp  = if (te) 11f else 13f
+
         binding.textWelcome.text         = AppStrings.homeWelcome.get(lang)
         binding.textDailyStockTitle.text = AppStrings.homeDailyStockTitle.get(lang)
         binding.textDailyStockDesc.text  = AppStrings.homeDailyStockDesc.get(lang)
@@ -195,6 +209,13 @@ class HomeFragment : Fragment() {
         binding.textProductsDesc.text    = AppStrings.homeProductsDesc.get(lang)
         binding.textSettingsTitle.text   = AppStrings.homeSettingsTitle.get(lang)
         binding.textSettingsDesc.text    = AppStrings.homeSettingsDesc.get(lang)
+
+        for (v in listOf(binding.textDailyStockTitle, binding.textPurchasesTitle,
+                         binding.textReportsTitle, binding.textProductsTitle, binding.textSettingsTitle))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
+        for (v in listOf(binding.textDailyStockDesc, binding.textPurchasesDesc,
+                         binding.textReportsDesc, binding.textProductsDesc, binding.textSettingsDesc))
+            v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 
     /**
@@ -252,30 +273,39 @@ class HomeFragment : Fragment() {
      * - Signed in without photo / not signed in → show default person icon
      */
     private fun refreshProfileButton() {
-        val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl
-        if (photoUrl != null) {
-            lifecycleScope.launch {
-                val bitmap = withContext(Dispatchers.IO) {
-                    try {
-                        val conn = URL(photoUrl.toString()).openConnection() as HttpURLConnection
-                        conn.doInput = true
-                        conn.connect()
-                        BitmapFactory.decodeStream(conn.inputStream)
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-                if (isAdded) {
-                    if (bitmap != null) {
-                        binding.btnMenu.setPadding(0, 0, 0, 0)
-                        binding.btnMenu.setImageBitmap(bitmap)
-                    } else {
-                        resetToPersonIcon()
-                    }
+        val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
+        if (photoUrl == null) {
+            resetToPersonIcon()
+            return
+        }
+        // Serve from in-process cache if URL hasn't changed — no network call needed.
+        if (photoUrl == cachedPhotoUrl && cachedPhotoBitmap != null) {
+            binding.btnMenu.setPadding(0, 0, 0, 0)
+            binding.btnMenu.setImageBitmap(cachedPhotoBitmap)
+            return
+        }
+        // URL is new or cache is empty — fetch once and cache.
+        lifecycleScope.launch {
+            val bitmap = withContext(Dispatchers.IO) {
+                try {
+                    val conn = URL(photoUrl).openConnection() as HttpURLConnection
+                    conn.doInput = true
+                    conn.connect()
+                    BitmapFactory.decodeStream(conn.inputStream)
+                } catch (_: Exception) {
+                    null
                 }
             }
-        } else {
-            resetToPersonIcon()
+            if (isAdded) {
+                if (bitmap != null) {
+                    cachedPhotoUrl = photoUrl
+                    cachedPhotoBitmap = bitmap
+                    binding.btnMenu.setPadding(0, 0, 0, 0)
+                    binding.btnMenu.setImageBitmap(bitmap)
+                } else {
+                    resetToPersonIcon()
+                }
+            }
         }
     }
 

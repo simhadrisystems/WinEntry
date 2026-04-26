@@ -38,7 +38,7 @@
                 android:layout_height="wrap_content"
                 android:text="DOCUMENTATION"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="@color/app_text_hint"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
@@ -89,7 +89,7 @@
                             android:layout_height="wrap_content"
                             android:text="User Guide"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -117,7 +117,7 @@
                 android:layout_height="wrap_content"
                 android:text="GETTING STARTED"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="@color/app_text_hint"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
@@ -169,7 +169,7 @@
                             android:layout_height="wrap_content"
                             android:text="Import Test Data"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:id="@+id/tvTestDataStatus"
@@ -198,78 +198,11 @@
                 android:layout_height="wrap_content"
                 android:text="CONTACT SUPPORT"
                 android:textSize="11sp"
-                android:textStyle="bold"
+                android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="@color/app_text_hint"
                 android:letterSpacing="0.12"
                 android:layout_marginBottom="8dp"
                 android:layout_marginStart="4dp" />
-
-            <!-- ── Report an Issue ─────────────────────────────────── -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardReportIssue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardCornerRadius="10dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/settings_support_bug_light"
-                app:rippleColor="#1ADC2626">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:padding="16dp">
-
-                    <FrameLayout
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_support_bug_light">
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_support"
-                            android:tint="@color/settings_support_bug"
-                            android:scaleType="fitCenter" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="14dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Report an Issue"
-                            android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/app_text_primary" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Something not working? Let us know."
-                            android:textSize="13sp"
-                            android:textColor="@color/app_text_secondary"
-                            android:layout_marginTop="3dp" />
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_support_bug" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
 
             <!-- ── Ask for Help ────────────────────────────────────── -->
             <com.google.android.material.card.MaterialCardView
@@ -316,7 +249,7 @@
                             android:layout_height="wrap_content"
                             android:text="Contact Support"
                             android:textSize="17sp"
-                            android:textStyle="bold"
+                            android:fontFamily="@font/ramabhadra_regular"
                             android:textColor="@color/app_text_primary" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -333,73 +266,6 @@
                         android:layout_marginStart="8dp"
                         android:src="@drawable/ic_chevron_right"
                         android:tint="@color/settings_support_help" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- ── Request a Feature ───────────────────────────────── -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardRequestFeature"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardCornerRadius="10dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/settings_support_feature_light"
-                app:rippleColor="#1A059669">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:padding="16dp">
-
-                    <FrameLayout
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_support_feature_light">
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_settings_support"
-                            android:tint="@color/settings_support_feature"
-                            android:scaleType="fitCenter" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="14dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Request a Feature"
-                            android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/app_text_primary" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Suggest improvements or new capabilities."
-                            android:textSize="13sp"
-                            android:textColor="@color/app_text_secondary"
-                            android:layout_marginTop="3dp" />
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_support_feature" />
 
                 </LinearLayout>
 

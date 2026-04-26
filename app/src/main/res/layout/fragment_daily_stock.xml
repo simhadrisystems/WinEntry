@@ -37,7 +37,7 @@
                     android:layout_height="match_parent"
                     android:src="@drawable/ic_chevron_left"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    app:tint="@android:color/white"
+                    android:tint="#FF4CAF50"
                     android:contentDescription="Previous date" />
 
                 <Button
@@ -62,7 +62,7 @@
                     android:layout_height="match_parent"
                     android:src="@drawable/ic_chevron_right"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="@android:color/white"
+                    android:tint="#FF4CAF50"
                     android:contentDescription="Next date" />
 
                 <ImageButton

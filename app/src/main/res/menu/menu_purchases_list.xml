@@ -16,12 +16,21 @@
         android:icon="@android:drawable/ic_menu_upload"
         app:showAsAction="never" />
 
-    <!-- NEW: download from Google Sheets Purchases tab -->
+    <!-- Import from admin-staged PurchaseImport tab (vendor invoice format) -->
     <item
         android:id="@+id/action_download_purchases_cloud"
         android:title="⬇ Import purchases from cloud"
         android:orderInCategory="2"
         app:showAsAction="never" />
+
+    <!-- Restore purchases that were previously synced to the Purchases tab -->
+    <item
+        android:id="@+id/action_restore_purchases_cloud"
+        android:title="⬇ Restore purchases from cloud"
+        android:orderInCategory="3"
+        app:showAsAction="never" />
+
+
     
     <item
         android:id="@+id/action_export"

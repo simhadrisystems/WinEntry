@@ -1,0 +1,18 @@
+{
+  "name": "winentry-functions",
+  "description": "Firebase Cloud Functions for WinEntry app",
+  "version": "1.0.0",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^4.6.0",
+    "googleapis": "^140.0.0"
+  },
+  "private": true
+}

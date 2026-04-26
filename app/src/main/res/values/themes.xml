@@ -63,9 +63,11 @@
          Usage:  android:textAppearance="@style/TextAppearance.App.CardTitle"
          ═══════════════════════════════════════════════════════════════════ -->
 
-    <!-- Bold heading inside a card or list row -->
+    <!-- Bold heading inside a card or list row.
+         Uses Ramabhadra — a native Telugu display font — to avoid synthetic bold
+         blurring on complex Telugu glyphs. Latin text also renders cleanly at this weight. -->
     <style name="TextAppearance.App.CardTitle" parent="TextAppearance.Material3.BodyLarge">
-        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/ramabhadra_regular</item>
         <item name="android:textColor">?attr/colorOnSurface</item>
     </style>
 
@@ -76,7 +78,7 @@
 
     <!-- ALL-CAPS section divider (e.g. DAILY REPORTS / SYNC / DISPLAY) -->
     <style name="TextAppearance.App.SectionHeader" parent="TextAppearance.Material3.LabelSmall">
-        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/ramabhadra_regular</item>
         <item name="android:letterSpacing">0.12</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>

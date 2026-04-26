@@ -2,10 +2,15 @@ package com.simhadri.winentry.sync
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.work.*
 import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.data.AppDatabase
+import com.simhadri.winentry.data.entity.DailyStock
+import com.simhadri.winentry.data.entity.DayReconciliation
+import com.simhadri.winentry.data.entity.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -144,31 +149,27 @@ class SyncCoordinator(private val context: Context) {
     // ── Full sync ─────────────────────────────────────────────────────────────
 
     /**
-     * Perform a full sync:
+     * Perform a full sync via the syncUserSheet Cloud Function (service account auth).
      *   1. Push pending purchase operations (insert / update / delete)
      *   2. Push committed daily stock entries
      *   3. Push day-end reconciliation rows
      *
-     * Products are NOT synced here — they are on-demand via syncProductsOnly(),
-     * triggered from the Products menu. This keeps daily sync fast.
+     * Products are NOT synced here — on-demand via syncProductsOnly().
      */
     suspend fun performFullSync(): SyncResult = withContext(Dispatchers.IO) {
 
-        val spreadsheetId = getSpreadsheetId()
-            ?: return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
-
-        val syncManager = CloudSyncManager(context, spreadsheetId)
-
-        if (!syncManager.initialize())
-            return@withContext SyncResult.Error("Not signed in to Google")
-
-        if (!syncManager.isNetworkAvailable())
+        if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
+        if (getSpreadsheetId().isNullOrBlank())
+            return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
+
+        val cfClient = CloudFunctionClient()
+
         try {
-            val purchasesCount = syncPendingPurchases(syncManager)
-            val stockCount     = syncDailyStock(syncManager)
-            syncDaySummary(syncManager)
+            val purchasesCount = syncPendingPurchases(cfClient)
+            val stockCount     = syncDailyStock(cfClient)
+            syncDaySummary(cfClient)
 
             prefs.edit().putLong(PREF_LAST_SYNC, System.currentTimeMillis()).apply()
             SyncResult.Success(0, purchasesCount, stockCount)
@@ -183,11 +184,10 @@ class SyncCoordinator(private val context: Context) {
     // Alias called by HomeFragment via MainActivity.performSyncPublic()
     suspend fun performSyncPublic(): SyncResult = performFullSync()
 
-    // ── Purchase sync (txnId-aware) ───────────────────────────────────────────
+    // ── Purchase sync (via CF) ────────────────────────────────────────────────
 
-    private suspend fun syncPendingPurchases(syncManager: CloudSyncManager): Int {
+    private suspend fun syncPendingPurchases(cfClient: CloudFunctionClient): Int {
         val purchaseDao = database.purchaseDao()
-
         val pending = purchaseDao.getPendingSyncPurchases()
         if (pending.isEmpty()) {
             Log.d(TAG, "No pending purchase sync operations")
@@ -195,29 +195,56 @@ class SyncCoordinator(private val context: Context) {
         }
 
         Log.d(TAG, "Syncing ${pending.size} pending purchase operations")
-        val result = syncManager.syncPendingPurchases(pending)
 
-        result.synced.forEach     { id -> purchaseDao.markAsSynced(id) }
-        result.hardDelete.forEach { id -> purchaseDao.hardDeleteAfterSync(id) }
-        result.errors.forEach     { id -> purchaseDao.markSyncError(id) }
+        val toWrite  = pending.filter { it.syncStatus != SyncStatus.PENDING_DELETE }
+        val toDelete = pending.filter { it.syncStatus == SyncStatus.PENDING_DELETE }
+        var successCount = 0
 
-        val successCount = result.synced.size + result.hardDelete.size
-        Log.d(TAG, "Purchase sync done — synced: ${result.synced.size}, " +
-                "deleted: ${result.hardDelete.size}, errors: ${result.errors.size}")
-        if (result.hasErrors) {
-            Log.w(TAG, "${result.errors.size} purchase(s) failed to sync — will retry")
-            ErrorLogger.log(context, "Sync/Purchases",
-                "${result.errors.size} purchase(s) failed to sync to cloud — will retry on next sync")
+        if (toWrite.isNotEmpty()) {
+            val rows = toWrite.map { it.toSheetRow() }
+            when (cfClient.syncUserSheet("write_purchases", rows = rows)) {
+                is SyncSheetResult.Written -> {
+                    toWrite.forEach { purchaseDao.markAsSynced(it.id) }
+                    successCount += toWrite.size
+                    Log.d(TAG, "CF wrote ${toWrite.size} purchase rows")
+                }
+                is SyncSheetResult.NoSheet -> {
+                    Log.e(TAG, "Purchase write failed — user sheet not found in CF")
+                    toWrite.forEach { purchaseDao.markSyncError(it.id) }
+                }
+                else -> {
+                    Log.e(TAG, "CF write_purchases failed")
+                    toWrite.forEach { purchaseDao.markSyncError(it.id) }
+                    ErrorLogger.log(context, "Sync/Purchases",
+                        "${toWrite.size} purchase(s) failed to sync to cloud — will retry on next sync")
+                }
+            }
+        }
+
+        if (toDelete.isNotEmpty()) {
+            val txnIds = toDelete.map { it.txnId }
+            when (cfClient.syncUserSheet("delete_purchases", txnIds = txnIds)) {
+                is SyncSheetResult.Deleted -> {
+                    toDelete.forEach { purchaseDao.hardDeleteAfterSync(it.id) }
+                    successCount += toDelete.size
+                    Log.d(TAG, "CF deleted ${toDelete.size} purchase rows")
+                }
+                else -> {
+                    Log.e(TAG, "CF delete_purchases failed")
+                    toDelete.forEach { purchaseDao.markSyncError(it.id) }
+                    ErrorLogger.log(context, "Sync/Purchases",
+                        "${toDelete.size} purchase deletion(s) failed — will retry on next sync")
+                }
+            }
         }
 
         return successCount
     }
 
-    // ── Daily stock sync ──────────────────────────────────────────────────────
+    // ── Daily stock sync (via CF) ─────────────────────────────────────────────
 
-    private suspend fun syncDailyStock(syncManager: CloudSyncManager): Int {
+    private suspend fun syncDailyStock(cfClient: CloudFunctionClient): Int {
         val dailyStockDao = database.dailyStockDao()
-
         val pending = dailyStockDao.getPendingSyncStock()
         if (pending.isEmpty()) {
             Log.d(TAG, "No pending daily stock sync operations")
@@ -225,96 +252,121 @@ class SyncCoordinator(private val context: Context) {
         }
 
         Log.d(TAG, "Syncing ${pending.size} pending daily stock rows")
-        val result = syncManager.syncPendingDailyStock(pending)
+        val rows = pending.map { it.toSheetRow() }
 
-        result.synced.forEach { (date, productCode) ->
-            dailyStockDao.markStockAsSynced(date, productCode)
+        return when (cfClient.syncUserSheet("write_daily_stock", rows = rows)) {
+            is SyncSheetResult.Written -> {
+                pending.forEach { dailyStockDao.markStockAsSynced(it.date, it.productCode) }
+                Log.d(TAG, "CF wrote ${pending.size} daily stock rows")
+                pending.size
+            }
+            else -> {
+                pending.forEach { dailyStockDao.markStockSyncError(it.date, it.productCode) }
+                Log.e(TAG, "CF write_daily_stock failed — will retry")
+                ErrorLogger.log(context, "Sync/DailyStock",
+                    "${pending.size} daily stock row(s) failed to sync to cloud — will retry on next sync")
+                0
+            }
         }
-        result.errors.forEach { (date, productCode) ->
-            dailyStockDao.markStockSyncError(date, productCode)
-        }
-
-        if (result.hasErrors) {
-            Log.w(TAG, "${result.errors.size} daily stock row(s) failed to sync — will retry")
-            ErrorLogger.log(context, "Sync/DailyStock",
-                "${result.errors.size} daily stock row(s) failed to sync to cloud — will retry on next sync")
-        }
-
-        return result.synced.size
     }
 
-    // ── Day summary sync ──────────────────────────────────────────────────────
+    // ── Day summary sync (via CF) ─────────────────────────────────────────────
 
-    private suspend fun syncDaySummary(syncManager: CloudSyncManager) {
+    private suspend fun syncDaySummary(cfClient: CloudFunctionClient) {
         val dao = database.dayReconciliationDao()
         val pending = dao.getPendingSync()
         if (pending.isEmpty()) {
             Log.d(TAG, "No pending day summary sync operations")
             return
         }
+
         Log.d(TAG, "Syncing ${pending.size} pending day summary rows")
-        val result = syncManager.syncPendingDaySummary(pending)
-        result.synced.forEach { date -> dao.markAsSynced(date) }
-        result.errors.forEach { date -> dao.markSyncError(date) }
-        if (result.hasErrors) {
-            Log.w(TAG, "${result.errors.size} day summary row(s) failed — will retry")
-            ErrorLogger.log(context, "Sync/DaySummary",
-                "${result.errors.size} day summary row(s) failed to sync to cloud — will retry on next sync")
+        val rows = pending.map { it.toDaySummaryRow() }
+
+        when (cfClient.syncUserSheet("write_day_summary", rows = rows)) {
+            is SyncSheetResult.Written -> {
+                pending.forEach { dao.markAsSynced(it.date) }
+                Log.d(TAG, "CF wrote ${pending.size} day summary rows")
+            }
+            else -> {
+                pending.forEach { dao.markSyncError(it.date) }
+                Log.e(TAG, "CF write_day_summary failed — will retry")
+                ErrorLogger.log(context, "Sync/DaySummary",
+                    "${pending.size} day summary row(s) failed to sync to cloud — will retry on next sync")
+            }
         }
-        Log.d(TAG, "Day summary sync done — synced: ${result.synced.size}")
     }
 
     // ── Purchase down-sync (cloud → local) ───────────────────────────────────
 
+    /** Preview import from the PurchaseImport tab (vendor invoice format, one-way). */
     suspend fun previewPurchaseDownSync(
         products: List<com.simhadri.winentry.data.entity.Product>
     ): SyncResult = withContext(Dispatchers.IO) {
 
-        val spreadsheetId = getSpreadsheetId()
-            ?: return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
-
-        val syncManager = CloudSyncManager(context, spreadsheetId)
-        if (!syncManager.initialize())
-            return@withContext SyncResult.Error("Not signed in to Google")
-        if (!syncManager.isNetworkAvailable())
+        if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
         return@withContext try {
-            val purchaseDao = database.purchaseDao()
+            val cfClient = CloudFunctionClient()
+            val sheetResult = cfClient.syncUserSheet("read_all")
 
-            val productsByAliasMap = com.simhadri.winentry.util.ProductCodeResolver
-                .buildFullLookupMap(products)
-
-            val existingKeys = purchaseDao.getAllPurchasesForDedup().map { row ->
-                val canonical = productsByAliasMap[row.productCode]
-                val code = if (canonical != null)
-                    com.simhadri.winentry.util.ProductCodeResolver.primaryCode(canonical)
-                else row.productCode
-                "${row.invoiceNumber}|$code|${row.purchaseDate}"
-            }.toHashSet()
-
-            val (allPurchases, notFoundCodes) =
-                syncManager.readPurchasesFromImportSheet(products, emptySet())
-
-            val newRows  = mutableListOf<com.simhadri.winentry.data.entity.Purchase>()
-            val dupRows  = mutableListOf<com.simhadri.winentry.data.entity.Purchase>()
-            val seenKeys = mutableSetOf<String>()
-
-            for (p in allPurchases) {
-                val key = "${p.invoiceNumber}|${p.productCode}|${p.purchaseDate}"
-                if (key in seenKeys) continue
-                seenKeys.add(key)
-                if (key in existingKeys) dupRows.add(p) else newRows.add(p)
+            val importRows = when (sheetResult) {
+                is SyncSheetResult.AllRead -> sheetResult.purchaseImport
+                is SyncSheetResult.NoSheet -> return@withContext SyncResult.Error(
+                    "User sheet not configured. Please sign in again.")
+                else -> return@withContext SyncResult.Error("Failed to read from cloud")
             }
+            if (importRows.isEmpty()) return@withContext SyncResult.PurchaseDownSyncPreview(
+                emptyList(), emptyList(), emptySet())
 
-            Log.d(TAG, "Preview: ${newRows.size} new, ${dupRows.size} duplicates, " +
-                "${notFoundCodes.size} not found")
+            // No pre-dedup here — commitPurchaseDownSync handles it via deleteByProductIdInvoiceDate.
+            // Passing emptySet() means all parsed rows are treated as "new" by the parser;
+            // the commit step overwrites any existing row with the same productId/invoice/date.
+            val (newRows, notFoundCodes) =
+                CloudSyncManager.parseImportSheetRows(importRows, products, emptySet())
 
-            SyncResult.PurchaseDownSyncPreview(newRows, dupRows, notFoundCodes)
+            Log.d(TAG, "PurchaseImport preview: ${newRows.size} rows, ${notFoundCodes.size} not found")
+            SyncResult.PurchaseDownSyncPreview(newRows, emptyList(), notFoundCodes)
 
         } catch (e: Exception) {
             Log.e(TAG, "Purchase down-sync preview failed: ${e.message}")
             ErrorLogger.log(context, "Sync/DownSync", "Purchase down-sync preview failed", e)
+            SyncResult.Error(e.message ?: "Unknown error")
+        }
+    }
+
+    /** Preview restore from the Purchases tab (normalised app format, already synced). */
+    suspend fun previewPurchasesTabDownSync(
+        products: List<com.simhadri.winentry.data.entity.Product>
+    ): SyncResult = withContext(Dispatchers.IO) {
+
+        if (!isNetworkAvailable())
+            return@withContext SyncResult.Error("No internet connection")
+
+        return@withContext try {
+            val cfClient = CloudFunctionClient()
+            val sheetResult = cfClient.syncUserSheet("read_all")
+
+            val purchasesRows = when (sheetResult) {
+                is SyncSheetResult.AllRead -> sheetResult.purchases
+                is SyncSheetResult.NoSheet -> return@withContext SyncResult.Error(
+                    "User sheet not configured. Please sign in again.")
+                else -> return@withContext SyncResult.Error("Failed to read from cloud")
+            }
+            if (purchasesRows.isEmpty()) return@withContext SyncResult.Error("CLOUD_EMPTY")
+
+            val purchaseDao = database.purchaseDao()
+            val existingTxnIds = purchaseDao.getAllTxnIds().toHashSet()
+
+            val newRows = CloudSyncManager.parsePurchasesTabRows(purchasesRows, products, existingTxnIds)
+
+            Log.d(TAG, "Purchases tab preview: ${newRows.size} new (cloud has ${purchasesRows.size})")
+            SyncResult.PurchaseDownSyncPreview(newRows, emptyList(), emptySet())
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Purchases tab down-sync preview failed: ${e.message}")
+            ErrorLogger.log(context, "Sync/DownSync", "Purchases tab down-sync preview failed", e)
             SyncResult.Error(e.message ?: "Unknown error")
         }
     }
@@ -333,7 +385,17 @@ class SyncCoordinator(private val context: Context) {
                     purchaseDao.deleteByProductIdInvoiceDate(
                         p.productId, p.invoiceNumber, p.purchaseDate
                     )
-                    purchaseDao.insert(p)
+                    // Preserve txnId from cloud (Purchases tab restore); generate one only
+                    // if blank (PurchaseImport admin import path).
+                    val withTxnId = if (p.txnId.isBlank())
+                        p.copy(txnId = com.simhadri.winentry.data.entity.Purchase.generateTxnId())
+                    else p
+                    // If a soft-deleted tombstone exists with the same txnId, cancel it so
+                    // the next sync does not delete the just-restored cloud row.
+                    if (withTxnId.txnId.isNotBlank()) {
+                        purchaseDao.cancelPendingDeleteByTxnId(withTxnId.txnId)
+                    }
+                    purchaseDao.insert(withTxnId)
                     inserted++
                 } catch (e: Exception) {
                     Log.w(TAG, "Insert failed ${p.invoiceNumber}/${p.productCode}: ${e.message}")
@@ -425,7 +487,7 @@ class SyncCoordinator(private val context: Context) {
             }
         }
 
-    // ── Daily stock down-sync (cloud → local DB) ──────────────────────────────
+    // ── Daily stock down-sync (cloud → local DB, via CF) ─────────────────────
 
     suspend fun downloadDailyStockFromCloud(): SyncResult =
         downloadDailyStockFromCloud(dateFrom = null, dateTo = null)
@@ -435,20 +497,20 @@ class SyncCoordinator(private val context: Context) {
         dateTo:   String?
     ): SyncResult = withContext(Dispatchers.IO) {
 
-        val spreadsheetId = getSpreadsheetId()
-            ?: return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
-
-        val syncManager = CloudSyncManager(context, spreadsheetId)
-
-        if (!syncManager.initialize())
-            return@withContext SyncResult.Error("Not signed in to Google")
-        if (!syncManager.isNetworkAvailable())
+        if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
         try {
-            val allRows = syncManager.readDailyStockFromSheet()
-                ?: return@withContext SyncResult.Error("Failed to read from cloud")
+            val sheetResult = CloudFunctionClient().syncUserSheet("read_all")
 
+            val rawRows = when (sheetResult) {
+                is SyncSheetResult.AllRead -> sheetResult.dailyStock
+                is SyncSheetResult.NoSheet -> return@withContext SyncResult.Error(
+                    "User sheet not configured. Please sign in again.")
+                else -> return@withContext SyncResult.Error("Failed to read from cloud")
+            }
+
+            val allRows = parseDailyStockRows(rawRows)
             val rows = when {
                 dateFrom == null && dateTo == null -> allRows
                 else -> allRows.filter { row ->
@@ -469,7 +531,46 @@ class SyncCoordinator(private val context: Context) {
         }
     }
 
-    // ── Reconciliation down-sync (cloud → local DB) ───────────────────────────
+    private fun parseDailyStockRows(rawRows: List<List<Any>>): List<DailyStock> {
+        val result = mutableListOf<DailyStock>()
+        rawRows.forEachIndexed { idx, row ->
+            try {
+                val rawDate = row.getOrNull(0)?.toString().orEmpty().trim()
+                val productCode = row.getOrNull(1)?.toString().orEmpty().trim()
+                if (rawDate.isEmpty() || productCode.isEmpty()) return@forEachIndexed
+
+                val parsedDate = if (rawDate.contains("-")) rawDate else {
+                    val serial = rawDate.toDoubleOrNull()?.toLong() ?: return@forEachIndexed
+                    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                    cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                    cal.add(java.util.Calendar.DATE, serial.toInt())
+                    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
+                }
+
+                val isCommitted = row.getOrNull(23)?.toString().orEmpty().trim().uppercase() == "YES"
+                if (!isCommitted) return@forEachIndexed
+
+                fun int(col: Int) = row.getOrNull(col)?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+                fun dbl(col: Int) = row.getOrNull(col)?.toString()?.toDoubleOrNull() ?: 0.0
+
+                result.add(DailyStock(
+                    date = parsedDate, productCode = productCode,
+                    openQq  = int(2),  openPp  = int(3),  openNn  = int(4),  openDd  = int(5),
+                    closeQq = int(6),  closePp = int(7),  closeNn = int(8),  closeDd = int(9),
+                    saleQq  = int(10), salePp  = int(11), saleNn  = int(12), saleDd  = int(13),
+                    priceQq = dbl(14), pricePp = dbl(15), priceNn = dbl(16), priceDd = dbl(17),
+                    amountQq = dbl(18), amountPp = dbl(19), amountNn = dbl(20), amountDd = dbl(21),
+                    saleAmount = dbl(22), isCommitted = true, syncStatus = SyncStatus.SYNCED
+                ))
+            } catch (e: Exception) {
+                Log.w(TAG, "Skipping malformed DailyStock row $idx: ${e.message}")
+            }
+        }
+        return result
+    }
+
+    // ── Reconciliation down-sync (cloud → local DB, via CF) ──────────────────
 
     suspend fun downloadReconciliationFromCloud(): SyncResult =
         downloadReconciliationFromCloud(dateFrom = null, dateTo = null)
@@ -479,20 +580,20 @@ class SyncCoordinator(private val context: Context) {
         dateTo:   String?
     ): SyncResult = withContext(Dispatchers.IO) {
 
-        val spreadsheetId = getSpreadsheetId()
-            ?: return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
-
-        val syncManager = CloudSyncManager(context, spreadsheetId)
-
-        if (!syncManager.initialize())
-            return@withContext SyncResult.Error("Not signed in to Google")
-        if (!syncManager.isNetworkAvailable())
+        if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
         try {
-            val allRows = syncManager.readDaySummaryFromSheet()
-                ?: return@withContext SyncResult.Error("Failed to read reconciliation from cloud")
+            val sheetResult = CloudFunctionClient().syncUserSheet("read_all")
 
+            val rawRows = when (sheetResult) {
+                is SyncSheetResult.AllRead -> sheetResult.daySummary
+                is SyncSheetResult.NoSheet -> return@withContext SyncResult.Error(
+                    "User sheet not configured. Please sign in again.")
+                else -> return@withContext SyncResult.Error("Failed to read reconciliation from cloud")
+            }
+
+            val allRows = parseDaySummaryRows(rawRows)
             val rows = when {
                 dateFrom == null && dateTo == null -> allRows
                 else -> allRows.filter { row ->
@@ -504,8 +605,7 @@ class SyncCoordinator(private val context: Context) {
             if (rows.isEmpty()) return@withContext SyncResult.ReconciliationDownSync(0)
 
             database.dayReconciliationDao().insertOrReplaceAll(rows)
-            // Mark all as PENDING_UPSERT so the next up-sync rewrites them to the
-            // cloud with date in column A, migrating the old empty-first-column layout.
+            // Mark all as PENDING_UPSERT so next up-sync rewrites with date in col A
             database.dayReconciliationDao().markAllAsPending()
             Log.d(TAG, "Reconciliation down-sync: restored ${rows.size} rows, marked pending for re-sync")
             SyncResult.ReconciliationDownSync(rows.size)
@@ -514,6 +614,45 @@ class SyncCoordinator(private val context: Context) {
             Log.e(TAG, "downloadReconciliationFromCloud failed: ${e.message}")
             SyncResult.Error(e.message ?: "Unknown error")
         }
+    }
+
+    private fun parseDaySummaryRows(rawRows: List<List<Any>>): List<DayReconciliation> {
+        val result = mutableListOf<DayReconciliation>()
+        rawRows.forEachIndexed { idx, row ->
+            try {
+                val colA = row.getOrNull(0)?.toString().orEmpty().trim()
+                val rawDate: String
+                val colOffset: Int
+                if (colA.isNotEmpty()) { rawDate = colA; colOffset = 0 }
+                else { rawDate = row.getOrNull(1)?.toString().orEmpty().trim(); colOffset = 1 }
+                if (rawDate.isEmpty()) return@forEachIndexed
+
+                val date = if (rawDate.contains("-")) rawDate else {
+                    val serial = rawDate.toDoubleOrNull()?.toLong() ?: return@forEachIndexed
+                    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+                    cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                    cal.add(java.util.Calendar.DATE, serial.toInt())
+                    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
+                }
+
+                fun dbl(col: Int) = row.getOrNull(col + colOffset)?.toString()?.toDoubleOrNull() ?: 0.0
+
+                result.add(DayReconciliation(
+                    date           = date,
+                    totalDaySales  = dbl(1),
+                    upiReceipts    = dbl(2),
+                    dayExpenses    = dbl(3),
+                    cashForDeposit = dbl(4),
+                    notes          = row.getOrNull(5 + colOffset)?.toString().orEmpty(),
+                    syncStatus     = SyncStatus.SYNCED,
+                    lastModified   = System.currentTimeMillis()
+                ))
+            } catch (e: Exception) {
+                Log.w(TAG, "Skipping malformed DaySummary row $idx: ${e.message}")
+            }
+        }
+        return result
     }
 
     // ── WorkManager scheduling ────────────────────────────────────────────────
@@ -539,6 +678,49 @@ class SyncCoordinator(private val context: Context) {
     private fun cancelPeriodicSync() {
         WorkManager.getInstance(context).cancelUniqueWork(SYNC_WORK_NAME)
         Log.d(TAG, "Cancelled periodic sync")
+    }
+
+    // ── Account deletion ─────────────────────────────────────────────────────
+
+    /**
+     * Clears all user inventory rows from the cloud worksheet via the syncUserSheet CF.
+     * Header rows are preserved. Called during account deletion.
+     */
+    suspend fun deleteAllCloudData(): Boolean = withContext(Dispatchers.IO) {
+        if (getSpreadsheetId().isNullOrBlank()) return@withContext true
+        return@withContext when (CloudFunctionClient().syncUserSheet("clear_all")) {
+            is SyncSheetResult.Deleted -> { Log.i(TAG, "Cloud data cleared via CF"); true }
+            is SyncSheetResult.NoSheet -> { Log.i(TAG, "No sheet to clear"); true }
+            else -> { Log.e(TAG, "deleteAllCloudData via CF failed"); false }
+        }
+    }
+
+    /**
+     * Soft-deletes the user's rows in both registry tabs (UserRegistry + AppRequests)
+     * via the deleteUserRegistration Cloud Function, and records a deletion event in
+     * the admin-side account_deletions Firestore collection for repeat-registration
+     * detection.
+     *
+     * Non-fatal: failure here does not block account deletion.
+     */
+    suspend fun deleteRegistrationRecord(email: String): Boolean = withContext(Dispatchers.IO) {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            ?: return@withContext false.also { Log.w(TAG, "deleteRegistrationRecord: no current user") }
+        val ok = CloudFunctionClient().deleteUserRegistration(user.uid, email)
+        if (ok) Log.i(TAG, "deleteRegistrationRecord: registry soft-deleted")
+        else    Log.w(TAG, "deleteRegistrationRecord: CF call failed (non-fatal)")
+        ok
+    }
+
+    // ── Network check ─────────────────────────────────────────────────────────
+
+    fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+            caps != null && (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                             caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+        } catch (e: Exception) { false }
     }
 
     // ── Result types ──────────────────────────────────────────────────────────

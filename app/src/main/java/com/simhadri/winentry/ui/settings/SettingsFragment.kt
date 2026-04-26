@@ -280,7 +280,8 @@ class SettingsFragment : Fragment() {
             title       = "Enable Cloud Drive Backup",
             message     = "What this does\n" +
                 "A private Google Sheet will be created in the admin-managed Google Drive " +
-                "exclusively for your inventory data. No other user\u2019s data is stored in your sheet.\n\n" +
+                "exclusively for your inventory data. This sheet is not visible in your " +
+                "personal Google Drive. No other user\u2019s data is stored in your sheet.\n\n" +
                 "What data is stored in the cloud\n" +
                 "Your daily stock entries, purchases, and day-end summaries will sync to this sheet. " +
                 "Your business registration details (name, owner, phone, location) " +

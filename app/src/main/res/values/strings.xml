@@ -14,20 +14,20 @@
     ──────────────────────────────────────────────────────────────────────── -->
 
     <!-- Consent dialog shown once before OAuth -->
-    <string name="data_access_consent_title">Data Access</string>
-    <string name="data_access_consent_message">WinEntry uses Google Sign-In to identify you so the admin can set up your cloud workspace.\n\nSigning in does NOT automatically give access to any spreadsheet. Cloud backup becomes active only after your admin creates and assigns a workspace to your account.\n\nUntil then, the app works fully offline — all data stays on your device.\n\nOnce cloud backup is active:\n\u2022 Your inventory records sync to your admin-managed workspace sheet\n\u2022 Admin\'s shared product catalogue is readable (read-only reference)\n\nWhat is NEVER accessed:\n\u2022 Your personal Google Drive files\n\u2022 Any spreadsheets you have not been explicitly assigned\n\u2022 Any other Google services\n\nYou can revoke access at any time from Google Account \u2192 Security \u2192 Third-party apps with account access.</string>
-    <string name="data_access_accept">I Understand</string>
+    <string name="data_access_consent_title">About WinEntry</string>
+    <string name="data_access_consent_message">WinEntry helps small retail businesses manage daily stock, sales and purchases. All data is stored on your device.\n\n─── Sign-In ───\nGoogle Sign-In establishes your identity only. No data is read or written automatically. The app works fully after sign-in — local stock entry, daily records, purchases and Excel export — with no further setup.\n\n─── Registration Required for Admin\'s Drive Space ───\nAccess to the Admin\'s drive space requires a one-time registration. Go to Settings \u2192 Business Info, fill your details and tap \'Save \u0026 Register\'. Registration unlocks:\n\u2022 Download of Admin\'s standard product list\n\u2022 Loading sample test data\n\u2022 Cloud backup to Admin\'s workspace sheet\n\nData shared at registration: Business Name, Owner Name, Phone, Location, Android version, App version. No payment or financial data is ever collected.\n\n─── What is NEVER accessed ───\n\u2022 Your personal Google Drive files\n\u2022 Any Google services beyond your sign-in identity\n\u2022 Any data other than what you enter yourself\n\nYou can sign out at any time from the Home screen. Registration details can be updated anytime from Settings \u2192 Business Info.</string>
+    <string name="data_access_accept">I Understand — Sign In</string>
 
     <!-- App tagline — shown on login screen below app name -->
-    <string name="app_tagline">Stock Management, Simple.\nFor Small Retail Business Use</string>
+    <string name="app_tagline">Daily Stock Status · Sales · Purchases\nSimple Inventory for Retailer</string>
 
     <!-- Compact disclosure shown permanently on the login screen, below the Sign-in button -->
-    <string name="data_access_brief">Signing in creates your account identity only. Cloud backup requires a separate workspace — request one from your admin via Settings once you are signed in. Until then the app works fully with local data and Excel export. Your personal Drive is never accessed.</string>
+    <string name="data_access_brief">Sign-in creates your account identity only. The app works fully with local data and Excel exports from the start.\n\nAccessing Admin\'s drive space (product list, test data, cloud backup) requires registration — go to Settings \u2192 Business Info after sign-in. Your personal Drive is never accessed.</string>
 
     <!-- Privacy Policy link shown at the bottom of the login screen.
          TODO: Replace the URL below with your actual hosted privacy policy
                before submitting to Google for OAuth verification or to the
                Play Store.  A publicly reachable URL is mandatory. -->
     <string name="privacy_policy_label">Privacy Policy</string>
-    <string name="privacy_policy_url">https://winentry-a87f2.web.app/privacy.html</string>
+    <string name="privacy_policy_url">https://sites.google.com/view/winentryapp/privacy-policy</string>
 </resources>

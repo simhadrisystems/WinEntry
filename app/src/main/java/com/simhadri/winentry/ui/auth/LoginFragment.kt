@@ -16,7 +16,6 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
-import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.simhadri.winentry.R
@@ -148,11 +147,8 @@ class LoginFragment : Fragment() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
-            // SheetsScopes.SPREADSHEETS is the minimum scope required:
-            //   • read-only access to the admin-managed product master sheet
-            //   • read-write access to the user's admin-provisioned workspace sheet
-            // No Drive scope is requested; personal Drive files are never accessed.
-            .requestScopes(com.google.android.gms.common.api.Scope(SheetsScopes.SPREADSHEETS))
+            // No Sheets scope — all sheet operations go through syncUserSheet Cloud Function
+            // using the service account. Master product reads use the API key directly.
             .build()
 
         val googleSignInClient = GoogleSignIn.getClient(requireActivity(), gso)

@@ -68,6 +68,9 @@
     <!-- Settings entry card for Help &amp; Support -->
     <color name="settings_support">#7C3AED</color>                <!-- Violet-700 -->
     <color name="settings_support_light">#DDD6FE</color>          <!-- Violet-200 -->
+    <!-- Download Products card — Green-600 / Green-200 -->
+    <color name="settings_download">#16A34A</color>
+    <color name="settings_download_light">#BBF7D0</color>
     <!-- Import Test Data card — Amber-600 / Amber-100 -->
     <color name="settings_test_data">#D97706</color>
     <color name="settings_test_data_light">#FEF3C7</color>

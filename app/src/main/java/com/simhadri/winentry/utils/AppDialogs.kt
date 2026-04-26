@@ -1,7 +1,14 @@
 package com.simhadri.winentry.utils
 
 import android.content.Context
+import android.content.DialogInterface
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.LayoutInflater
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import com.simhadri.winentry.R
 
 /**
  * Centralised dialog factory for the entire app.
@@ -58,18 +65,20 @@ object AppDialogs {
     /**
      * Two-button confirmation: Cancel + action.
      * Use for any irreversible or significant action.
+     * [onCancel] is optional — called when the user taps Cancel (default: no-op).
      */
     fun confirm(
         context: Context,
         title: String,
         message: String,
         actionLabel: String,
+        onCancel: () -> Unit = {},
         onConfirm: () -> Unit
     ) {
         MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { _, _ -> onCancel() }
             .setPositiveButton(actionLabel) { _, _ -> onConfirm() }
             .show()
     }
@@ -111,6 +120,55 @@ object AppDialogs {
             .setItems(items) { _, which -> onChoice(which) }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    /**
+     * Email-confirmed destructive dialog — used for account deletion.
+     * The action button stays disabled until the user types their sign-in email exactly.
+     * This prevents accidental or unauthorised deletion if the device is unattended.
+     */
+    fun withEmailInput(
+        context: Context,
+        title: String,
+        message: String,
+        actionLabel: String,
+        expectedEmail: String,
+        onConfirm: () -> Unit
+    ) {
+        val view = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_email_confirm, null)
+        val emailInput  = view.findViewById<TextInputEditText>(R.id.emailInput)
+        val inputLayout = view.findViewById<TextInputLayout>(R.id.emailInputLayout)
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setMessage(message)
+            .setView(view)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton(actionLabel, null)
+            .show()
+
+        val confirmBtn = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
+        confirmBtn.isEnabled = false
+
+        emailInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                confirmBtn.isEnabled = s.toString().trim()
+                    .equals(expectedEmail, ignoreCase = true)
+                inputLayout.error = null
+            }
+        })
+
+        confirmBtn.setOnClickListener {
+            if (emailInput.text.toString().trim().equals(expectedEmail, ignoreCase = true)) {
+                dialog.dismiss()
+                onConfirm()
+            } else {
+                inputLayout.error = "Email does not match your account"
+            }
+        }
     }
 
     /**

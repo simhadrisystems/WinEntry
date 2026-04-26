@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "827909879534",
+    "project_id": "winentry-a87f2",
+    "storage_bucket": "winentry-a87f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827909879534:android:e09a6118bf09c98a6865ff",
+        "android_client_info": {
+          "package_name": "com.simhadri.winentry"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "827909879534-dqp6ott7g957nbbbr7q0krjmlo5u70qa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simhadri.winentry",
+            "certificate_hash": "88623ca6ff675ac89af430f294a6fc4826f78413"
+          }
+        },
+        {
+          "client_id": "827909879534-emq6ks86h9msg5s4jc1d8p2mlbqflmmt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simhadri.winentry",
+            "certificate_hash": "78065171aae9b8a33bc18ca496588b2dcfc6cf8a"
+          }
+        },
+        {
+          "client_id": "827909879534-aldn3jtv2bdmrqt9j5duacln5b5gqbr6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8twVqKbwy3b8ZkyCWrNsQqP29ohRXWj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "827909879534-aldn3jtv2bdmrqt9j5duacln5b5gqbr6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -36,7 +36,7 @@
                     android:layout_weight="1"
                     android:text="WinEntry"
                     android:textSize="21sp"
-                    android:textStyle="bold"
+                    android:fontFamily="@font/ramabhadra_regular"
                     android:textColor="#FFFFFF"
                     android:letterSpacing="0.01" />
 
@@ -98,7 +98,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="17sp"
-                    android:textStyle="bold"
+                    android:fontFamily="@font/ramabhadra_regular"
                     android:textColor="#FFFFFF"
                     android:visibility="gone" />
 
@@ -174,7 +174,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Daily Stock"
                                 android:textSize="17sp"
-                                android:textStyle="bold"
+                                android:fontFamily="@font/ramabhadra_regular"
                                 android:textColor="@color/app_text_primary" />
                             <TextView
                                 android:id="@+id/textDailyStockDesc"
@@ -242,7 +242,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Purchases"
                                 android:textSize="17sp"
-                                android:textStyle="bold"
+                                android:fontFamily="@font/ramabhadra_regular"
                                 android:textColor="@color/app_text_primary" />
                             <TextView
                                 android:id="@+id/textPurchasesDesc"
@@ -310,7 +310,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Reports"
                                 android:textSize="17sp"
-                                android:textStyle="bold"
+                                android:fontFamily="@font/ramabhadra_regular"
                                 android:textColor="@color/app_text_primary" />
                             <TextView
                                 android:id="@+id/textReportsDesc"
@@ -379,7 +379,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Products"
                                 android:textSize="17sp"
-                                android:textStyle="bold"
+                                android:fontFamily="@font/ramabhadra_regular"
                                 android:textColor="@color/app_text_primary" />
                             <TextView
                                 android:id="@+id/textProductsDesc"
@@ -447,7 +447,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="Settings"
                                 android:textSize="17sp"
-                                android:textStyle="bold"
+                                android:fontFamily="@font/ramabhadra_regular"
                                 android:textColor="@color/app_text_primary" />
                             <TextView
                                 android:id="@+id/textSettingsDesc"

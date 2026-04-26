@@ -2,16 +2,20 @@ package com.simhadri.winentry.ui.settings
 
 import android.app.DatePickerDialog
 import android.os.Bundle
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.simhadri.winentry.R
 import com.simhadri.winentry.databinding.FragmentHelpSupportBinding
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.SupportHelper
 import com.simhadri.winentry.utils.SupportHelper.IssueType
+import com.simhadri.winentry.utils.UserRegistrationManager
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -38,9 +42,7 @@ class HelpSupportFragment : Fragment() {
         binding.cardUserGuide.setOnClickListener {
             SupportHelper.openUserGuide(requireContext())
         }
-        binding.cardReportIssue.setOnClickListener { showContactDialog(IssueType.BUG) }
         binding.cardAskHelp.setOnClickListener { showContactDialog(IssueType.HELP) }
-        binding.cardRequestFeature.setOnClickListener { showContactDialog(IssueType.FEATURE) }
 
         binding.cardImportTestData.setOnClickListener { onImportTestDataTapped() }
 
@@ -90,17 +92,32 @@ class HelpSupportFragment : Fragment() {
 
     private fun onImportTestDataTapped() {
         // Card is disabled when HasData/Checking/Loading — this only fires for NoData
-        showDatePicker { date ->
-            AppDialogs.confirm(
-                context     = requireContext(),
-                title       = "Load Test Data",
-                message     = "This will load sample Opening Balances on $date " +
-                              "and 7 days of Closing Balances.\n\nProceed?",
-                actionLabel = "Import"
-            ) {
-                testDataViewModel.importTestData(date)
+        UserRegistrationManager.ensureRegistered(
+            context = requireContext(),
+            scope   = viewLifecycleOwner.lifecycleScope,
+            onNotRegistered = {
+                AppDialogs.confirm(
+                    context     = requireContext(),
+                    title       = "Registration Required",
+                    message     = "App registration required to access Admin's drive space.\n\n" +
+                        "Go to Business Info to register.",
+                    actionLabel = "Go to Business Info"
+                ) { findNavController().navigate(R.id.businessInfoFragment) }
+            },
+            onReady = {
+                showDatePicker { date ->
+                    AppDialogs.confirm(
+                        context     = requireContext(),
+                        title       = "Load Test Data",
+                        message     = "This will load sample Opening Balances on $date " +
+                                      "and 7 days of Closing Balances.\n\nProceed?",
+                        actionLabel = "Import"
+                    ) {
+                        testDataViewModel.importTestData(date)
+                    }
+                }
             }
-        }
+        )
     }
 
     private fun showDatePicker(onDateSelected: (LocalDate) -> Unit) {
@@ -128,11 +145,13 @@ class HelpSupportFragment : Fragment() {
         AppDialogs.choice(
             context = requireContext(),
             title   = "Contact Support",
-            items   = arrayOf("Email", "WhatsApp"),
+            items   = arrayOf("Email", "WhatsApp (coming soon)"),
         ) { which ->
             when (which) {
                 0 -> SupportHelper.sendEmail(requireContext(), issueType)
-                1 -> SupportHelper.sendWhatsApp(requireContext(), issueType)
+                1 -> Toast.makeText(requireContext(),
+                    "WhatsApp support is coming soon. Please use email for now.",
+                    Toast.LENGTH_LONG).show()
             }
         }
     }

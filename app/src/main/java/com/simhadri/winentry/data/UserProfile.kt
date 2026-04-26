@@ -26,9 +26,7 @@ data class UserProfile(
 
     /**
      * Google Sheets spreadsheet ID used for cloud backup.
-     *
-     * Default: Created by the Cloud Function in admin's Drive (shared with user).
-     * Own-drive: Created by the app in the user's own Google Drive when they opt in.
+     * Created by the Cloud Function in the admin-managed Google Drive.
      */
     val userSheetId: String = "",
 

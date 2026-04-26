@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── User profile (/users/{uid}) ──────────────────────────────────────────
+    // Created by the admin Cloud Function when a workspace is provisioned.
+    // App reads on login to retrieve sheetId and role.
+    // User may delete their own document during account deletion.
+    match /users/{uid} {
+      allow read:   if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      // create/update is reserved for the admin Cloud Function
+    }
+
+    // ── Workspace requests (/admin_requests/{uid}) ───────────────────────────
+    // Written by the app when the user registers via Settings → Business Info.
+    // User may read, update (re-registration) or delete (account deletion)
+    // their own request document.
+    match /admin_requests/{uid} {
+      allow read:   if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

@@ -30,6 +30,7 @@
     <color name="settings_support_help_light">#082F49</color>     <!-- deep sky       -->
     <color name="settings_support_feature_light">#022C22</color>  <!-- deep emerald   -->
     <color name="settings_support_light">#2E1065</color>          <!-- deep violet    -->
+    <color name="settings_download_light">#052E16</color>   <!-- deep green     -->
     <!-- Reports card night overrides -->
     <color name="reports_daily_light">#0C1B33</color>     <!-- deep blue      -->
     <color name="reports_monthly_light">#2D1900</color>   <!-- deep amber     -->

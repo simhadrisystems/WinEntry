@@ -200,6 +200,226 @@ class CloudSyncManager(
                 false
             }
         }
+
+        internal fun parseDateStr(raw: String): String {
+            if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.getDefault()).format(java.util.Date())
+            val formats = listOf("d/M/yy","dd/MM/yy","d/M/yyyy","dd/MM/yyyy","yyyy-MM-dd","MM/dd/yy")
+            for (fmt in formats) {
+                try {
+                    val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
+                    sdf.isLenient = false
+                    val date = sdf.parse(raw) ?: continue
+                    return java.text.SimpleDateFormat("yyyy-MM-dd",
+                        java.util.Locale.getDefault()).format(date)
+                } catch (_: Exception) {}
+            }
+            return raw
+        }
+
+        internal fun buildProductLookupMap(products: List<Product>): Map<String, Product> {
+            val map = mutableMapOf<String, Product>()
+            for (p in products) {
+                map[p.stockCode] = p
+                if (p.aliases.isNotBlank()) {
+                    p.aliases.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { alias ->
+                        map["${p.productType}$alias"] = p
+                    }
+                }
+            }
+            return map
+        }
+
+        /**
+         * Parse raw rows from the PurchaseImport sheet tab into Purchase objects.
+         * Accepts pre-loaded rows (from CF read_all) so no Sheets API call is needed.
+         */
+        internal fun parseImportSheetRows(
+            rows: List<List<Any>>,
+            products: List<Product>,
+            existingKeys: Set<String>
+        ): Pair<List<Purchase>, Set<String>> {
+            if (rows.isEmpty()) return Pair(emptyList(), emptySet())
+
+            val productMap    = buildProductLookupMap(products)
+            val newPurchases  = mutableListOf<Purchase>()
+            val notFoundCodes = mutableSetOf<String>()
+
+            data class Shipment(
+                val invoiceNumber: String,
+                val date: String,
+                val dataStartIdx: Int,
+                val headerRowNum: Int
+            )
+
+            val shipments = mutableListOf<Shipment>()
+            var i = 0
+            while (i < rows.size) {
+                val cell0 = rows[i].getOrNull(0)?.toString()?.trim() ?: ""
+                if (cell0.uppercase().contains("INVOICE")) {
+                    val invoice = rows[i].getOrNull(1)?.toString()?.trim() ?: ""
+                    val dateRaw = if (i + 1 < rows.size)
+                        rows[i + 1].getOrNull(1)?.toString()?.trim() ?: "" else ""
+                    shipments.add(Shipment(invoice, parseDateStr(dateRaw), i + 3, i + 1))
+                    i += 3
+                } else { i++ }
+            }
+
+            for ((sIdx, shipment) in shipments.withIndex()) {
+                val dataEnd = if (sIdx + 1 < shipments.size)
+                    shipments[sIdx + 1].headerRowNum - 2 else rows.size
+
+                val groups = mutableMapOf<String, MutableList<Map<String, Any>>>()
+
+                for (ri in shipment.dataStartIdx until dataEnd) {
+                    if (ri >= rows.size) break
+                    val row   = rows[ri]
+                    val brand = row.getOrNull(1)?.toString()?.trim() ?: continue
+                    if (brand.isBlank()) continue
+                    val type    = row.getOrNull(3)?.toString()?.trim() ?: ""
+                    val rawCode = "$type$brand"
+                    val product = productMap[rawCode]
+                    if (product == null) { notFoundCodes.add(rawCode); continue }
+                    groups.getOrPut(product.stockCode) { mutableListOf() }.add(mapOf(
+                        "size"    to (row.getOrNull(5)?.toString()?.trim()?.uppercase() ?: ""),
+                        "boxes"   to (row.getOrNull(7)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
+                        "units"   to (row.getOrNull(8)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
+                        "price"   to (row.getOrNull(9)?.toString()?.toDoubleOrNull() ?: 0.0),
+                        "product" to product
+                    ))
+                }
+
+                for ((_, sizeRows) in groups) {
+                    val product  = sizeRows.first()["product"] as Product
+                    var qqB = 0; var qqU = 0; var qqP = 0.0
+                    var ppB = 0; var ppU = 0; var ppP = 0.0
+                    var nnB = 0; var nnU = 0; var nnP = 0.0
+                    var ddB = 0; var ddU = 0; var ddP = 0.0
+                    for (r in sizeRows) {
+                        val b = r["boxes"] as Int; val u = r["units"] as Int; val p = r["price"] as Double
+                        when (r["size"] as String) {
+                            "QQ" -> { qqB += b; qqU += u; if (p > 0) qqP = p }
+                            "PP" -> { ppB += b; ppU += u; if (p > 0) ppP = p }
+                            "NN" -> { nnB += b; nnU += u; if (p > 0) nnP = p }
+                            "DD" -> { ddB += b; ddU += u; if (p > 0) ddP = p }
+                        }
+                    }
+                    val qqTu = Purchase.calculateTotalUnits(qqB, qqU, product.qqUnitsPerBox)
+                    val ppTu = Purchase.calculateTotalUnits(ppB, ppU, product.ppUnitsPerBox)
+                    val nnTu = Purchase.calculateTotalUnits(nnB, nnU, product.nnUnitsPerBox)
+                    val ddTu = Purchase.calculateTotalUnits(ddB, ddU, product.ddUnitsPerBox)
+                    val qqFP = if (qqP > 0) qqP else product.qqPurchasePrice
+                    val ppFP = if (ppP > 0) ppP else product.ppPurchasePrice
+                    val nnFP = if (nnP > 0) nnP else product.nnPurchasePrice
+                    val ddFP = if (ddP > 0) ddP else product.ddPurchasePrice
+                    val dedupKey = "${shipment.invoiceNumber}|${product.stockCode}|${shipment.date}"
+                    if (dedupKey in existingKeys) continue
+                    newPurchases.add(Purchase(
+                        purchaseDate   = shipment.date,
+                        productId      = product.id,
+                        productCode    = product.stockCode,
+                        productName    = product.displayName,
+                        qqBoxes = qqB, qqLoose = qqU, qqUnitsPerBox = product.qqUnitsPerBox,
+                        qqTotalUnits = qqTu, qqUnitPrice = qqFP, qqTotalCost = qqTu * qqFP,
+                        ppBoxes = ppB, ppLoose = ppU, ppUnitsPerBox = product.ppUnitsPerBox,
+                        ppTotalUnits = ppTu, ppUnitPrice = ppFP, ppTotalCost = ppTu * ppFP,
+                        nnBoxes = nnB, nnLoose = nnU, nnUnitsPerBox = product.nnUnitsPerBox,
+                        nnTotalUnits = nnTu, nnUnitPrice = nnFP, nnTotalCost = nnTu * nnFP,
+                        ddBoxes = ddB, ddLoose = ddU, ddUnitsPerBox = product.ddUnitsPerBox,
+                        ddTotalUnits = ddTu, ddUnitPrice = ddFP, ddTotalCost = ddTu * ddFP,
+                        totalCost      = qqTu*qqFP + ppTu*ppFP + nnTu*nnFP + ddTu*ddFP,
+                        invoiceNumber  = shipment.invoiceNumber,
+                        supplierName   = "",
+                        notes          = "Imported from cloud sheet",
+                        syncStatus     = SyncStatus.PENDING_INSERT,
+                        isProcessed    = false,
+                        isDeleted      = false
+                    ))
+                }
+            }
+            Log.d(TAG, "parseImportSheetRows: ${newPurchases.size} new, ${notFoundCodes.size} not found")
+            return Pair(newPurchases, notFoundCodes)
+        }
+
+        /**
+         * Parse rows from the Purchases sheet tab (the normalized app format, A–AB columns)
+         * back into Purchase objects.  Used for down-syncing purchases from the cloud to a
+         * device that doesn't have them locally (e.g. fresh install or second device).
+         *
+         * Rows whose txnId is already in [existingTxnIds] are skipped (dedup by txnId).
+         * Rows are marked PENDING_INSERT so the next up-sync confirms them to cloud
+         * (the CF upsert is idempotent — same txnId → update-in-place, no duplicate).
+         *
+         * Column order mirrors Purchase.toSheetRow():
+         *   0=txnId 1=date 2=productCode 3=productName 4=invoiceNo 5=supplier
+         *   6=qqBoxes 7=qqLoose 8=qqTotal 9=qqPrice 10=qqCost
+         *   11=ppBoxes … 15=ppCost  16=nnBoxes … 20=nnCost  21=ddBoxes … 25=ddCost
+         *   26=totalCost 27=notes
+         */
+        internal fun parsePurchasesTabRows(
+            rows: List<List<Any>>,
+            products: List<Product>,
+            existingTxnIds: Set<String>
+        ): List<Purchase> {
+            if (rows.isEmpty()) return emptyList()
+            val productMap = buildProductLookupMap(products)
+            val result = mutableListOf<Purchase>()
+
+            fun Any?.int()    = this?.toString()?.toIntOrNull() ?: 0
+            fun Any?.dbl()    = this?.toString()?.toDoubleOrNull() ?: 0.0
+            fun Any?.str()    = this?.toString()?.trim() ?: ""
+
+            for (row in rows) {
+                val txnId = row.getOrNull(0).str()
+                if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
+                if (txnId in existingTxnIds) continue
+
+                val productCode = row.getOrNull(2).str()
+                if (productCode.isBlank()) continue
+                val product = productMap[productCode]
+
+                result.add(Purchase(
+                    txnId         = txnId,
+                    syncStatus    = SyncStatus.SYNCED,
+                    purchaseDate  = parseDateStr(row.getOrNull(1).str()),
+                    productId     = product?.id ?: 0L,
+                    productCode   = productCode,
+                    productName   = row.getOrNull(3).str(),
+                    invoiceNumber = row.getOrNull(4).str(),
+                    supplierName  = row.getOrNull(5).str(),
+                    qqBoxes       = row.getOrNull(6).int(),
+                    qqLoose       = row.getOrNull(7).int(),
+                    qqUnitsPerBox = product?.qqUnitsPerBox ?: 12,
+                    qqTotalUnits  = row.getOrNull(8).int(),
+                    qqUnitPrice   = row.getOrNull(9).dbl(),
+                    qqTotalCost   = row.getOrNull(10).dbl(),
+                    ppBoxes       = row.getOrNull(11).int(),
+                    ppLoose       = row.getOrNull(12).int(),
+                    ppUnitsPerBox = product?.ppUnitsPerBox ?: 24,
+                    ppTotalUnits  = row.getOrNull(13).int(),
+                    ppUnitPrice   = row.getOrNull(14).dbl(),
+                    ppTotalCost   = row.getOrNull(15).dbl(),
+                    nnBoxes       = row.getOrNull(16).int(),
+                    nnLoose       = row.getOrNull(17).int(),
+                    nnUnitsPerBox = product?.nnUnitsPerBox ?: 48,
+                    nnTotalUnits  = row.getOrNull(18).int(),
+                    nnUnitPrice   = row.getOrNull(19).dbl(),
+                    nnTotalCost   = row.getOrNull(20).dbl(),
+                    ddBoxes       = row.getOrNull(21).int(),
+                    ddLoose       = row.getOrNull(22).int(),
+                    ddUnitsPerBox = product?.ddUnitsPerBox ?: 96,
+                    ddTotalUnits  = row.getOrNull(23).int(),
+                    ddUnitPrice   = row.getOrNull(24).dbl(),
+                    ddTotalCost   = row.getOrNull(25).dbl(),
+                    totalCost     = row.getOrNull(26).dbl(),
+                    notes         = row.getOrNull(27).str(),
+                    isProcessed   = false,
+                    isDeleted     = false
+                ))
+            }
+            Log.d(TAG, "parsePurchasesTabRows: ${result.size} new")
+            return result
+        }
     }
 
     // Cached numeric sheet ID for the Purchases tab (needed for row deletion).
@@ -1068,36 +1288,9 @@ class CloudSyncManager(
         }
     }
 
-    /** Parse a date string in any common format to yyyy-MM-dd. */
-    private fun parseDateStr(raw: String): String {
-        if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
-            java.util.Locale.getDefault()).format(java.util.Date())
-        val formats = listOf("d/M/yy","dd/MM/yy","d/M/yyyy","dd/MM/yyyy","yyyy-MM-dd","MM/dd/yy")
-        for (fmt in formats) {
-            try {
-                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
-                sdf.isLenient = false
-                val date = sdf.parse(raw) ?: continue
-                return java.text.SimpleDateFormat("yyyy-MM-dd",
-                    java.util.Locale.getDefault()).format(date)
-            } catch (_: Exception) {}
-        }
-        return raw
-    }
-
-    /** Build product lookup map including all alias codes (mirrors PurchaseExcelHelper). */
-    private fun buildProductLookupMap(products: List<Product>): Map<String, Product> {
-        val map = mutableMapOf<String, Product>()
-        for (p in products) {
-            map[p.stockCode] = p
-            if (p.aliases.isNotBlank()) {
-                p.aliases.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { alias ->
-                    map["${p.productType}$alias"] = p
-                }
-            }
-        }
-        return map
-    }
+    // Delegates to companion so callers outside this class can reuse without instantiation
+    private fun parseDateStr(raw: String)                            = Companion.parseDateStr(raw)
+    private fun buildProductLookupMap(products: List<Product>)       = Companion.buildProductLookupMap(products)
 
 
     suspend fun syncProductsFromCloud(): Result<List<Product>> = withContext(Dispatchers.IO) {
@@ -1176,6 +1369,37 @@ class CloudSyncManager(
         }
     }
 
+    // ── Account deletion ─────────────────────────────────────────────────────
+
+    /**
+     * Clears all data rows (preserving header row 1) from the three user-data tabs.
+     * Called during account deletion — removes cloud inventory without admin involvement.
+     */
+    suspend fun clearUserSheetData(): Boolean = withContext(Dispatchers.IO) {
+        val service = sheetsService ?: run {
+            Log.w(TAG, "clearUserSheetData: Sheets service not initialised")
+            return@withContext false
+        }
+        return@withContext try {
+            val clearRequest = com.google.api.services.sheets.v4.model.ClearValuesRequest()
+            listOf(
+                "$TAB_DAILYSTOCK!A2:ZZ",
+                "$TAB_PURCHASES!A2:ZZ",
+                "$TAB_DAYSUMMARY!A2:ZZ"
+            ).forEach { range ->
+                service.spreadsheets().values()
+                    .clear(spreadsheetId, range, clearRequest)
+                    .execute()
+            }
+            Log.i(TAG, "clearUserSheetData: all tabs cleared")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "clearUserSheetData failed: ${e.message}")
+            ErrorLogger.log(context, "CloudSyncManager", "clearUserSheetData failed", e)
+            false
+        }
+    }
+
     // ── Network / connection helpers ──────────────────────────────────────────
 
     fun isNetworkAvailable(): Boolean {
@@ -1206,7 +1430,7 @@ class CloudSyncManager(
 
 // ── Extension: Purchase -> sheet row ─────────────────────────────────────────
 
-private fun Purchase.toSheetRow(): List<Any> = listOf(
+internal fun Purchase.toSheetRow(): List<Any> = listOf(
     txnId, purchaseDate, productCode, productName, invoiceNumber, supplierName,
     qqBoxes, qqLoose, qqTotalUnits, qqUnitPrice, qqTotalCost,
     ppBoxes, ppLoose, ppTotalUnits, ppUnitPrice, ppTotalCost,
@@ -1217,7 +1441,7 @@ private fun Purchase.toSheetRow(): List<Any> = listOf(
 
 // ── Extension: DailyStock -> sheet row ───────────────────────────────────────
 
-private fun DailyStock.toSheetRow(): List<Any> = listOf(
+internal fun DailyStock.toSheetRow(): List<Any> = listOf(
     date, productCode,
     openQq, openPp, openNn, openDd,
     closeQq, closePp, closeNn, closeDd,
@@ -1248,7 +1472,7 @@ data class SyncResult(
     val hasErrors       get() = errors.isNotEmpty()
 }
 
-private fun DayReconciliation.toDaySummaryRow(): List<Any> = listOf(
+internal fun DayReconciliation.toDaySummaryRow(): List<Any> = listOf(
     date, totalDaySales, upiReceipts, dayExpenses, cashForDeposit, notes
 )
 

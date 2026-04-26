@@ -1,8 +1,11 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "functions": [
     {
       "source": "functions",
-      "codebase": "default",
+      "codebase": "winentry",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",
@@ -12,5 +15,13 @@
         "*.local"
       ]
     }
-  ]
+  ],
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
 }

@@ -182,7 +182,7 @@ object SyncHelper {
             .setIcon(android.R.drawable.ic_dialog_alert)
             .setMessage(
                 "This will overwrite Active status and Sort Key for ALL products " +
-                "with master data values.\n\n" +
+                "with values from the admin's standard product list.\n\n" +
                 "Your customisations will be lost. This cannot be undone."
             )
             .setPositiveButton("Reset All Products") { _, _ ->
@@ -200,13 +200,13 @@ object SyncHelper {
     ) {
         scope.launch {
             val coordinator = SyncCoordinator(context)
-            snack(anchorView, "Downloading products from master sheet…", Snackbar.LENGTH_SHORT)
+            snack(anchorView, "Downloading standard product list…", Snackbar.LENGTH_SHORT)
             when (val result = coordinator.syncProductsOnly(preserveUserSettings)) {
                 is SyncCoordinator.SyncResult.Success -> {
                     val msg = if (preserveUserSettings)
                         "✓ ${result.productsCount} products updated · Active & Sort Key settings preserved"
                     else
-                        "✓ ${result.productsCount} products reset from master data"
+                        "✓ ${result.productsCount} products imported from standard product list"
                     snack(anchorView, msg, Snackbar.LENGTH_LONG)
                 }
                 is SyncCoordinator.SyncResult.Error ->
@@ -393,6 +393,64 @@ object SyncHelper {
 
                 is SyncCoordinator.SyncResult.Error ->
                     snack(anchorView, "✗ ${preview.message}", Snackbar.LENGTH_LONG)
+
+                else -> snack(anchorView, "✗ Unexpected response from server", Snackbar.LENGTH_LONG)
+            }
+        }
+    }
+
+    /**
+     * Restore purchases from the Purchases sheet tab (normalised app format).
+     *
+     * Used to bring back purchases that were previously synced to the cloud —
+     * e.g. after a device reset or fresh install.  Deduplication is by txnId;
+     * rows already present in the local DB are silently skipped.
+     * Restored rows are marked SYNCED (they already exist in the cloud Purchases tab).
+     */
+    fun restorePurchasesFromCloud(
+        context:    Context,
+        scope:      CoroutineScope,
+        anchorView: View,
+        products:   List<Product>,
+        onRefresh:  () -> Unit = {}
+    ) {
+        scope.launch {
+            val coordinator = SyncCoordinator(context)
+            snack(anchorView, "⬇ Reading Purchases sheet…", Snackbar.LENGTH_SHORT)
+
+            when (val preview = coordinator.previewPurchasesTabDownSync(products)) {
+
+                is SyncCoordinator.SyncResult.PurchaseDownSyncPreview -> {
+                    if (preview.newRows.isEmpty()) {
+                        snack(anchorView,
+                            "✓ All cloud purchases are already on this device — nothing to restore",
+                            Snackbar.LENGTH_LONG)
+                        return@launch
+                    }
+                    snack(anchorView,
+                        "⬇ Restoring ${preview.newRows.size} purchase(s)…",
+                        Snackbar.LENGTH_SHORT)
+                    when (val result = coordinator.commitPurchaseDownSync(
+                        preview.newRows, emptyList())) {
+                        is SyncCoordinator.SyncResult.PurchaseDownSync ->
+                            snack(anchorView,
+                                "✓ ${result.inserted} purchase(s) restored from cloud",
+                                Snackbar.LENGTH_LONG).also { onRefresh() }
+                        is SyncCoordinator.SyncResult.Error ->
+                            snack(anchorView,
+                                "✗ Restore failed: ${result.message}",
+                                Snackbar.LENGTH_LONG)
+                        else -> {}
+                    }
+                }
+
+                is SyncCoordinator.SyncResult.Error -> {
+                    val msg = if (preview.message == "CLOUD_EMPTY")
+                        "Cloud Purchases sheet is empty. Sync your purchases first, then try restoring."
+                    else
+                        "✗ ${preview.message}"
+                    snack(anchorView, msg, Snackbar.LENGTH_LONG)
+                }
 
                 else -> snack(anchorView, "✗ Unexpected response from server", Snackbar.LENGTH_LONG)
             }

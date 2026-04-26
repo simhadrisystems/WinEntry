@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.simhadri.winentry.data.UserProfile
+import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -30,10 +31,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         const val PREFS_NAME        = "inventory_prefs"
-        const val KEY_USER_SHEET_ID = "user_sheet_id"
-        const val KEY_USER_EMAIL    = "user_email"
-        const val KEY_USER_UID      = "user_uid"
-        const val KEY_USER_ROLE     = "user_role"   // "editor" | "viewer"
+        const val KEY_USER_SHEET_ID      = "user_sheet_id"
+        const val KEY_USER_EMAIL         = "user_email"
+        const val KEY_USER_UID           = "user_uid"
+        const val KEY_USER_ROLE          = "user_role"          // "editor" | "viewer"
+        const val KEY_SHEET_ID_MISSING   = "sheet_id_missing"   // true = doc exists but sheetId not set by admin
     }
 
     /**
@@ -92,9 +94,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * Firestore /users/{uid} found → save sheetId + role to local prefs so the
      *   next sync works automatically without another Firestore read.
      *
-     * Not found (brand-new user) → write /admin_requests/{uid} so the admin
-     *   knows to provision a workspace sheet for this user.  The user can also
-     *   self-serve via Settings → My Drive Backup.
+     * Not found (brand-new user) → the user can request a workspace sheet
+     *   via Settings → Drive Backup.
      */
     private fun fetchSheetIdInBackground(user: FirebaseUser) {
         viewModelScope.launch {
@@ -116,12 +117,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         prefs.edit()
                             .putString(KEY_USER_SHEET_ID, sheetId)
                             .putString(KEY_USER_ROLE, role)
+                            .remove(KEY_SHEET_ID_MISSING)
                             .apply()
                         saveToSyncPrefs(sheetId)
                         android.util.Log.i("AuthViewModel",
                             "Sheet ID recovered from Firestore in background")
                     } else {
-                        // Document exists but no userSheetId field — log so admin can investigate
+                        // Document exists but admin hasn't set userSheetId yet — flag for UI
+                        prefs.edit().putBoolean(KEY_SHEET_ID_MISSING, true).apply()
                         android.util.Log.w("AuthViewModel",
                             "users/${user.uid} exists but userSheetId is blank. Fields: ${snapshot.data?.keys}")
                         ErrorLogger.log(getApplication(), "AuthViewModel",
@@ -158,13 +161,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Signs out from Firebase Auth and clears all local caches including role.
+     * Signs out from Firebase Auth and clears all per-user local state.
+     * Clears: auth identity, sync sheet ID, workspace request flag,
+     * registration state, and business info — so a different user
+     * logging in on the same device starts with a clean slate.
      */
     fun signOut() {
+        val app = getApplication<Application>()
+
         com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
 
-        getApplication<Application>()
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .remove(KEY_USER_SHEET_ID)
             .remove(KEY_USER_EMAIL)
@@ -172,12 +179,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             .remove(KEY_USER_ROLE)
             .apply()
 
-        // Clear SyncPrefs so stale sheet ID doesn't persist after sign-out
-        getApplication<Application>()
-            .getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
+        // Clear sync state — sheet ID and workspace request are user-specific
+        app.getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
             .edit()
             .remove("spreadsheet_id")
+            .remove("workspace_requested")
             .apply()
+
+        // Clear registration flag — it is UID-scoped so a new user must register
+        UserRegistrationManager.clearOnSignOut(app)
+
+        // Clear business info — a different user should not see the previous user's details
+        app.getSharedPreferences("business_info", Context.MODE_PRIVATE)
+            .edit().clear().apply()
 
         _authState.value = AuthState.Idle
     }

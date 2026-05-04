@@ -73,8 +73,11 @@ const ADMIN_EMAIL = "simhadrisystems@gmail.com";
 /** Service account that owns write access to every user sheet. */
 const SERVICE_ACCOUNT_EMAIL = "firebase-adminsdk-fbsvc@winentry-a87f2.iam.gserviceaccount.com";
 
-/** Admin user registry sheet. Share with App Engine SA as Editor. */
-const REGISTRY_SHEET_ID = "1L4PpNtS2AxfhP2XwnPYVD8ltUSPUJSUcAZbVm7yn5LM";
+/** Master products sheet (simhadrisystems@gmail.com Drive, WinEntry app folder). */
+const MASTER_SHEET_ID = "1rOd-l13Vs1LRa764lM40sjDeN70FWOArCn6NpfHUggs";
+
+/** Admin user registry sheet (simhadrisystems@gmail.com Drive, WinEntry app folder). */
+const REGISTRY_SHEET_ID = "1zw5Xek9lW4cohUbjaX6468ZqGF7m7--mdoplByv6Rps";
 
 // ── TAB HEADERS (must match CloudSyncManager.kt exactly) ─────────────────────
 
@@ -956,6 +959,114 @@ exports.onAdminRequestCreated = functions
     await appendToRegistry(uid, data, sheetId, sheetUrl);
   });
 
+// ── FIRESTORE TRIGGER: onInvitedUserAdded ────────────────────────────────────
+// Fires whenever admin writes to invited_users/{emailKey} (create OR update).
+// Finds all admin_requests with matching email + status "awaiting_approval" and
+// creates their sheets automatically — no user action required.
+//
+// Admin workflow:
+//   1. Add/update Firestore > invited_users > <email> doc  (e.g. { role: "editor" })
+//   2. This trigger fires, creates the sheet, writes /users/{uid}, updates registry.
+//   3. User opens app → Settings → Drive Backup card activates automatically.
+
+exports.onInvitedUserAdded = functions
+  .region("asia-south1")
+  .runWith({
+    timeoutSeconds: 120,
+    memory: "256MB",
+    secrets: ["ADMIN_OAUTH_CLIENT_ID", "ADMIN_OAUTH_CLIENT_SECRET", "ADMIN_OAUTH_REFRESH_TOKEN"]
+  })
+  .firestore.document("invited_users/{emailKey}")
+  .onWrite(async (change, context) => {
+
+    // Skip deletions — removing from invite list should not create sheets
+    if (!change.after.exists) {
+      console.log(`onInvitedUserAdded — doc deleted for ${context.params.emailKey}, skipping`);
+      return null;
+    }
+
+    const afterData = change.after.data();
+    // Document ID in invited_users IS the normalized email (see isUserInvited())
+    const email = context.params.emailKey;
+    const role  = (afterData && afterData.role) || "editor";
+
+    console.log(`onInvitedUserAdded — triggered for email=${email}, role=${role}`);
+
+    // Find all pending admin_requests for this email
+    let pendingSnap;
+    try {
+      pendingSnap = await db.collection("admin_requests")
+        .where("email", "==", email)
+        .get();
+    } catch (err) {
+      console.error(`onInvitedUserAdded — query failed for email=${email}:`, err.message);
+      return null;
+    }
+
+    if (pendingSnap.empty) {
+      console.log(`onInvitedUserAdded — no admin_requests found for email=${email}, nothing to do`);
+      return null;
+    }
+
+    // Process each pending request (almost always just one per email)
+    for (const requestDoc of pendingSnap.docs) {
+      const data = requestDoc.data();
+      const uid  = requestDoc.id;
+
+      // Guard: doc ID must be a Firebase UID, not an email address.
+      // A stale doc with email-as-ID would write the email into the UID column of the registry.
+      if (uid.includes("@")) {
+        console.warn(`onInvitedUserAdded — skipping doc with email-like ID "${uid}" (should be a Firebase UID). Delete this stale doc from admin_requests.`);
+        continue;
+      }
+
+      if (data.status !== "awaiting_approval") {
+        console.log(`onInvitedUserAdded — uid=${uid} already has status=${data.status}, skipping`);
+        continue;
+      }
+
+      console.log(`onInvitedUserAdded — creating sheet for uid=${uid} (${email})`);
+
+      try {
+        const displayName = data.ownerName || data.displayName || data.email || "";
+        const result = await createUserSheetForUser(uid, data.email, displayName, {
+          ownerName:      data.ownerName      || "",
+          businessName:   data.businessName   || "",
+          phone:          data.phone          || "",
+          location:       data.location       || "",
+          androidVersion: data.androidVersion || "",
+          appVersion:     data.appVersion     || "",
+          role
+        });
+
+        // Update admin_requests to reflect completion
+        await requestDoc.ref.update({
+          status:       "sheet_created",
+          userSheetId:  result.sheetId,
+          userSheetUrl: result.sheetUrl,
+          processedAt:  admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Update registry sheet rows with final sheetId + status
+        await appendToRegistry(uid, data, result.sheetId, result.sheetUrl, "sheet_created");
+
+        console.log(`onInvitedUserAdded — done uid=${uid}, sheetId=${result.sheetId} (existing=${result.existing})`);
+
+      } catch (err) {
+        console.error(`onInvitedUserAdded — sheet creation failed for uid=${uid}:`, err.message);
+        try {
+          await requestDoc.ref.update({
+            status:      "creation_failed",
+            errorMsg:    err.message,
+            processedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        } catch (_) { /* non-fatal */ }
+      }
+    }
+
+    return null;
+  });
+
 // ── HTTP FUNCTION: syncUserSheet ──────────────────────────────────────────────
 // All app ↔ sheet data transfer goes through here. The service account holds
 // writer access to every user sheet; the user's Gmail is never granted access.
@@ -1089,6 +1200,68 @@ exports.deleteUserRegistration = functions
       return res.status(200).json({ success: true });
     } catch (err) {
       console.error("deleteUserRegistration failed:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+// ── HTTP FUNCTION: getMasterProducts ─────────────────────────────────────────
+// Returns master products list + test data tabs from MASTER_SHEET_ID.
+// Uses service account — master sheet no longer needs public sharing.
+// Requires a valid Firebase ID token (any signed-in user).
+//
+// Response: { products: [[...], ...], testOb: [[...], ...], testCb: [[...], ...] }
+
+exports.getMasterProducts = functions
+  .region("asia-south1")
+  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .https.onRequest(async (req, res) => {
+
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      return res.status(204).send("");
+    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Missing token" });
+
+    try {
+      await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    try {
+      const [productsRes, testObRes, testCbRes] = await Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "Products!A2:U",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "TestOB!A2:G",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }).catch(() => ({ data: { values: null } })),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "TestCB!A2:H",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }).catch(() => ({ data: { values: null } }))
+      ]);
+
+      return res.status(200).json({
+        products: productsRes.data.values || [],
+        testOb:   testObRes.data.values   || [],
+        testCb:   testCbRes.data.values   || []
+      });
+    } catch (err) {
+      console.error("getMasterProducts failed:", err.message);
       return res.status(500).json({ error: err.message });
     }
   });

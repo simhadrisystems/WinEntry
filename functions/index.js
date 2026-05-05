@@ -840,6 +840,27 @@ exports.registerUserOnly = functions
     const { email, displayName, ownerName, businessName, phone, location, androidVersion, appVersion } = req.body;
     const forceUpdate = req.body.forceUpdate === true;
 
+    // Gate: only invited users may register.
+    const registrantEmail = decodedToken.email || email;
+    const inviteCheck = await isUserInvited(registrantEmail);
+    if (!inviteCheck.invited) {
+      await db.collection("admin_requests").doc(uid).set({
+        uid,
+        email:        registrantEmail,
+        displayName:  displayName || ownerName || registrantEmail,
+        ownerName:    ownerName    || "",
+        businessName: businessName || "",
+        phone:        phone        || "",
+        location:     location     || "",
+        androidVersion: androidVersion || "",
+        appVersion:     appVersion     || "",
+        status:      "awaiting_approval",
+        requestedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log(`registerUserOnly — uid=${uid} (${registrantEmail}) not in invited_users — recorded as awaiting_approval`);
+      return res.status(403).json({ error: "not_invited", message: "App registration requires an invitation. Contact the admin." });
+    }
+
     try {
       const userDoc = await db.collection("users").doc(uid).get();
 
@@ -979,9 +1000,57 @@ exports.onInvitedUserAdded = functions
   .firestore.document("invited_users/{emailKey}")
   .onWrite(async (change, context) => {
 
-    // Skip deletions — removing from invite list should not create sheets
+    // Deletion — admin removed from invited_users: revoke cloud access.
     if (!change.after.exists) {
-      console.log(`onInvitedUserAdded — doc deleted for ${context.params.emailKey}, skipping`);
+      const revokedEmail = context.params.emailKey;
+      console.log(`onInvitedUserAdded — revocation triggered for email=${revokedEmail}`);
+
+      let revokeSnap;
+      try {
+        revokeSnap = await db.collection("admin_requests")
+          .where("email", "==", revokedEmail).get();
+      } catch (err) {
+        console.error(`onInvitedUserAdded revoke — query failed for ${revokedEmail}:`, err.message);
+        return null;
+      }
+
+      if (revokeSnap.empty) {
+        console.log(`onInvitedUserAdded revoke — no admin_requests found for ${revokedEmail}, nothing to revoke`);
+        return null;
+      }
+
+      for (const requestDoc of revokeSnap.docs) {
+        const uid = requestDoc.id;
+        if (uid.includes("@")) continue;
+
+        // Clear userSheetId from /users/{uid} — syncUserSheet will return no_sheet,
+        // stopping cloud sync. The doc itself is preserved so re-adding the invite
+        // recovers the existing Drive sheet rather than creating a new one.
+        try {
+          const userDocRef = db.collection("users").doc(uid);
+          const userDoc    = await userDocRef.get();
+          if (userDoc.exists) {
+            await userDocRef.update({
+              userSheetId:  admin.firestore.FieldValue.delete(),
+              userSheetUrl: admin.firestore.FieldValue.delete(),
+              revokedAt:    admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`onInvitedUserAdded revoke — cleared sheet access for uid=${uid}`);
+          }
+        } catch (err) {
+          console.error(`onInvitedUserAdded revoke — failed to clear sheet for uid=${uid}:`, err.message);
+        }
+
+        // Mark admin_requests as revoked
+        try {
+          await requestDoc.ref.update({
+            status:    "revoked",
+            revokedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        } catch (err) {
+          console.error(`onInvitedUserAdded revoke — failed to update status for uid=${uid}:`, err.message);
+        }
+      }
       return null;
     }
 
@@ -1227,10 +1296,18 @@ exports.getMasterProducts = functions
     const authHeader = req.headers.authorization || "";
     if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Missing token" });
 
+    let masterProductsToken;
     try {
-      await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+      masterProductsToken = await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
     } catch (err) {
       return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // Gate: only invited users may access master products and test data.
+    const callerInvited = await isUserInvited(masterProductsToken.email);
+    if (!callerInvited.invited) {
+      console.log(`getMasterProducts — uid=${masterProductsToken.uid} (${masterProductsToken.email}) not in invited_users — blocked`);
+      return res.status(403).json({ error: "not_invited", message: "Access denied. Your account is not activated." });
     }
 
     const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });

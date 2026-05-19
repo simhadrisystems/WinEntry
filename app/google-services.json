@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "827909879534-drtvjkl4pf3id6s7s3t2khsrbemt2b45.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simhadri.winentry",
+            "certificate_hash": "a5cd8ca13198d596e09d66cfd39f77ca18f87d4d"
+          }
+        },
+        {
           "client_id": "827909879534-emq6ks86h9msg5s4jc1d8p2mlbqflmmt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -43,7 +51,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "827909879534-aldn3jtv2bdmrqt9j5duacln5b5gqbr6.apps.googleusercontent.com",
+              "client_id": "827909879534-2pbqp2qc80qhc52h4jdr90i2uc839v0t.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

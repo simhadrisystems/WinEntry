@@ -92,7 +92,14 @@
     <color name="daily_pq_row">#ECFDF5</color>               <!-- Emerald-50 — Purchase row        -->
 
     <!-- ── Daily stock CB bar ───────────────────────────────────── -->
-    <color name="daily_cb_bar">#475569</color>               <!-- Slate-600 (1 step lighter than app_sub_panel Slate-700) -->
+    <!-- Light mode: very dark bar so 200-level pastels hit 5:1+ contrast.
+         Dark mode override in values-night: Slate-300 light bar, so 900-level darks are used. -->
+    <color name="daily_cb_bar">#263238</color>               <!-- Blue Grey 900 — L≈0.033 -->
+    <color name="cb_label_text">#FFFFFF</color>              <!-- White on dark bar -->
+    <color name="cb_text_qq">#A5D6A7</color>   <!-- Green-200   L=0.558  contrast 7.95:1 on #263238 -->
+    <color name="cb_text_pp">#90CAF9</color>   <!-- Blue-200    L=0.497  contrast 7.23:1 on #263238 -->
+    <color name="cb_text_nn">#FFCC80</color>   <!-- Orange-200  L=0.624  contrast 8.54:1 on #263238 -->
+    <color name="cb_text_dd">#CE93D8</color>   <!-- Purple-200  L=0.380  contrast 5.47:1 on #263238 -->
 
     <!-- ── Purchase header ───────────────────────────────────────── -->
     <color name="app_purchase_header">#1A3828</color>
@@ -100,6 +107,15 @@
     <!-- ── Reports accent colours (have night overrides) ───────── -->
     <color name="reports_accent_crimson">#880E4F</color>  <!-- Brand-wise maroon  -->
     <color name="reports_accent_purple">#6A1B9A</color>   <!-- Purchase purple    -->
+
+    <!-- ── Size column accent colours (DD has a night override) ── -->
+    <color name="app_color_qq">#FF4CAF50</color>  <!-- Green-500  -->
+    <color name="app_color_pp">#FF2196F3</color>  <!-- Blue-500   -->
+    <color name="app_color_nn">#FFFF9800</color>  <!-- Orange-500 -->
+    <color name="app_color_dd">#FF9C27B0</color>  <!-- Purple-700 — overridden in values-night -->
+
+    <!-- ── Destructive action colour ────────────────────────────── -->
+    <color name="app_color_delete">#B71C1B</color>  <!-- Red-900 -->
 
     <!-- ── Status colours ──────────────────────────────────────── -->
     <color name="status_committed">#16A34A</color>

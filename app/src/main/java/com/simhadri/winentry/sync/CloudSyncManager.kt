@@ -1,45 +1,22 @@
 package com.simhadri.winentry.sync
 
-import android.content.Context
 import android.util.Log
-import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.data.entity.DailyStock
-import com.simhadri.winentry.data.entity.Product
-import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.entity.DayReconciliation
-import com.simhadri.winentry.util.DateUtils
+import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.SheetsScopes
-import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
-import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest
-import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
-import com.google.api.services.sheets.v4.model.DimensionRange
-import com.google.api.services.sheets.v4.model.Request
-import com.google.api.services.sheets.v4.model.ValueRange
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.simhadri.winentry.data.entity.stockCode
 
 /**
- * Google Sheets Sync Manager — v3 (quota-safe batching)
+ * Row-parsing utilities and entity serializers for cloud sync data.
  *
- * Google Sheets API quota: 60 write requests per minute per user.
- * Previous versions made one API call per row — 400 rows = 400 requests,
- * triggering 429 RATE_LIMIT_EXCEEDED after the first 60 rows.
+ * All live Google Sheets API calls are handled server-side by Firebase Cloud
+ * Functions (via CloudFunctionClient → SyncCoordinator). This object holds
+ * only the row-to-entity parsers and entity-to-row serializers used by the
+ * sync layer after data is returned from CF.
  *
- * This version batches all operations so that syncing any number of rows
- * costs at most 3 API write requests total:
- *   1 x batchUpdate  — all rows that already exist in the sheet (UPDATE)
- *   1 x append       — all new rows (INSERT)
- *   1 x batchUpdate  — row deletions (DELETE, purchases only)
- *
- * ── Purchases sheet column layout ────────────────────────────────────────────
+ * ── Purchases sheet column layout (A–AB) ─────────────────────────────────────
  * A=TxnId  B=Date  C=ProductCode  D=ProductName  E=InvoiceNo  F=Supplier
  * G=QQ_Boxes  H=QQ_Loose  I=QQ_Total  J=QQ_Price  K=QQ_Cost
  * L=PP_Boxes  M=PP_Loose  N=PP_Total  O=PP_Price  P=PP_Cost
@@ -47,7 +24,7 @@ import kotlinx.coroutines.withContext
  * V=DD_Boxes  W=DD_Loose  X=DD_Total  Y=DD_Price  Z=DD_Cost
  * AA=TotalCost  AB=Notes
  *
- * ── DailyStock sheet column layout ───────────────────────────────────────────
+ * ── DailyStock sheet column layout (A–X) ─────────────────────────────────────
  * A=date          B=productCode
  * C=openQq        D=openPp        E=openNn        F=openDd
  * G=closeQq       H=closePp       I=closeNn       J=closeDd
@@ -56,1375 +33,273 @@ import kotlinx.coroutines.withContext
  * S=amountQq      T=amountPp      U=amountNn      V=amountDd
  * W=saleAmount    X=isCommitted
  */
-class CloudSyncManager(
-    private val context: Context,
-    private val spreadsheetId: String
-) {
+object CloudSyncManager {
 
-    private var sheetsService: Sheets? = null
+    private const val TAG = "CloudSyncManager"
 
-    companion object {
-        private const val TAG = "CloudSyncManager"
-        private const val TAB_PURCHASES       = "Purchases"
-        private const val TAB_PRODUCTS        = "Products"
-        private const val TAB_DAILYSTOCK      = "DailyStock"
-        private const val TAB_DAYSUMMARY      = "DaySummary"
-        // User-maintained import inbox — same format as the Excel import file.
-        // User fills rows in from desktop; app reads and clears after import.
-        private const val TAB_PURCHASE_IMPORT = "PurchaseImport"
-        // App-only user registry — CF writes to "UserRegistry" / "CFRequests" independently.
-        private const val TAB_APP_REGISTRY    = "AppRequests"
-        private const val FULL_RANGE     = "$TAB_PURCHASES!A:AB"
-        private const val TXNID_SCAN_RANGE = "$TAB_PURCHASES!A:A"
-
-        /**
-         * Appends one row to the admin's User Registry sheet.
-         *
-         * Called when a user submits a workspace request via Settings → Sync Settings.
-         * Uses the user's existing OAuth credential (SheetsScopes.SPREADSHEETS already
-         * covers append operations on any sheet the user has edit access to).
-         *
-         * Admin setup required:
-         *   1. Create a Google Sheet for user registrations.
-         *   2. Add a tab named "UserRegistry".
-         *   3. Share the sheet with "Can edit" to all app users
-         *      (or a specific service-account email if preferred).
-         *   4. Set SyncCoordinator.ADMIN_USER_REGISTRY_SPREADSHEET_ID to the sheet ID.
-         *
-         * Row columns (A–P):
-         *   Row# | Registered At | Email | Owner Name | Business Name | Display Name |
-         *   Location | Phone | UID | Device | Status | Sheet ID | Sheet URL |
-         *   Processed At | Role | Notes
-         *
-         * Deduplicates by UID: if the user already has a row (e.g. from a previous
-         * request or a fallback write), the existing row is updated in-place instead
-         * of appending a second row.
-         *
-         * Privacy note: all fields are data the user has voluntarily provided and
-         * explicitly consented to share with admin by submitting the request.
-         *
-         * @return true on success, false on failure (non-fatal — Firestore is the
-         *         primary record; the sheet row is a convenience for admin analysis).
-         */
-        suspend fun appendUserRegistration(
-            context: Context,
-            registrySheetId: String,
-            uid: String,
-            email: String,
-            displayName: String,
-            ownerName: String,
-            businessName: String,
-            phone: String,
-            location: String,
-            device: String,
-            role: String,
-            sheetId: String,
-            sheetUrl: String,
-            status: String,
-            registeredAt: String = "",
-            processedAt: String = ""
-        ): Boolean = withContext(kotlinx.coroutines.Dispatchers.IO) {
+    internal fun parseDateStr(raw: String): String {
+        if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
+            java.util.Locale.getDefault()).format(java.util.Date())
+        val formats = listOf("d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yy")
+        for (fmt in formats) {
             try {
-                val account = GoogleSignIn.getLastSignedInAccount(context)
-                    ?: return@withContext false
+                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
+                sdf.isLenient = false
+                val date = sdf.parse(raw) ?: continue
+                return java.text.SimpleDateFormat("yyyy-MM-dd",
+                    java.util.Locale.getDefault()).format(date)
+            } catch (_: Exception) {}
+        }
+        return raw
+    }
 
-                val credential = GoogleAccountCredential.usingOAuth2(
-                    context, listOf(SheetsScopes.SPREADSHEETS)
-                ).apply { selectedAccount = account.account }
-
-                val service = Sheets.Builder(
-                    com.google.api.client.http.javanet.NetHttpTransport(),
-                    com.google.api.client.json.gson.GsonFactory.getDefaultInstance(),
-                    credential
-                ).setApplicationName(context.getString(com.simhadri.winentry.R.string.app_name))
-                    .build()
-
-                // Use caller-supplied registeredAt (from Firestore) if available;
-                // fall back to current time only when writing for the very first time.
-                val fallbackTimestamp = java.text.SimpleDateFormat(
-                    "yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()
-                ).format(java.util.Date())
-                val timestamp = registeredAt.ifBlank { fallbackTimestamp }
-
-                // UserRegistry is written ONLY by the app (this function).
-                // The Cloud Function writes to the separate "CFRequests" tab — see
-                // SyncCoordinator.CF_REQUESTS_TAB_HEADERS for that tab's column layout.
-                // Keeping writers separate eliminates cross-writer dedup problems.
-                //
-                // Match by UID (col I = idx 8) or Email (col C = idx 2 / col B = idx 1 for
-                // any legacy rows).  If the read fails the outer catch logs and returns false.
-                val existingRows: List<List<Any>> = service.spreadsheets().values()
-                    .get(registrySheetId, "$TAB_APP_REGISTRY!A:I")
-                    .execute()
-                    .getValues() ?: emptyList()
-
-                val existingRowIndex = existingRows.indexOfFirst { row ->
-                    row.getOrNull(8)?.toString() == uid    // col I = UID
-                        || row.getOrNull(2)?.toString() == email   // col C = Email
-                        || row.getOrNull(1)?.toString() == email   // col B = Email (legacy)
+    internal fun buildProductLookupMap(products: List<Product>): Map<String, Product> {
+        val map = mutableMapOf<String, Product>()
+        for (p in products) {
+            map[p.stockCode] = p
+            if (p.aliases.isNotBlank()) {
+                p.aliases.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { alias ->
+                    map["${p.productType}$alias"] = p
                 }
-
-                val rowNum = if (existingRowIndex > 0) existingRowIndex
-                             else existingRows.size.coerceAtLeast(1)
-
-                // RAW (not USER_ENTERED): empty strings explicitly clear cells so blank phone
-                // / processedAt overwrite stale values rather than leaving old content intact.
-                val rowData = com.google.api.services.sheets.v4.model.ValueRange()
-                    .setValues(listOf(listOf(
-                        rowNum, timestamp, email, ownerName, businessName,
-                        displayName, location, phone, uid, device, status,
-                        sheetId, sheetUrl, processedAt, role, ""
-                    )))
-
-                Log.d(TAG, "UserRegistry: existingRowIndex=$existingRowIndex rows=${existingRows.size}")
-
-                if (existingRowIndex > 0) {
-                    val sheetRow = existingRowIndex + 1
-                    service.spreadsheets().values()
-                        .update(registrySheetId, "$TAB_APP_REGISTRY!A$sheetRow:P$sheetRow", rowData)
-                        .setValueInputOption("RAW")
-                        .execute()
-                    Log.i(TAG, "UserRegistry: updated row $sheetRow")
-                } else {
-                    service.spreadsheets().values()
-                        .append(registrySheetId, "$TAB_APP_REGISTRY!A:P", rowData)
-                        .setValueInputOption("RAW")
-                        .setInsertDataOption("INSERT_ROWS")
-                        .execute()
-                    Log.i(TAG, "UserRegistry: appended new row")
-                }
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "appendUserRegistration failed: ${e.message}")
-                ErrorLogger.log(context, "UserRegistry", "appendUserRegistration failed", e)
-                false
             }
         }
+        return map
+    }
 
-        internal fun parseDateStr(raw: String): String {
-            if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
-                java.util.Locale.getDefault()).format(java.util.Date())
-            val formats = listOf("d/M/yy","dd/MM/yy","d/M/yyyy","dd/MM/yyyy","yyyy-MM-dd","MM/dd/yy")
-            for (fmt in formats) {
-                try {
-                    val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
-                    sdf.isLenient = false
-                    val date = sdf.parse(raw) ?: continue
-                    return java.text.SimpleDateFormat("yyyy-MM-dd",
-                        java.util.Locale.getDefault()).format(date)
-                } catch (_: Exception) {}
-            }
-            return raw
+    /**
+     * Parse raw rows from the PurchaseImport sheet tab into Purchase objects.
+     * Accepts pre-loaded rows (from CF read_all) — no Sheets API call needed.
+     *
+     * Row format (shipment block):
+     *   Row N+0:  INVOICE NUMBER | TP08726
+     *   Row N+1:  DATE           | 5/2/26
+     *   Row N+2:  Header row
+     *   Row N+3+: Data rows (col 1=brand, 3=type, 5=size, 7=boxes, 8=units, 9=price)
+     *
+     * Deduplicates by invoiceNumber|productCode|date against [existingKeys].
+     */
+    internal fun parseImportSheetRows(
+        rows: List<List<Any>>,
+        products: List<Product>,
+        existingKeys: Set<String>
+    ): Pair<List<Purchase>, Set<String>> {
+        if (rows.isEmpty()) return Pair(emptyList(), emptySet())
+
+        val productMap    = buildProductLookupMap(products)
+        val newPurchases  = mutableListOf<Purchase>()
+        val notFoundCodes = mutableSetOf<String>()
+
+        data class Shipment(
+            val invoiceNumber: String,
+            val date: String,
+            val dataStartIdx: Int,
+            val headerRowNum: Int
+        )
+
+        val shipments = mutableListOf<Shipment>()
+        var i = 0
+        while (i < rows.size) {
+            val cell0 = rows[i].getOrNull(0)?.toString()?.trim() ?: ""
+            if (cell0.uppercase().contains("INVOICE")) {
+                val invoice = rows[i].getOrNull(1)?.toString()?.trim() ?: ""
+                val dateRaw = if (i + 1 < rows.size)
+                    rows[i + 1].getOrNull(1)?.toString()?.trim() ?: "" else ""
+                shipments.add(Shipment(invoice, parseDateStr(dateRaw), i + 3, i + 1))
+                i += 3
+            } else { i++ }
         }
 
-        internal fun buildProductLookupMap(products: List<Product>): Map<String, Product> {
-            val map = mutableMapOf<String, Product>()
-            for (p in products) {
-                map[p.stockCode] = p
-                if (p.aliases.isNotBlank()) {
-                    p.aliases.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEach { alias ->
-                        map["${p.productType}$alias"] = p
-                    }
-                }
-            }
-            return map
-        }
+        for ((sIdx, shipment) in shipments.withIndex()) {
+            val dataEnd = if (sIdx + 1 < shipments.size)
+                shipments[sIdx + 1].headerRowNum - 2 else rows.size
 
-        /**
-         * Parse raw rows from the PurchaseImport sheet tab into Purchase objects.
-         * Accepts pre-loaded rows (from CF read_all) so no Sheets API call is needed.
-         */
-        internal fun parseImportSheetRows(
-            rows: List<List<Any>>,
-            products: List<Product>,
-            existingKeys: Set<String>
-        ): Pair<List<Purchase>, Set<String>> {
-            if (rows.isEmpty()) return Pair(emptyList(), emptySet())
+            val groups = mutableMapOf<String, MutableList<Map<String, Any>>>()
 
-            val productMap    = buildProductLookupMap(products)
-            val newPurchases  = mutableListOf<Purchase>()
-            val notFoundCodes = mutableSetOf<String>()
-
-            data class Shipment(
-                val invoiceNumber: String,
-                val date: String,
-                val dataStartIdx: Int,
-                val headerRowNum: Int
-            )
-
-            val shipments = mutableListOf<Shipment>()
-            var i = 0
-            while (i < rows.size) {
-                val cell0 = rows[i].getOrNull(0)?.toString()?.trim() ?: ""
-                if (cell0.uppercase().contains("INVOICE")) {
-                    val invoice = rows[i].getOrNull(1)?.toString()?.trim() ?: ""
-                    val dateRaw = if (i + 1 < rows.size)
-                        rows[i + 1].getOrNull(1)?.toString()?.trim() ?: "" else ""
-                    shipments.add(Shipment(invoice, parseDateStr(dateRaw), i + 3, i + 1))
-                    i += 3
-                } else { i++ }
-            }
-
-            for ((sIdx, shipment) in shipments.withIndex()) {
-                val dataEnd = if (sIdx + 1 < shipments.size)
-                    shipments[sIdx + 1].headerRowNum - 2 else rows.size
-
-                val groups = mutableMapOf<String, MutableList<Map<String, Any>>>()
-
-                for (ri in shipment.dataStartIdx until dataEnd) {
-                    if (ri >= rows.size) break
-                    val row   = rows[ri]
-                    val brand = row.getOrNull(1)?.toString()?.trim() ?: continue
-                    if (brand.isBlank()) continue
-                    val type    = row.getOrNull(3)?.toString()?.trim() ?: ""
-                    val rawCode = "$type$brand"
-                    val product = productMap[rawCode]
-                    if (product == null) { notFoundCodes.add(rawCode); continue }
-                    groups.getOrPut(product.stockCode) { mutableListOf() }.add(mapOf(
-                        "size"    to (row.getOrNull(5)?.toString()?.trim()?.uppercase() ?: ""),
-                        "boxes"   to (row.getOrNull(7)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
-                        "units"   to (row.getOrNull(8)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
-                        "price"   to (row.getOrNull(9)?.toString()?.toDoubleOrNull() ?: 0.0),
-                        "product" to product
-                    ))
-                }
-
-                for ((_, sizeRows) in groups) {
-                    val product  = sizeRows.first()["product"] as Product
-                    var qqB = 0; var qqU = 0; var qqP = 0.0
-                    var ppB = 0; var ppU = 0; var ppP = 0.0
-                    var nnB = 0; var nnU = 0; var nnP = 0.0
-                    var ddB = 0; var ddU = 0; var ddP = 0.0
-                    for (r in sizeRows) {
-                        val b = r["boxes"] as Int; val u = r["units"] as Int; val p = r["price"] as Double
-                        when (r["size"] as String) {
-                            "QQ" -> { qqB += b; qqU += u; if (p > 0) qqP = p }
-                            "PP" -> { ppB += b; ppU += u; if (p > 0) ppP = p }
-                            "NN" -> { nnB += b; nnU += u; if (p > 0) nnP = p }
-                            "DD" -> { ddB += b; ddU += u; if (p > 0) ddP = p }
-                        }
-                    }
-                    val qqTu = Purchase.calculateTotalUnits(qqB, qqU, product.qqUnitsPerBox)
-                    val ppTu = Purchase.calculateTotalUnits(ppB, ppU, product.ppUnitsPerBox)
-                    val nnTu = Purchase.calculateTotalUnits(nnB, nnU, product.nnUnitsPerBox)
-                    val ddTu = Purchase.calculateTotalUnits(ddB, ddU, product.ddUnitsPerBox)
-                    val qqFP = if (qqP > 0) qqP else product.qqPurchasePrice
-                    val ppFP = if (ppP > 0) ppP else product.ppPurchasePrice
-                    val nnFP = if (nnP > 0) nnP else product.nnPurchasePrice
-                    val ddFP = if (ddP > 0) ddP else product.ddPurchasePrice
-                    val dedupKey = "${shipment.invoiceNumber}|${product.stockCode}|${shipment.date}"
-                    if (dedupKey in existingKeys) continue
-                    newPurchases.add(Purchase(
-                        purchaseDate   = shipment.date,
-                        productId      = product.id,
-                        productCode    = product.stockCode,
-                        productName    = product.displayName,
-                        qqBoxes = qqB, qqLoose = qqU, qqUnitsPerBox = product.qqUnitsPerBox,
-                        qqTotalUnits = qqTu, qqUnitPrice = qqFP, qqTotalCost = qqTu * qqFP,
-                        ppBoxes = ppB, ppLoose = ppU, ppUnitsPerBox = product.ppUnitsPerBox,
-                        ppTotalUnits = ppTu, ppUnitPrice = ppFP, ppTotalCost = ppTu * ppFP,
-                        nnBoxes = nnB, nnLoose = nnU, nnUnitsPerBox = product.nnUnitsPerBox,
-                        nnTotalUnits = nnTu, nnUnitPrice = nnFP, nnTotalCost = nnTu * nnFP,
-                        ddBoxes = ddB, ddLoose = ddU, ddUnitsPerBox = product.ddUnitsPerBox,
-                        ddTotalUnits = ddTu, ddUnitPrice = ddFP, ddTotalCost = ddTu * ddFP,
-                        totalCost      = qqTu*qqFP + ppTu*ppFP + nnTu*nnFP + ddTu*ddFP,
-                        invoiceNumber  = shipment.invoiceNumber,
-                        supplierName   = "",
-                        notes          = "Imported from cloud sheet",
-                        syncStatus     = SyncStatus.PENDING_INSERT,
-                        isProcessed    = false,
-                        isDeleted      = false
-                    ))
-                }
-            }
-            Log.d(TAG, "parseImportSheetRows: ${newPurchases.size} new, ${notFoundCodes.size} not found")
-            return Pair(newPurchases, notFoundCodes)
-        }
-
-        /**
-         * Parse rows from the Purchases sheet tab (the normalized app format, A–AB columns)
-         * back into Purchase objects.  Used for down-syncing purchases from the cloud to a
-         * device that doesn't have them locally (e.g. fresh install or second device).
-         *
-         * Rows whose txnId is already in [existingTxnIds] are skipped (dedup by txnId).
-         * Rows are marked PENDING_INSERT so the next up-sync confirms them to cloud
-         * (the CF upsert is idempotent — same txnId → update-in-place, no duplicate).
-         *
-         * Column order mirrors Purchase.toSheetRow():
-         *   0=txnId 1=date 2=productCode 3=productName 4=invoiceNo 5=supplier
-         *   6=qqBoxes 7=qqLoose 8=qqTotal 9=qqPrice 10=qqCost
-         *   11=ppBoxes … 15=ppCost  16=nnBoxes … 20=nnCost  21=ddBoxes … 25=ddCost
-         *   26=totalCost 27=notes
-         */
-        internal fun parsePurchasesTabRows(
-            rows: List<List<Any>>,
-            products: List<Product>,
-            existingTxnIds: Set<String>
-        ): List<Purchase> {
-            if (rows.isEmpty()) return emptyList()
-            val productMap = buildProductLookupMap(products)
-            val result = mutableListOf<Purchase>()
-
-            fun Any?.int()    = this?.toString()?.toIntOrNull() ?: 0
-            fun Any?.dbl()    = this?.toString()?.toDoubleOrNull() ?: 0.0
-            fun Any?.str()    = this?.toString()?.trim() ?: ""
-
-            for (row in rows) {
-                val txnId = row.getOrNull(0).str()
-                if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
-                if (txnId in existingTxnIds) continue
-
-                val productCode = row.getOrNull(2).str()
-                if (productCode.isBlank()) continue
-                val product = productMap[productCode]
-
-                result.add(Purchase(
-                    txnId         = txnId,
-                    syncStatus    = SyncStatus.SYNCED,
-                    purchaseDate  = parseDateStr(row.getOrNull(1).str()),
-                    productId     = product?.id ?: 0L,
-                    productCode   = productCode,
-                    productName   = row.getOrNull(3).str(),
-                    invoiceNumber = row.getOrNull(4).str(),
-                    supplierName  = row.getOrNull(5).str(),
-                    qqBoxes       = row.getOrNull(6).int(),
-                    qqLoose       = row.getOrNull(7).int(),
-                    qqUnitsPerBox = product?.qqUnitsPerBox ?: 12,
-                    qqTotalUnits  = row.getOrNull(8).int(),
-                    qqUnitPrice   = row.getOrNull(9).dbl(),
-                    qqTotalCost   = row.getOrNull(10).dbl(),
-                    ppBoxes       = row.getOrNull(11).int(),
-                    ppLoose       = row.getOrNull(12).int(),
-                    ppUnitsPerBox = product?.ppUnitsPerBox ?: 24,
-                    ppTotalUnits  = row.getOrNull(13).int(),
-                    ppUnitPrice   = row.getOrNull(14).dbl(),
-                    ppTotalCost   = row.getOrNull(15).dbl(),
-                    nnBoxes       = row.getOrNull(16).int(),
-                    nnLoose       = row.getOrNull(17).int(),
-                    nnUnitsPerBox = product?.nnUnitsPerBox ?: 48,
-                    nnTotalUnits  = row.getOrNull(18).int(),
-                    nnUnitPrice   = row.getOrNull(19).dbl(),
-                    nnTotalCost   = row.getOrNull(20).dbl(),
-                    ddBoxes       = row.getOrNull(21).int(),
-                    ddLoose       = row.getOrNull(22).int(),
-                    ddUnitsPerBox = product?.ddUnitsPerBox ?: 96,
-                    ddTotalUnits  = row.getOrNull(23).int(),
-                    ddUnitPrice   = row.getOrNull(24).dbl(),
-                    ddTotalCost   = row.getOrNull(25).dbl(),
-                    totalCost     = row.getOrNull(26).dbl(),
-                    notes         = row.getOrNull(27).str(),
-                    isProcessed   = false,
-                    isDeleted     = false
+            for (ri in shipment.dataStartIdx until dataEnd) {
+                if (ri >= rows.size) break
+                val row   = rows[ri]
+                val brand = row.getOrNull(1)?.toString()?.trim() ?: continue
+                if (brand.isBlank()) continue
+                val type    = row.getOrNull(3)?.toString()?.trim() ?: ""
+                val rawCode = "$type$brand"
+                val product = productMap[rawCode]
+                if (product == null) { notFoundCodes.add(rawCode); continue }
+                groups.getOrPut(product.stockCode) { mutableListOf() }.add(mapOf(
+                    "size"    to (row.getOrNull(5)?.toString()?.trim()?.uppercase() ?: ""),
+                    "boxes"   to (row.getOrNull(7)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
+                    "units"   to (row.getOrNull(8)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
+                    "price"   to (row.getOrNull(9)?.toString()?.toDoubleOrNull() ?: 0.0),
+                    "product" to product
                 ))
             }
-            Log.d(TAG, "parsePurchasesTabRows: ${result.size} new")
-            return result
-        }
-    }
 
-    // Cached numeric sheet ID for the Purchases tab (needed for row deletion).
-    private var purchasesSheetId: Int? = null
-
-    // ── Initialisation ────────────────────────────────────────────────────────
-
-    fun initialize(): Boolean {
-        return try {
-            val account = GoogleSignIn.getLastSignedInAccount(context)
-            if (account != null) {
-                initializeSheetsService(account)
-                true
-            } else {
-                Log.w(TAG, "No Google account signed in")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize: ${e.message}")
-            false
-        }
-    }
-
-    private fun initializeSheetsService(account: GoogleSignInAccount) {
-        val credential = GoogleAccountCredential.usingOAuth2(
-            context,
-            listOf(SheetsScopes.SPREADSHEETS)
-        ).apply { selectedAccount = account.account }
-
-        sheetsService = Sheets.Builder(
-            NetHttpTransport(),
-            GsonFactory.getDefaultInstance(),
-            credential
-        ).setApplicationName(context.getString(com.simhadri.winentry.R.string.app_name)).build()
-    }
-
-    // ── Purchase sync (quota-safe batching) ───────────────────────────────────
-
-    /**
-     * Process all pending purchases using at most 3 API write requests.
-     *
-     * Step 1 (READ):   Build txnId index from col A — 1 read request.
-     * Step 2 (WRITE):  batch-append all new rows — 1 write request.
-     * Step 3 (WRITE):  batchUpdate all changed rows — 1 write request.
-     * Step 4 (WRITE):  batchUpdate deletes (row removal) — 1 write request.
-     *
-     * Total: 1 read + up to 3 writes regardless of how many rows are pending.
-     */
-    suspend fun syncPendingPurchases(
-        pendingPurchases: List<Purchase>
-    ): SyncResult = withContext(Dispatchers.IO) {
-
-        val result = SyncResult()
-        if (pendingPurchases.isEmpty()) return@withContext result
-
-        val service = sheetsService ?: run {
-            Log.w(TAG, "Sheets service not initialised")
-            result.failAll(pendingPurchases)
-            return@withContext result
-        }
-
-        if (purchasesSheetId == null) {
-            purchasesSheetId = fetchPurchasesSheetId(service)
-        }
-
-        val txnIdIndex: Map<String, Int> = buildTxnIdIndex(service)
-
-        // Partition into three buckets — no API calls yet
-        val toInsert = mutableListOf<Purchase>()
-        val toUpdate = mutableListOf<Pair<Purchase, Int>>()
-        val toDelete = mutableListOf<Pair<Purchase, Int>>()
-
-        for (purchase in pendingPurchases) {
-            when (purchase.syncStatus) {
-                SyncStatus.PENDING_INSERT,
-                SyncStatus.SYNC_ERROR -> {
-                    if (txnIdIndex.containsKey(purchase.txnId)) {
-                        toUpdate.add(purchase to txnIdIndex[purchase.txnId]!!)
-                    } else {
-                        toInsert.add(purchase)
+            for ((_, sizeRows) in groups) {
+                val product  = sizeRows.first()["product"] as Product
+                var qqB = 0; var qqU = 0; var qqP = 0.0
+                var ppB = 0; var ppU = 0; var ppP = 0.0
+                var nnB = 0; var nnU = 0; var nnP = 0.0
+                var ddB = 0; var ddU = 0; var ddP = 0.0
+                for (r in sizeRows) {
+                    val b = r["boxes"] as Int; val u = r["units"] as Int; val p = r["price"] as Double
+                    when (r["size"] as String) {
+                        "QQ" -> { qqB += b; qqU += u; if (p > 0) qqP = p }
+                        "PP" -> { ppB += b; ppU += u; if (p > 0) ppP = p }
+                        "NN" -> { nnB += b; nnU += u; if (p > 0) nnP = p }
+                        "DD" -> { ddB += b; ddU += u; if (p > 0) ddP = p }
                     }
                 }
-                SyncStatus.PENDING_UPDATE -> {
-                    val rowNumber = txnIdIndex[purchase.txnId]
-                    if (rowNumber != null) toUpdate.add(purchase to rowNumber)
-                    else toInsert.add(purchase)
-                }
-                SyncStatus.PENDING_DELETE -> {
-                    val rowNumber = txnIdIndex[purchase.txnId]
-                    if (rowNumber != null) {
-                        toDelete.add(purchase to rowNumber)
-                    } else {
-                        // Never reached Sheets — confirm local hard-delete directly
-                        result.hardDelete.add(purchase.id)
-                    }
-                }
+                val qqTu = Purchase.calculateTotalUnits(qqB, qqU, product.qqUnitsPerBox)
+                val ppTu = Purchase.calculateTotalUnits(ppB, ppU, product.ppUnitsPerBox)
+                val nnTu = Purchase.calculateTotalUnits(nnB, nnU, product.nnUnitsPerBox)
+                val ddTu = Purchase.calculateTotalUnits(ddB, ddU, product.ddUnitsPerBox)
+                val qqFP = if (qqP > 0) qqP else product.qqPurchasePrice
+                val ppFP = if (ppP > 0) ppP else product.ppPurchasePrice
+                val nnFP = if (nnP > 0) nnP else product.nnPurchasePrice
+                val ddFP = if (ddP > 0) ddP else product.ddPurchasePrice
+                val dedupKey = "${shipment.invoiceNumber}|${product.stockCode}|${shipment.date}"
+                if (dedupKey in existingKeys) continue
+                newPurchases.add(Purchase(
+                    purchaseDate   = shipment.date,
+                    productId      = product.id,
+                    productCode    = product.stockCode,
+                    productName    = product.displayName,
+                    qqBoxes = qqB, qqLoose = qqU, qqUnitsPerBox = product.qqUnitsPerBox,
+                    qqTotalUnits = qqTu, qqUnitPrice = qqFP, qqTotalCost = qqTu * qqFP,
+                    ppBoxes = ppB, ppLoose = ppU, ppUnitsPerBox = product.ppUnitsPerBox,
+                    ppTotalUnits = ppTu, ppUnitPrice = ppFP, ppTotalCost = ppTu * ppFP,
+                    nnBoxes = nnB, nnLoose = nnU, nnUnitsPerBox = product.nnUnitsPerBox,
+                    nnTotalUnits = nnTu, nnUnitPrice = nnFP, nnTotalCost = nnTu * nnFP,
+                    ddBoxes = ddB, ddLoose = ddU, ddUnitsPerBox = product.ddUnitsPerBox,
+                    ddTotalUnits = ddTu, ddUnitPrice = ddFP, ddTotalCost = ddTu * ddFP,
+                    totalCost      = qqTu*qqFP + ppTu*ppFP + nnTu*nnFP + ddTu*ddFP,
+                    invoiceNumber  = shipment.invoiceNumber,
+                    supplierName   = "",
+                    notes          = "Imported from cloud sheet",
+                    syncStatus     = SyncStatus.PENDING_INSERT,
+                    isProcessed    = false,
+                    isDeleted      = false
+                ))
             }
         }
-
-        Log.d(TAG, "Purchases: ${toInsert.size} inserts, ${toUpdate.size} updates, ${toDelete.size} deletes")
-
-        // Batch INSERT — 1 API call for all new rows
-        if (toInsert.isNotEmpty()) {
-            try {
-                val values = toInsert.map { it.toSheetRow() }
-                val body = ValueRange().setValues(values)
-                service.spreadsheets().values()
-                    .append(spreadsheetId, FULL_RANGE, body)
-                    .setValueInputOption("USER_ENTERED")
-                    .setInsertDataOption("INSERT_ROWS")
-                    .execute()
-                toInsert.forEach { result.synced.add(it.id) }
-                Log.d(TAG, "Batch-inserted ${toInsert.size} purchase rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "Batch purchase insert failed: ${e.message}")
-                toInsert.forEach { result.errors.add(it.id) }
-            }
-        }
-
-        // Batch UPDATE — 1 API call for all existing rows
-        if (toUpdate.isNotEmpty()) {
-            try {
-                val valueRanges = toUpdate.map { (purchase, rowNumber) ->
-                    ValueRange()
-                        .setRange("$TAB_PURCHASES!A$rowNumber:AB$rowNumber")
-                        .setValues(listOf(purchase.toSheetRow()))
-                }
-                val body = BatchUpdateValuesRequest()
-                    .setValueInputOption("USER_ENTERED")
-                    .setData(valueRanges)
-                service.spreadsheets().values()
-                    .batchUpdate(spreadsheetId, body)
-                    .execute()
-                toUpdate.forEach { (p, _) -> result.synced.add(p.id) }
-                Log.d(TAG, "Batch-updated ${toUpdate.size} purchase rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "Batch purchase update failed: ${e.message}")
-                toUpdate.forEach { (p, _) -> result.errors.add(p.id) }
-            }
-        }
-
-        // Batch DELETE — 1 API call, rows sorted descending to prevent index shift
-        if (toDelete.isNotEmpty()) {
-            try {
-                val sortedDeletes = toDelete.sortedByDescending { it.second }
-                batchDeleteSheetRows(service, sortedDeletes.map { it.second })
-                sortedDeletes.forEach { (p, _) -> result.hardDelete.add(p.id) }
-                Log.d(TAG, "Batch-deleted ${sortedDeletes.size} purchase rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "Batch purchase delete failed: ${e.message}")
-                toDelete.forEach { (p, _) -> result.errors.add(p.id) }
-            }
-        }
-
-        result
+        Log.d(TAG, "parseImportSheetRows: ${newPurchases.size} new, ${notFoundCodes.size} not found")
+        return Pair(newPurchases, notFoundCodes)
     }
 
-    // ── Purchase row deletion (existing — unchanged) ──────────────────────────
-
     /**
-     * Delete multiple rows in one batchUpdate call.
-     * [rowNumbers] MUST be sorted descending — see delete bug fix notes.
+     * Parse rows from the master Products sheet into Product objects.
+     *
+     * Column layout (0-based): 0=productName 1=productType 2=category 3=brandCode
+     * 4=displayName 5=serialNo 6-13=prices(qqPurchase qqSale ppPurchase ppSale
+     * nnPurchase nnSale ddPurchase ddSale) 14-17=unitsPerBox(qq pp nn dd)
+     * 18=dailySortKey 19=aliases 20=isActive
      */
-    private fun batchDeleteSheetRows(service: Sheets, rowNumbers: List<Int>) {
-        if (rowNumbers.isEmpty()) return
-
-        val sheetId = purchasesSheetId
-            ?: throw IllegalStateException("purchasesSheetId not loaded")
-
-        val sorted = rowNumbers.sortedDescending()
-
-        val deleteRequests = sorted.map { rowNumber ->
-            Request().setDeleteDimension(
-                DeleteDimensionRequest().setRange(
-                    DimensionRange()
-                        .setSheetId(sheetId)
-                        .setDimension("ROWS")
-                        .setStartIndex(rowNumber - 1)
-                        .setEndIndex(rowNumber)
-                )
+    fun parseProductRows(rows: List<List<Any>>): List<Product> {
+        return rows.mapNotNull { row ->
+            fun cell(col: Int) = row.getOrNull(col)?.toString().orEmpty()
+            val productType = cell(1)
+            val brandCode   = cell(3)
+            if (brandCode.isBlank()) return@mapNotNull null
+            Product(
+                productName     = cell(0),
+                productType     = productType,
+                category        = cell(2),
+                brandCode       = brandCode,
+                qqCode          = "${productType}${brandCode}QQ",
+                ppCode          = "${productType}${brandCode}PP",
+                nnCode          = "${productType}${brandCode}NN",
+                ddCode          = "${productType}${brandCode}DD",
+                displayName     = cell(4),
+                serialNo        = cell(5).toIntOrNull() ?: 1,
+                qqPurchasePrice = cell(6).toDoubleOrNull() ?: 0.0,
+                qqSalePrice     = cell(7).toDoubleOrNull() ?: 0.0,
+                ppPurchasePrice = cell(8).toDoubleOrNull() ?: 0.0,
+                ppSalePrice     = cell(9).toDoubleOrNull() ?: 0.0,
+                nnPurchasePrice = cell(10).toDoubleOrNull() ?: 0.0,
+                nnSalePrice     = cell(11).toDoubleOrNull() ?: 0.0,
+                ddPurchasePrice = cell(12).toDoubleOrNull() ?: 0.0,
+                ddSalePrice     = cell(13).toDoubleOrNull() ?: 0.0,
+                qqUnitsPerBox   = cell(14).toIntOrNull() ?: 12,
+                ppUnitsPerBox   = cell(15).toIntOrNull() ?: 24,
+                nnUnitsPerBox   = cell(16).toIntOrNull() ?: 48,
+                ddUnitsPerBox   = cell(17).toIntOrNull() ?: 96,
+                isActive        = (cell(20).toIntOrNull() ?: 1) == 1,
+                dailySortKey    = cell(18).toIntOrNull() ?: 999,
+                aliases         = cell(19)
             )
         }
-
-        service.spreadsheets()
-            .batchUpdate(spreadsheetId, BatchUpdateSpreadsheetRequest().setRequests(deleteRequests))
-            .execute()
-
-        Log.d(TAG, "Batch-deleted rows (desc): $sorted")
     }
-
-    // ── Purchase index helpers ────────────────────────────────────────────────
-
-    private fun buildTxnIdIndex(service: Sheets): Map<String, Int> {
-        return try {
-            val response = service.spreadsheets().values()
-                .get(spreadsheetId, TXNID_SCAN_RANGE)
-                .execute()
-
-            val rows = response.getValues() ?: return emptyMap()
-            val index = mutableMapOf<String, Int>()
-
-            rows.forEachIndexed { zeroBasedIndex, row ->
-                val txnId = row.getOrNull(0)?.toString().orEmpty().trim()
-                if (txnId.isNotEmpty() && zeroBasedIndex > 0) {
-                    index[txnId] = zeroBasedIndex + 1
-                }
-            }
-            Log.d(TAG, "TxnId index built: ${index.size} existing rows")
-            index
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to build txnId index: ${e.message}")
-            emptyMap()
-        }
-    }
-
-    private fun fetchPurchasesSheetId(service: Sheets): Int? {
-        return try {
-            val spreadsheet = service.spreadsheets().get(spreadsheetId).execute()
-            spreadsheet.sheets
-                ?.firstOrNull { it.properties.title == TAB_PURCHASES }
-                ?.properties?.sheetId
-                ?.also { Log.d(TAG, "Purchases sheetId = $it") }
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not fetch sheet ID: ${e.message}")
-            null
-        }
-    }
-
-    // ── Daily stock sync (quota-safe batching) ────────────────────────────────
 
     /**
-     * Sync pending DailyStock rows using at most 3 API requests total.
+     * Parse rows from the Purchases sheet tab (normalised app format, A–AB columns)
+     * into Purchase objects. Used for down-syncing purchases to a device that doesn't
+     * have them locally (fresh install or second device).
      *
-     * Request 1 (READ):   GET cols A+B to build the composite key index.
-     * Request 2 (WRITE):  batchUpdate — all rows that already exist (UPDATE).
-     * Request 3 (WRITE):  append — all new rows in one payload (INSERT).
-     *
-     * Compared to the previous one-call-per-row approach, this reduces
-     * ~400 write requests to 2-3 regardless of how many rows are pending,
-     * completely eliminating the 429 quota errors.
+     * Rows whose txnId is in [existingTxnIds] are skipped (dedup by txnId).
+     * Rows are marked SYNCED — the cloud row is authoritative, no re-upload needed.
      */
-    suspend fun syncPendingDailyStock(
-        pendingStock: List<DailyStock>
-    ): DailyStockSyncResult = withContext(Dispatchers.IO) {
+    internal fun parsePurchasesTabRows(
+        rows: List<List<Any>>,
+        products: List<Product>,
+        existingTxnIds: Set<String>
+    ): List<Purchase> {
+        if (rows.isEmpty()) return emptyList()
+        val productMap = buildProductLookupMap(products)
+        val result = mutableListOf<Purchase>()
 
-        val result = DailyStockSyncResult()
-        if (pendingStock.isEmpty()) return@withContext result
+        fun Any?.int() = this?.toString()?.toIntOrNull() ?: 0
+        fun Any?.dbl() = this?.toString()?.toDoubleOrNull() ?: 0.0
+        fun Any?.str() = this?.toString()?.trim() ?: ""
 
-        val service = sheetsService ?: run {
-            Log.w(TAG, "Sheets service not initialised")
-            result.failAll(pendingStock)
-            return@withContext result
+        for (row in rows) {
+            val txnId = row.getOrNull(0).str()
+            if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
+            if (txnId in existingTxnIds) continue
+
+            val productCode = row.getOrNull(2).str()
+            if (productCode.isBlank()) continue
+            val product = productMap[productCode]
+
+            result.add(Purchase(
+                txnId         = txnId,
+                syncStatus    = SyncStatus.SYNCED,
+                purchaseDate  = parseDateStr(row.getOrNull(1).str()),
+                productId     = product?.id ?: 0L,
+                productCode   = productCode,
+                productName   = row.getOrNull(3).str(),
+                invoiceNumber = row.getOrNull(4).str(),
+                supplierName  = row.getOrNull(5).str(),
+                qqBoxes       = row.getOrNull(6).int(),
+                qqLoose       = row.getOrNull(7).int(),
+                qqUnitsPerBox = product?.qqUnitsPerBox ?: 12,
+                qqTotalUnits  = row.getOrNull(8).int(),
+                qqUnitPrice   = row.getOrNull(9).dbl(),
+                qqTotalCost   = row.getOrNull(10).dbl(),
+                ppBoxes       = row.getOrNull(11).int(),
+                ppLoose       = row.getOrNull(12).int(),
+                ppUnitsPerBox = product?.ppUnitsPerBox ?: 24,
+                ppTotalUnits  = row.getOrNull(13).int(),
+                ppUnitPrice   = row.getOrNull(14).dbl(),
+                ppTotalCost   = row.getOrNull(15).dbl(),
+                nnBoxes       = row.getOrNull(16).int(),
+                nnLoose       = row.getOrNull(17).int(),
+                nnUnitsPerBox = product?.nnUnitsPerBox ?: 48,
+                nnTotalUnits  = row.getOrNull(18).int(),
+                nnUnitPrice   = row.getOrNull(19).dbl(),
+                nnTotalCost   = row.getOrNull(20).dbl(),
+                ddBoxes       = row.getOrNull(21).int(),
+                ddLoose       = row.getOrNull(22).int(),
+                ddUnitsPerBox = product?.ddUnitsPerBox ?: 96,
+                ddTotalUnits  = row.getOrNull(23).int(),
+                ddUnitPrice   = row.getOrNull(24).dbl(),
+                ddTotalCost   = row.getOrNull(25).dbl(),
+                totalCost     = row.getOrNull(26).dbl(),
+                notes         = row.getOrNull(27).str(),
+                isProcessed   = false,
+                isDeleted     = false
+            ))
         }
-
-        // Request 1 (READ): build key index — null on exception, emptyMap on empty sheet
-        val stockKeyIndex: Map<String, Int>? = buildDailyStockKeyIndex(service)
-        if (stockKeyIndex == null) {
-            Log.e(TAG, "Key index build failed -- aborting to prevent duplicates")
-            result.failAll(pendingStock)
-            return@withContext result
-        }
-
-        // Partition into two buckets — no API calls yet
-        val toUpdate = mutableListOf<Pair<DailyStock, Int>>()
-        val toInsert = mutableListOf<DailyStock>()
-
-        for (stock in pendingStock) {
-            // Use the Sheets date serial as key — matches UNFORMATTED_VALUE read
-            val compositeKey = "${DateUtils.dateStringToSerial(stock.date)}|${stock.productCode}"
-            val existingRow = stockKeyIndex[compositeKey]
-            if (existingRow != null) {
-                toUpdate.add(stock to existingRow)
-            } else {
-                toInsert.add(stock)
-            }
-        }
-
-        Log.d(TAG, "Daily stock: ${toUpdate.size} updates + ${toInsert.size} inserts")
-
-        // Request 2 (WRITE): batchUpdate all existing rows — 1 API call
-        if (toUpdate.isNotEmpty()) {
-            try {
-                val valueRanges = toUpdate.map { (stock, rowNumber) ->
-                    ValueRange()
-                        .setRange("$TAB_DAILYSTOCK!A$rowNumber:X$rowNumber")
-                        .setValues(listOf(stock.toSheetRow()))
-                }
-                val body = BatchUpdateValuesRequest()
-                    .setValueInputOption("USER_ENTERED")
-                    .setData(valueRanges)
-                service.spreadsheets().values()
-                    .batchUpdate(spreadsheetId, body)
-                    .execute()
-                toUpdate.forEach { (stock, _) ->
-                    result.synced.add(stock.date to stock.productCode)
-                }
-                Log.d(TAG, "Batch-updated ${toUpdate.size} daily stock rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "Batch daily stock update failed: ${e.message}")
-                toUpdate.forEach { (stock, _) ->
-                    result.errors.add(stock.date to stock.productCode)
-                }
-            }
-        }
-
-        // Request 3 (WRITE): append all new rows — 1 API call
-        if (toInsert.isNotEmpty()) {
-            try {
-                val values = toInsert.map { it.toSheetRow() }
-                val body = ValueRange().setValues(values)
-                service.spreadsheets().values()
-                    .append(spreadsheetId, "$TAB_DAILYSTOCK!A:X", body)
-                    .setValueInputOption("USER_ENTERED")
-                    .setInsertDataOption("INSERT_ROWS")
-                    .execute()
-                toInsert.forEach { stock ->
-                    result.synced.add(stock.date to stock.productCode)
-                }
-                Log.d(TAG, "Batch-inserted ${toInsert.size} daily stock rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "Batch daily stock insert failed: ${e.message}")
-                toInsert.forEach { stock ->
-                    result.errors.add(stock.date to stock.productCode)
-                }
-            }
-        }
-
-        Log.d(TAG, "Daily stock sync done — synced: ${result.synced.size}, errors: ${result.errors.size}")
-        result
-    }
-
-    private fun buildDailyStockKeyIndex(service: Sheets): Map<String, Int>? {
-        return try {
-            // UNFORMATTED_VALUE returns the raw underlying cell value.
-            // Date cells come back as a Sheets serial number (e.g. 46087.0).
-            // We use the serial number directly as the key — no conversion
-            // back to a date string needed. The pending rows side converts
-            // their yyyy-MM-dd date to the same serial via dateStringToSerial(),
-            // so both sides of the key comparison always match.
-            val response = service.spreadsheets().values()
-                .get(spreadsheetId, "$TAB_DAILYSTOCK!A:B")
-                .setValueRenderOption("UNFORMATTED_VALUE")
-                .execute()
-
-            val rows = response.getValues() ?: return emptyMap()
-            val index = mutableMapOf<String, Int>()
-
-            rows.forEachIndexed { zeroBasedIndex, row ->
-                if (zeroBasedIndex == 0) return@forEachIndexed  // skip header
-                val dateKey     = row.getOrNull(0)?.toString().orEmpty().trim()
-                val productCode = row.getOrNull(1)?.toString().orEmpty().trim()
-                // dateKey is the serial number as a string e.g. "46087.0"
-                // We normalise to integer string "46087" by dropping decimals.
-                val normalisedKey = DateUtils.normaliseSheetDateKey(dateKey)
-                if (normalisedKey.isNotEmpty() && productCode.isNotEmpty()) {
-                    index["$normalisedKey|$productCode"] = zeroBasedIndex + 1
-                }
-            }
-            Log.d(TAG, "Daily stock key index built: ${index.size} existing rows")
-            index
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to build daily stock key index: ${e.message}")
-            null  // null = API error; caller aborts. emptyMap = empty sheet; safe.
-        }
-    }
-
-
-    // ── Daily stock DOWN-sync (sheet → local DB) ─────────────────────────────
-
-    /**
-     * Read committed DailyStock rows from the cloud sheet and return them
-     * as a list of DailyStock objects ready to upsert into the local DB.
-     * Date range filtering is handled by the caller (SyncCoordinator).
-     *
-     * Sheet column layout (A–X, 24 cols):
-     *   A=date          B=productCode
-     *   C=openQq        D=openPp        E=openNn        F=openDd
-     *   G=closeQq       H=closePp       I=closeNn       J=closeDd
-     *   K=saleQq        L=salePp        M=saleNn        N=saleDd
-     *   O=priceQq       P=pricePp       Q=priceNn       R=priceDd
-     *   S=amountQq      T=amountPp      U=amountNn      V=amountDd
-     *   W=saleAmount    X=isCommitted
-     *
-     * Rows where isCommitted != "YES" are skipped.
-     * Returns null on API error.
-     */
-    suspend fun readDailyStockFromSheet(): List<DailyStock>? =
-        withContext(Dispatchers.IO) {
-            val service = sheetsService ?: run {
-                Log.w(TAG, "Sheets service not initialised")
-                return@withContext null
-            }
-            try {
-                val response = service.spreadsheets().values()
-                    .get(spreadsheetId, "$TAB_DAILYSTOCK!A:X")
-                    .setValueRenderOption("UNFORMATTED_VALUE")
-                    .execute()
-
-                val rows = response.getValues() ?: return@withContext emptyList()
-                val result = mutableListOf<DailyStock>()
-
-                rows.forEachIndexed { idx, row ->
-                    if (idx == 0) return@forEachIndexed  // skip header
-                    try {
-                        val date        = row.getOrNull(0)?.toString().orEmpty().trim()
-                        val productCode = row.getOrNull(1)?.toString().orEmpty().trim()
-                        if (date.isEmpty() || productCode.isEmpty()) return@forEachIndexed
-
-                        // Parse date — may come back as Sheets serial number
-                        val parsedDate = if (date.contains("-")) date else {
-                            val serial = date.toDoubleOrNull()?.toLong() ?: return@forEachIndexed
-                            val cal = java.util.Calendar.getInstance(
-                                java.util.TimeZone.getTimeZone("UTC"))
-                            cal.set(1899, 11, 30, 0, 0, 0)
-                            cal.set(java.util.Calendar.MILLISECOND, 0)
-                            cal.add(java.util.Calendar.DATE, serial.toInt())
-                            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-                                .format(cal.time)
-                        }
-
-                        // Skip non-committed rows
-                        val isCommitted = row.getOrNull(23)?.toString()
-                            .orEmpty().trim().uppercase() == "YES"
-                        if (!isCommitted) return@forEachIndexed
-
-                        fun int(col: Int)    = row.getOrNull(col)?.toString()?.toDoubleOrNull()?.toInt() ?: 0
-                        fun dbl(col: Int)    = row.getOrNull(col)?.toString()?.toDoubleOrNull() ?: 0.0
-
-                        result.add(DailyStock(
-                            date        = parsedDate,
-                            productCode = productCode,
-                            openQq  = int(2),  openPp  = int(3),  openNn  = int(4),  openDd  = int(5),
-                            closeQq = int(6),  closePp = int(7),  closeNn = int(8),  closeDd = int(9),
-                            saleQq  = int(10), salePp  = int(11), saleNn  = int(12), saleDd  = int(13),
-                            priceQq = dbl(14), pricePp = dbl(15), priceNn = dbl(16), priceDd = dbl(17),
-                            amountQq = dbl(18), amountPp = dbl(19),
-                            amountNn = dbl(20), amountDd = dbl(21),
-                            saleAmount  = dbl(22),
-                            isCommitted = true,
-                            syncStatus  = SyncStatus.SYNCED
-                        ))
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Skipping malformed DailyStock row $idx: ${e.message}")
-                    }
-                }
-                Log.d(TAG, "Read ${result.size} DailyStock rows from sheet")
-                result
-            } catch (e: Exception) {
-                Log.e(TAG, "readDailyStockFromSheet failed: ${e.message}")
-                ErrorLogger.log(context, "DownSync/DailyStock", "readDailyStockFromSheet failed", e)
-                // "Unable to parse range" means the tab doesn't exist yet — treat as empty, not error
-                val msg = e.message?.lowercase() ?: ""
-                if (msg.contains("unable to parse range") || msg.contains("400")) emptyList()
-                else null
-            }
-        }
-
-    // ── Day summary down-sync (cloud → local) ────────────────────────────────
-
-    /**
-     * Read all rows from the DaySummary tab and return them as DayReconciliation
-     * objects ready for local DB insert.
-     *
-     * Column layout: A=Date  B=TotalDaySales  C=UPIReceipts  D=DayExpenses
-     *                E=CashForDeposit  F=Notes
-     *
-     * Date column may come back as a Sheets serial number (same pattern as DailyStock).
-     * Returns null on API error.
-     */
-    suspend fun readDaySummaryFromSheet(): List<DayReconciliation>? =
-        withContext(Dispatchers.IO) {
-            val service = sheetsService ?: run {
-                Log.w(TAG, "Sheets service not initialised")
-                return@withContext null
-            }
-            try {
-                val response = service.spreadsheets().values()
-                    .get(spreadsheetId, "$TAB_DAYSUMMARY!A:F")
-                    .setValueRenderOption("UNFORMATTED_VALUE")
-                    .execute()
-
-                val rows = response.getValues() ?: return@withContext emptyList()
-                val result = mutableListOf<DayReconciliation>()
-
-                rows.forEachIndexed { idx, row ->
-                    if (idx == 0) return@forEachIndexed  // skip header
-                    try {
-                        // Column A holds date in new-format rows; old-format rows have an
-                        // empty column A with the date in column B — fall back accordingly.
-                        val rawDate: String
-                        val colOffset: Int
-                        val colA = row.getOrNull(0)?.toString().orEmpty().trim()
-                        if (colA.isNotEmpty()) {
-                            rawDate   = colA
-                            colOffset = 0
-                        } else {
-                            rawDate   = row.getOrNull(1)?.toString().orEmpty().trim()
-                            colOffset = 1
-                        }
-                        if (rawDate.isEmpty()) return@forEachIndexed
-
-                        // Date may arrive as Sheets serial number or yyyy-MM-dd string
-                        val date = if (rawDate.contains("-")) rawDate else {
-                            val serial = rawDate.toDoubleOrNull()?.toLong()
-                                ?: return@forEachIndexed
-                            val cal = java.util.Calendar.getInstance(
-                                java.util.TimeZone.getTimeZone("UTC"))
-                            cal.set(1899, 11, 30, 0, 0, 0)
-                            cal.set(java.util.Calendar.MILLISECOND, 0)
-                            cal.add(java.util.Calendar.DATE, serial.toInt())
-                            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                                .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
-                                .format(cal.time)
-                        }
-
-                        fun dbl(col: Int) =
-                            row.getOrNull(col + colOffset)?.toString()?.toDoubleOrNull() ?: 0.0
-
-                        result.add(DayReconciliation(
-                            date           = date,
-                            totalDaySales  = dbl(1),
-                            upiReceipts    = dbl(2),
-                            dayExpenses    = dbl(3),
-                            cashForDeposit = dbl(4),
-                            notes          = row.getOrNull(5 + colOffset)?.toString().orEmpty(),
-                            syncStatus     = SyncStatus.SYNCED,
-                            lastModified   = System.currentTimeMillis()
-                        ))
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Skipping malformed DaySummary row $idx: ${e.message}")
-                    }
-                }
-                Log.d(TAG, "Read ${result.size} DaySummary rows from sheet")
-                result
-            } catch (e: Exception) {
-                Log.e(TAG, "readDaySummaryFromSheet failed: ${e.message}")
-                ErrorLogger.log(context, "DownSync/DaySummary", "readDaySummaryFromSheet failed", e)
-                val msg = e.message?.lowercase() ?: ""
-                if (msg.contains("unable to parse range") || msg.contains("400")) emptyList()
-                else null
-            }
-        }
-
-    // ── Day summary sync (quota-safe batching) ───────────────────────────────
-
-    /**
-     * Sync pending DayReconciliation rows to the DaySummary tab.
-     *
-     * DaySummary sheet column layout:
-     *   A=Date  B=TotalDaySales  C=UPIReceipts  D=DayExpenses
-     *   E=CashForDeposit  F=Notes
-     *
-     * Uses the same batch pattern as DailyStock:
-     *   1 read (key index) + 1 batchUpdate (existing) + 1 append (new) = max 3 requests.
-     * Date col A is written USER_ENTERED so it stores as a real Sheets date.
-     * Index is read with UNFORMATTED_VALUE and converted via dateStringToSerial().
-     */
-    suspend fun syncPendingDaySummary(
-        pendingRows: List<DayReconciliation>
-    ): DaySummarySyncResult = withContext(Dispatchers.IO) {
-
-        val result = DaySummarySyncResult()
-        if (pendingRows.isEmpty()) return@withContext result
-
-        val service = sheetsService ?: run {
-            Log.w(TAG, "Sheets service not initialised")
-            result.failAll(pendingRows)
-            return@withContext result
-        }
-
-        val keyIndex: Map<String, Int>? = buildDaySummaryKeyIndex(service)
-        if (keyIndex == null) {
-            Log.e(TAG, "DaySummary key index build failed -- aborting")
-            result.failAll(pendingRows)
-            return@withContext result
-        }
-
-        val toUpdate = mutableListOf<Pair<DayReconciliation, Int>>()
-        val toInsert = mutableListOf<DayReconciliation>()
-
-        for (row in pendingRows) {
-            val key = DateUtils.dateStringToSerial(row.date)
-            val existingRow = keyIndex[key]
-            if (existingRow != null) toUpdate.add(row to existingRow)
-            else toInsert.add(row)
-        }
-
-        Log.d(TAG, "DaySummary: ${toUpdate.size} updates + ${toInsert.size} inserts")
-
-        if (toUpdate.isNotEmpty()) {
-            try {
-                val valueRanges = toUpdate.map { (row, rowNumber) ->
-                    ValueRange()
-                        .setRange("$TAB_DAYSUMMARY!A$rowNumber:F$rowNumber")
-                        .setValues(listOf(row.toDaySummaryRow()))
-                }
-                val body = BatchUpdateValuesRequest()
-                    .setValueInputOption("USER_ENTERED")
-                    .setData(valueRanges)
-                service.spreadsheets().values().batchUpdate(spreadsheetId, body).execute()
-                toUpdate.forEach { (row, _) -> result.synced.add(row.date) }
-                Log.d(TAG, "Batch-updated ${toUpdate.size} DaySummary rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "DaySummary batch update failed: ${e.message}")
-                toUpdate.forEach { (row, _) -> result.errors.add(row.date) }
-            }
-        }
-
-        if (toInsert.isNotEmpty()) {
-            try {
-                val values = toInsert.map { it.toDaySummaryRow() }
-                val body = ValueRange().setValues(values)
-                service.spreadsheets().values()
-                    .append(spreadsheetId, "$TAB_DAYSUMMARY!A:F", body)
-                    .setValueInputOption("USER_ENTERED")
-                    .setInsertDataOption("INSERT_ROWS")
-                    .execute()
-                toInsert.forEach { result.synced.add(it.date) }
-                Log.d(TAG, "Batch-inserted ${toInsert.size} DaySummary rows")
-            } catch (e: Exception) {
-                Log.e(TAG, "DaySummary batch insert failed: ${e.message}")
-                toInsert.forEach { result.errors.add(it.date) }
-            }
-        }
-
-        Log.d(TAG, "DaySummary sync done — synced: ${result.synced.size}, errors: ${result.errors.size}")
-        result
-    }
-
-    private fun buildDaySummaryKeyIndex(service: Sheets): Map<String, Int>? {
-        return try {
-            // Read A:B — date may be in column A (new format) or column B (old format
-            // where column A was left empty by the original sheet structure).
-            val response = service.spreadsheets().values()
-                .get(spreadsheetId, "$TAB_DAYSUMMARY!A:B")
-                .setValueRenderOption("UNFORMATTED_VALUE")
-                .execute()
-            val rows = response.getValues() ?: return emptyMap()
-            val index = mutableMapOf<String, Int>()
-            rows.forEachIndexed { zeroIndex, row ->
-                if (zeroIndex == 0) return@forEachIndexed
-                // Try column A first; fall back to column B for old-format rows
-                val rawDate = row.getOrNull(0)?.toString().orEmpty().trim()
-                    .takeIf { it.isNotEmpty() }
-                    ?: row.getOrNull(1)?.toString().orEmpty().trim()
-                val key = DateUtils.normaliseSheetDateKey(rawDate)
-                if (key.isNotEmpty()) index[key] = zeroIndex + 1
-            }
-            Log.d(TAG, "DaySummary key index built: ${index.size} rows")
-            index
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to build DaySummary key index: ${e.message}")
-            null
-        }
-    }
-
-        // ── Products sync (unchanged) ─────────────────────────────────────────────
-
-    /**
-     * Read all rows from the Purchases tab in Sheets and return those whose
-     * txnId is NOT in [existingTxnIds] as new [Purchase] objects ready for insert.
-     *
-     * Column layout (matches Purchase.toSheetRow()):
-     *   A=txnId  B=purchaseDate  C=productCode  D=productName  E=invoiceNumber
-     *   F=supplierName
-     *   G=qqBoxes  H=qqLoose  I=qqTotalUnits  J=qqUnitPrice  K=qqTotalCost
-     *   L=ppBoxes  M=ppLoose  N=ppTotalUnits  O=ppUnitPrice  P=ppTotalCost
-     *   Q=nnBoxes  R=nnLoose  S=nnTotalUnits  T=nnUnitPrice  U=nnTotalCost
-     *   V=ddBoxes  W=ddLoose  X=ddTotalUnits  Y=ddUnitPrice  Z=ddTotalCost
-     *   AA=totalCost  AB=notes
-     *
-     * Alias codes in productCode are resolved to primary codes via [ProductCodeResolver].
-     */
-    /**
-     * Read new purchases from the [TAB_PURCHASE_IMPORT] sheet tab.
-     *
-     * The tab uses exactly the same format as the Excel import file the user
-     * already knows:
-     *
-     *   Row N+0:  INVOICE NUMBER  |  TP08726
-     *   Row N+1:  DATE            |  5/2/26   (any of: d/M/yy, dd/MM/yyyy, yyyy-MM-dd)
-     *   Row N+2:  Header row      (S.NO, Brand Code, Product Name, …)
-     *   Row N+3+: Data rows
-     *
-     * Multiple shipments in one tab are supported — each starts with a row
-     * whose first cell contains "INVOICE".
-     *
-     * After all shipments are read the DATA rows (not the headers) are cleared
-     * from the sheet so the same rows are never re-imported on the next call.
-     * The header/invoice/date rows of the last shipment are preserved as a
-     * template so the user can start filling in the next shipment immediately.
-     *
-     * Deduplication: if a purchase with the same invoiceNumber + productCode +
-     * purchaseDate already exists in [existingKeys] it is skipped.
-     *
-     * @param products     Active product list for alias resolution.
-     * @param existingKeys Set of "invoiceNumber|productCode|date" already in DB.
-     * @return Pair of (list of new Purchase objects, number of rows cleared).
-     */
-    suspend fun readPurchasesFromImportSheet(
-        products:     List<Product>,
-        existingKeys: Set<String>
-    ): Pair<List<Purchase>, Set<String>> = withContext(Dispatchers.IO) {
-
-        val service = sheetsService ?: return@withContext Pair(emptyList<Purchase>(), emptySet<String>())
-
-        return@withContext try {
-            // Read all rows from the import tab
-            val response = service.spreadsheets().values()
-                .get(spreadsheetId, "$TAB_PURCHASE_IMPORT!A1:L")
-                .setValueRenderOption("FORMATTED_VALUE")
-                .execute()
-
-            val rows = response.getValues()
-            if (rows.isNullOrEmpty()) return@withContext Pair(emptyList<Purchase>(), emptySet<String>())
-
-            val productMap = buildProductLookupMap(products)
-            val newPurchases    = mutableListOf<Purchase>()
-            val notFoundCodes   = mutableSetOf<String>() // product codes not in DB
-
-            // ── Parse shipments (same logic as PurchaseExcelHelper.detectShipments) ──
-            data class Shipment(
-                val invoiceNumber: String,
-                val date: String,
-                val dataStartIdx: Int,   // index in rows list
-                val headerRowNum: Int    // 1-based sheet row number of INVOICE row
-            )
-
-            val shipments = mutableListOf<Shipment>()
-            var i = 0
-            while (i < rows.size) {
-                val cell0 = rows[i].getOrNull(0)?.toString()?.trim() ?: ""
-                if (cell0.uppercase().contains("INVOICE")) {
-                    val invoice = rows[i].getOrNull(1)?.toString()?.trim() ?: ""
-                    val dateRaw = if (i + 1 < rows.size)
-                        rows[i + 1].getOrNull(1)?.toString()?.trim() ?: "" else ""
-                    val date    = parseDateStr(dateRaw)
-                    // data starts at i+3 (skip invoice, date, header rows)
-                    shipments.add(Shipment(invoice, date, i + 3, i + 1))
-                    i += 3
-                } else {
-                    i++
-                }
-            }
-
-            // ── Process each shipment ─────────────────────────────────────────
-            for ((sIdx, shipment) in shipments.withIndex()) {
-                val dataEnd = if (sIdx + 1 < shipments.size)
-                    shipments[sIdx + 1].headerRowNum - 2   // row before next INVOICE
-                else
-                    rows.size
-
-                // Group data rows by RESOLVED PRIMARY code — not the alias from the sheet.
-                // This ensures that rows with different alias codes (e.g. WC360 QQ and
-                // WA360 PP) for the same product are merged into one group so all sizes
-                // end up in a single Purchase object.
-                val groups = mutableMapOf<String, MutableList<Map<String,Any>>>()
-
-                for (ri in shipment.dataStartIdx until dataEnd) {
-                    if (ri >= rows.size) break
-                    val row   = rows[ri]
-                    val brand = row.getOrNull(1)?.toString()?.trim() ?: continue
-                    if (brand.isBlank()) continue
-                    val type     = row.getOrNull(3)?.toString()?.trim() ?: ""
-                    val rawCode  = "$type$brand"
-                    // Resolve alias → primary now, so grouping always uses primary code
-                    val product  = productMap[rawCode]
-                    if (product == null) {
-                        notFoundCodes.add(rawCode)
-                        Log.w(TAG, "PurchaseImport: product not found for code=$rawCode row $ri")
-                        continue
-                    }
-                    val groupKey = product.stockCode
-                    val entry = mapOf<String, Any>(
-                        "size"  to (row.getOrNull(5)?.toString()?.trim()?.uppercase() ?: ""),
-                        "boxes" to (row.getOrNull(7)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
-                        "units" to (row.getOrNull(8)?.toString()?.toDoubleOrNull()?.toInt() ?: 0),
-                        "price" to (row.getOrNull(9)?.toString()?.toDoubleOrNull() ?: 0.0),
-                        "product" to product  // carry resolved product so lookup below is trivial
-                    )
-                    groups.getOrPut(groupKey) { mutableListOf() }.add(entry)
-                }
-
-                // Create Purchase per product — productCode is already the primary code
-                for ((productCode, sizeRows) in groups) {
-                    // product is guaranteed non-null here (null rows were skipped above)
-                    val product  = sizeRows.first()["product"]
-                        as com.simhadri.winentry.data.entity.Product
-                    val dedupKey = "${shipment.invoiceNumber}|${productCode}|${shipment.date}"
-                    if (dedupKey in existingKeys) continue
-
-                    var qqB = 0; var qqU = 0; var qqP = 0.0
-                    var ppB = 0; var ppU = 0; var ppP = 0.0
-                    var nnB = 0; var nnU = 0; var nnP = 0.0
-                    var ddB = 0; var ddU = 0; var ddP = 0.0
-
-                    for (r in sizeRows) {
-                        val boxes = r["boxes"] as Int
-                        val units = r["units"] as Int
-                        val price = r["price"] as Double
-                        when (r["size"] as String) {
-                            "QQ" -> { qqB += boxes; qqU += units; if (price > 0) qqP = price }
-                            "PP" -> { ppB += boxes; ppU += units; if (price > 0) ppP = price }
-                            "NN" -> { nnB += boxes; nnU += units; if (price > 0) nnP = price }
-                            "DD" -> { ddB += boxes; ddU += units; if (price > 0) ddP = price }
-                        }
-                    }
-
-                    fun tot(b: Int, u: Int, upb: Int, p: Double) =
-                        com.simhadri.winentry.data.entity.Purchase.calculateTotalUnits(b, u, upb) *
-                        (if (p > 0) p else 0.0)
-
-                    val qqTu = com.simhadri.winentry.data.entity.Purchase.calculateTotalUnits(qqB, qqU, product.qqUnitsPerBox)
-                    val ppTu = com.simhadri.winentry.data.entity.Purchase.calculateTotalUnits(ppB, ppU, product.ppUnitsPerBox)
-                    val nnTu = com.simhadri.winentry.data.entity.Purchase.calculateTotalUnits(nnB, nnU, product.nnUnitsPerBox)
-                    val ddTu = com.simhadri.winentry.data.entity.Purchase.calculateTotalUnits(ddB, ddU, product.ddUnitsPerBox)
-                    val qqFP = if (qqP > 0) qqP else product.qqPurchasePrice
-                    val ppFP = if (ppP > 0) ppP else product.ppPurchasePrice
-                    val nnFP = if (nnP > 0) nnP else product.nnPurchasePrice
-                    val ddFP = if (ddP > 0) ddP else product.ddPurchasePrice
-
-                    // Normalise productCode to primary
-                    val primary = product.stockCode
-
-                    val purchase = Purchase(
-                        purchaseDate   = shipment.date,
-                        productId      = product.id,
-                        productCode    = primary,
-                        productName    = product.displayName,
-                        qqBoxes = qqB, qqLoose = qqU, qqUnitsPerBox = product.qqUnitsPerBox,
-                        qqTotalUnits   = qqTu,
-                        qqUnitPrice    = qqFP, qqTotalCost = qqTu * qqFP,
-                        ppBoxes = ppB, ppLoose = ppU, ppUnitsPerBox = product.ppUnitsPerBox,
-                        ppTotalUnits   = ppTu,
-                        ppUnitPrice    = ppFP, ppTotalCost = ppTu * ppFP,
-                        nnBoxes = nnB, nnLoose = nnU, nnUnitsPerBox = product.nnUnitsPerBox,
-                        nnTotalUnits   = nnTu,
-                        nnUnitPrice    = nnFP, nnTotalCost = nnTu * nnFP,
-                        ddBoxes = ddB, ddLoose = ddU, ddUnitsPerBox = product.ddUnitsPerBox,
-                        ddTotalUnits   = ddTu,
-                        ddUnitPrice    = ddFP, ddTotalCost = ddTu * ddFP,
-                        totalCost      = qqTu*qqFP + ppTu*ppFP + nnTu*nnFP + ddTu*ddFP,
-                        invoiceNumber  = shipment.invoiceNumber,
-                        supplierName   = "",
-                        notes          = "Imported from cloud sheet",
-                        syncStatus     = com.simhadri.winentry.data.entity.SyncStatus.SYNCED,
-                        isProcessed    = false,
-                        isDeleted      = false
-                    )
-                    newPurchases.add(purchase)
-                }
-            }
-
-            // Sheet rows are NEVER cleared — the PurchaseImport tab is a permanent
-            // record. Deduplication by invoiceNumber|productCode|purchaseDate ensures
-            // already-imported rows are silently skipped on every subsequent run.
-
-            Log.d(TAG, "readPurchasesFromImportSheet: ${newPurchases.size} new, ${notFoundCodes.size} not found")
-            Pair(newPurchases, notFoundCodes)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "readPurchasesFromImportSheet failed: ${e.message}")
-            ErrorLogger.log(context, "DownSync/Purchases", "readPurchasesFromImportSheet failed", e)
-            Pair(emptyList<Purchase>(), emptySet<String>())
-        }
-    }
-
-    // Delegates to companion so callers outside this class can reuse without instantiation
-    private fun parseDateStr(raw: String)                            = Companion.parseDateStr(raw)
-    private fun buildProductLookupMap(products: List<Product>)       = Companion.buildProductLookupMap(products)
-
-
-    suspend fun syncProductsFromCloud(): Result<List<Product>> = withContext(Dispatchers.IO) {
-        // Products are read from the shared admin-managed master sheet using a plain
-        // API-key HTTP request — no user OAuth needed.  The master sheet must be set to
-        // "Anyone with the link → Viewer" in Google Sheets sharing settings.
-        try {
-            val apiKey  = context.getString(com.simhadri.winentry.R.string.sheets_api_key)
-            val sheetId = SyncCoordinator.MASTER_SPREADSHEET_ID
-            val range   = "Products!A2:U"
-            val url     = "https://sheets.googleapis.com/v4/spreadsheets/$sheetId" +
-                "/values/${android.net.Uri.encode(range)}" +
-                "?key=$apiKey&valueRenderOption=UNFORMATTED_VALUE"
-
-            val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-            conn.requestMethod  = "GET"
-            conn.connectTimeout = 15_000
-            conn.readTimeout    = 30_000
-
-            val code = conn.responseCode
-            if (code != 200) {
-                val msg = conn.errorStream?.bufferedReader()?.readText() ?: "HTTP $code"
-                conn.disconnect()
-                Log.e(TAG, "Product sync HTTP $code: $msg")
-                return@withContext Result.failure(
-                    Exception("HTTP $code — ensure master sheet is shared as 'Anyone with the link can view'")
-                )
-            }
-
-            val body = conn.inputStream.bufferedReader().readText()
-            conn.disconnect()
-
-            val root = org.json.JSONObject(body)
-            val rows = root.optJSONArray("values")
-                ?: return@withContext Result.success(emptyList())
-
-            val products = (0 until rows.length()).mapNotNull { i ->
-                val row = rows.optJSONArray(i) ?: return@mapNotNull null
-                fun cell(col: Int) = row.optString(col, "")
-                val productType = cell(1)
-                val brandCode   = cell(3)
-                if (brandCode.isBlank()) return@mapNotNull null   // skip blank rows
-                Product(
-                    productName     = cell(0),
-                    productType     = productType,
-                    category        = cell(2),
-                    brandCode       = brandCode,
-                    qqCode          = "${productType}${brandCode}QQ",
-                    ppCode          = "${productType}${brandCode}PP",
-                    nnCode          = "${productType}${brandCode}NN",
-                    ddCode          = "${productType}${brandCode}DD",
-                    displayName     = cell(4),
-                    serialNo        = cell(5).toIntOrNull() ?: 1,
-                    qqPurchasePrice = cell(6).toDoubleOrNull() ?: 0.0,
-                    qqSalePrice     = cell(7).toDoubleOrNull() ?: 0.0,
-                    ppPurchasePrice = cell(8).toDoubleOrNull() ?: 0.0,
-                    ppSalePrice     = cell(9).toDoubleOrNull() ?: 0.0,
-                    nnPurchasePrice = cell(10).toDoubleOrNull() ?: 0.0,
-                    nnSalePrice     = cell(11).toDoubleOrNull() ?: 0.0,
-                    ddPurchasePrice = cell(12).toDoubleOrNull() ?: 0.0,
-                    ddSalePrice     = cell(13).toDoubleOrNull() ?: 0.0,
-                    qqUnitsPerBox   = cell(14).toIntOrNull() ?: 12,
-                    ppUnitsPerBox   = cell(15).toIntOrNull() ?: 24,
-                    nnUnitsPerBox   = cell(16).toIntOrNull() ?: 48,
-                    ddUnitsPerBox   = cell(17).toIntOrNull() ?: 96,
-                    isActive        = (cell(20).toIntOrNull() ?: 1) == 1,
-                    dailySortKey    = cell(18).toIntOrNull() ?: 999,
-                    aliases         = cell(19)
-                )
-            }
-            Log.d(TAG, "Downloaded ${products.size} products from master sheet (public API key)")
-            Result.success(products)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to sync products from cloud: ${e.message}")
-            Result.failure(e)
-        }
-    }
-
-    // ── Account deletion ─────────────────────────────────────────────────────
-
-    /**
-     * Clears all data rows (preserving header row 1) from the three user-data tabs.
-     * Called during account deletion — removes cloud inventory without admin involvement.
-     */
-    suspend fun clearUserSheetData(): Boolean = withContext(Dispatchers.IO) {
-        val service = sheetsService ?: run {
-            Log.w(TAG, "clearUserSheetData: Sheets service not initialised")
-            return@withContext false
-        }
-        return@withContext try {
-            val clearRequest = com.google.api.services.sheets.v4.model.ClearValuesRequest()
-            listOf(
-                "$TAB_DAILYSTOCK!A2:ZZ",
-                "$TAB_PURCHASES!A2:ZZ",
-                "$TAB_DAYSUMMARY!A2:ZZ"
-            ).forEach { range ->
-                service.spreadsheets().values()
-                    .clear(spreadsheetId, range, clearRequest)
-                    .execute()
-            }
-            Log.i(TAG, "clearUserSheetData: all tabs cleared")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "clearUserSheetData failed: ${e.message}")
-            ErrorLogger.log(context, "CloudSyncManager", "clearUserSheetData failed", e)
-            false
-        }
-    }
-
-    // ── Network / connection helpers ──────────────────────────────────────────
-
-    fun isNetworkAvailable(): Boolean {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE)
-                    as android.net.ConnectivityManager
-            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-            caps != null &&
-                (caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
-                 caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR))
-        } catch (e: Exception) { false }
-    }
-
-    suspend fun testConnection(): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val service = sheetsService ?: return@withContext false
-            service.spreadsheets().values()
-                .get(spreadsheetId, "$TAB_PRODUCTS!A1")
-                .execute()
-            Log.d(TAG, "Connection test successful")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Connection test failed: ${e.message}")
-            false
-        }
+        Log.d(TAG, "parsePurchasesTabRows: ${result.size} new")
+        return result
     }
 }
 
@@ -1460,38 +335,8 @@ internal fun DailyStock.toSheetRow(): List<Any> = listOf(
 // S=amountQq      T=amountPp      U=amountNn      V=amountDd
 // W=saleAmount    X=isCommitted
 
-// ── SyncResult ────────────────────────────────────────────────────────────────
-
-data class SyncResult(
-    val synced:     MutableList<Long> = mutableListOf(),
-    val hardDelete: MutableList<Long> = mutableListOf(),
-    val errors:     MutableList<Long> = mutableListOf()
-) {
-    fun failAll(purchases: List<Purchase>) { errors.addAll(purchases.map { it.id }) }
-    val totalProcessed get() = synced.size + hardDelete.size + errors.size
-    val hasErrors       get() = errors.isNotEmpty()
-}
+// ── Extension: DayReconciliation -> sheet row ─────────────────────────────────
 
 internal fun DayReconciliation.toDaySummaryRow(): List<Any> = listOf(
-    date, totalDaySales, upiReceipts, dayExpenses, cashForDeposit, notes
+    date, totalDaySales, upiReceipts, dayExpenses, cashForDeposit, deposits, notes
 )
-
-data class DaySummarySyncResult(
-    val synced: MutableList<String> = mutableListOf(),
-    val errors: MutableList<String> = mutableListOf()
-) {
-    fun failAll(rows: List<DayReconciliation>) { errors.addAll(rows.map { it.date }) }
-    val hasErrors get() = errors.isNotEmpty()
-}
-
-// ── DailyStockSyncResult ──────────────────────────────────────────────────────
-
-data class DailyStockSyncResult(
-    val synced: MutableList<Pair<String, String>> = mutableListOf(),
-    val errors: MutableList<Pair<String, String>> = mutableListOf()
-) {
-    fun failAll(stocks: List<DailyStock>) {
-        errors.addAll(stocks.map { it.date to it.productCode })
-    }
-    val hasErrors get() = errors.isNotEmpty()
-}

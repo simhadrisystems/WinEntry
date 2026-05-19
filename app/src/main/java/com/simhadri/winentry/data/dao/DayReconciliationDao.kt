@@ -4,72 +4,102 @@ import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.simhadri.winentry.data.entity.DayReconciliation
 import com.simhadri.winentry.data.entity.SyncStatus
-import androidx.room.OnConflictStrategy
 
 @Dao
-interface DayReconciliationDao {
+abstract class DayReconciliationDao {
 
     // ── Read ──────────────────────────────────────────────────────────────────
 
     @Query("SELECT * FROM day_reconciliation WHERE date = :date")
-    suspend fun getByDate(date: String): DayReconciliation?
+    abstract suspend fun getByDate(date: String): DayReconciliation?
 
     @Query("SELECT * FROM day_reconciliation WHERE date = :date")
-    fun observeByDate(date: String): LiveData<DayReconciliation?>
+    abstract fun observeByDate(date: String): LiveData<DayReconciliation?>
 
     @Query("SELECT * FROM day_reconciliation ORDER BY date DESC")
-    suspend fun getAll(): List<DayReconciliation>
+    abstract suspend fun getAll(): List<DayReconciliation>
 
     @Query("SELECT * FROM day_reconciliation WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC")
-    suspend fun getByDateRange(startDate: String, endDate: String): List<DayReconciliation>
+    abstract suspend fun getByDateRange(startDate: String, endDate: String): List<DayReconciliation>
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
-    /**
-     * Safe upsert — ON CONFLICT DO UPDATE so markAsSynced() is never undone
-     * by a subsequent replace. Always sets syncStatus = PENDING_UPSERT because
-     * any save means the cloud copy needs refreshing.
-     */
+    // Step 1: create the row only if this date has never been saved before.
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertIgnore(row: DayReconciliation): Long
+
+    // Step 2: always update — harmless double-write on a fresh insert; applies
+    // new values when the date already exists. syncStatus is always set to the
+    // caller's value (never inherited from the existing row) so every local save
+    // marks the record as needing a cloud push.
     @Query("""
-        INSERT INTO day_reconciliation
-            (date, totalDaySales, upiReceipts, dayExpenses, cashForDeposit,
-             notes, syncStatus, lastModified)
-        VALUES
-            (:date, :totalDaySales, :upiReceipts, :dayExpenses, :cashForDeposit,
-             :notes, :syncStatus, :now)
-        ON CONFLICT(date) DO UPDATE SET
-            totalDaySales  = excluded.totalDaySales,
-            upiReceipts    = excluded.upiReceipts,
-            dayExpenses    = excluded.dayExpenses,
-            cashForDeposit = excluded.cashForDeposit,
-            notes          = excluded.notes,
+        UPDATE day_reconciliation SET
+            totalDaySales  = :totalDaySales,
+            upiReceipts    = :upiReceipts,
+            dayExpenses    = :dayExpenses,
+            cashForDeposit = :cashForDeposit,
+            deposits       = :deposits,
+            notes          = :notes,
             syncStatus     = :syncStatus,
-            lastModified   = excluded.lastModified
+            lastModified   = :now
+        WHERE date = :date
     """)
-    suspend fun upsert(
+    abstract suspend fun updateByDate(
         date: String,
         totalDaySales: Double,
         upiReceipts: Double,
         dayExpenses: Double,
         cashForDeposit: Double,
+        deposits: Double,
+        notes: String,
+        syncStatus: String,
+        now: Long
+    )
+
+    // Compatible upsert for all SQLite versions (API 21+).
+    // ON CONFLICT … DO UPDATE requires SQLite 3.24+ (Android 10+) and crashed
+    // on devices still running Android 8/9 with minSdk=26.
+    @Transaction
+    open suspend fun upsert(
+        date: String,
+        totalDaySales: Double,
+        upiReceipts: Double,
+        dayExpenses: Double,
+        cashForDeposit: Double,
+        deposits: Double = 0.0,
         notes: String,
         syncStatus: String = SyncStatus.PENDING_UPSERT,
         now: Long = System.currentTimeMillis()
-    )
+    ) {
+        insertIgnore(
+            DayReconciliation(
+                date           = date,
+                totalDaySales  = totalDaySales,
+                upiReceipts    = upiReceipts,
+                dayExpenses    = dayExpenses,
+                cashForDeposit = cashForDeposit,
+                deposits       = deposits,
+                notes          = notes,
+                syncStatus     = syncStatus,
+                lastModified   = now
+            )
+        )
+        updateByDate(date, totalDaySales, upiReceipts, dayExpenses, cashForDeposit, deposits, notes, syncStatus, now)
+    }
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrReplaceAll(rows: List<DayReconciliation>)
+    abstract suspend fun insertOrReplaceAll(rows: List<DayReconciliation>)
 
     @Query("DELETE FROM day_reconciliation WHERE date = :date")
-    suspend fun deleteByDate(date: String)
+    abstract suspend fun deleteByDate(date: String)
 
     @Query("DELETE FROM day_reconciliation WHERE date BETWEEN :startDate AND :endDate")
-    suspend fun deleteByDateRange(startDate: String, endDate: String)
+    abstract suspend fun deleteByDateRange(startDate: String, endDate: String)
 
     @Query("DELETE FROM day_reconciliation")
-    suspend fun deleteAll()
+    abstract suspend fun deleteAll()
 
     // ── Sync ──────────────────────────────────────────────────────────────────
 
@@ -78,17 +108,17 @@ interface DayReconciliationDao {
         WHERE syncStatus IN ('${SyncStatus.PENDING_UPSERT}', '${SyncStatus.SYNC_ERROR}')
         ORDER BY date ASC
     """)
-    suspend fun getPendingSync(): List<DayReconciliation>
+    abstract suspend fun getPendingSync(): List<DayReconciliation>
 
     @Query("SELECT COUNT(*) FROM day_reconciliation WHERE syncStatus = '${SyncStatus.SYNC_ERROR}'")
-    suspend fun getSyncErrorCount(): Int
+    abstract suspend fun getSyncErrorCount(): Int
 
     @Query("UPDATE day_reconciliation SET syncStatus = '${SyncStatus.SYNCED}' WHERE date = :date")
-    suspend fun markAsSynced(date: String)
+    abstract suspend fun markAsSynced(date: String)
 
     @Query("UPDATE day_reconciliation SET syncStatus = '${SyncStatus.SYNC_ERROR}' WHERE date = :date")
-    suspend fun markSyncError(date: String)
+    abstract suspend fun markSyncError(date: String)
 
     @Query("UPDATE day_reconciliation SET syncStatus = '${SyncStatus.PENDING_UPSERT}'")
-    suspend fun markAllAsPending()
+    abstract suspend fun markAllAsPending()
 }

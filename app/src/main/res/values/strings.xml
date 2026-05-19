@@ -1,10 +1,5 @@
 <resources>
     <string name="app_name">WinEntry</string>
-    <!-- API key for reading the admin-managed product master sheet.
-         Restricted to Google Sheets API only; no Android app restrictions so it
-         works with plain HTTP calls from CloudSyncManager.syncProductsFromCloud().
-         Created in GCP Console → Credentials → WinEntry Sheets Read. -->
-    <string name="sheets_api_key">REMOVED_KEY</string>
     <string name="default_web_client_id">827909879534-aldn3jtv2bdmrqt9j5duacln5b5gqbr6.apps.googleusercontent.com</string>
 
     <!-- ── Google OAuth / Data-access disclosure ─────────────────────────────
@@ -15,7 +10,7 @@
 
     <!-- Consent dialog shown once before OAuth -->
     <string name="data_access_consent_title">About WinEntry</string>
-    <string name="data_access_consent_message">WinEntry helps small retail businesses manage daily stock, sales and purchases. All data is stored on your device.\n\n─── Sign-In ───\nGoogle Sign-In establishes your identity only. No data is read or written automatically. The app works fully after sign-in — local stock entry, daily records, purchases and Excel export — with no further setup.\n\n─── Registration Required for Admin\'s Drive Space ───\nAccess to the Admin\'s drive space requires a one-time registration. Go to Settings \u2192 Business Info, fill your details and tap \'Save \u0026 Register\'. Registration unlocks:\n\u2022 Download of Admin\'s standard product list\n\u2022 Loading sample test data\n\u2022 Cloud backup to Admin\'s workspace sheet\n\nData shared at registration: Business Name, Owner Name, Phone, Location, Android version, App version. No payment or financial data is ever collected.\n\n─── What is NEVER accessed ───\n\u2022 Your personal Google Drive files\n\u2022 Any Google services beyond your sign-in identity\n\u2022 Any data other than what you enter yourself\n\nYou can sign out at any time from the Home screen. Registration details can be updated anytime from Settings \u2192 Business Info.</string>
+    <string name="data_access_consent_message">WinEntry helps small retail businesses manage daily stock, sales and purchases. All data is stored on your device.\n\n─── Sign-In ───\nGoogle Sign-In establishes your identity only. No data is read or written automatically. The app works fully after sign-in — local stock entry, daily records, purchases and Excel export — with no further setup.\n\n─── Registration Required for Admin\'s Drive Space ───\nAccess to the Admin\'s drive space requires a one-time registration. Go to Settings \u2192 Business Info, fill your details and tap \'Save \u0026 Register\'. Registration unlocks:\n\u2022 Download of Admin\'s standard product list\n\u2022 Loading sample test data\n\u2022 Cloud backup to Admin\'s workspace sheet\n\nData shared at registration: Business Name, Owner Name, Phone, Location, Android version, App version. No payment or financial data is ever collected.\n\n─── What is NEVER accessed ───\n\u2022 Your personal Google Drive or Google Sheets\n\u2022 Any Google API from your device \u2014 all cloud features route through Firebase\n\u2022 Any data other than what you enter yourself\n\nYou can sign out at any time from the Home screen. Registration details can be updated anytime from Settings \u2192 Business Info.\n\n\u2500\u2500\u2500 Terms of Service \u2500\u2500\u2500\nWinEntry is for authorised retail business users only. By tapping \'I Understand \u2014 Sign In\' you confirm you have read and agree to the Terms of Service:\nsites.google.com/view/winentryapp/tos</string>
     <string name="data_access_accept">I Understand — Sign In</string>
 
     <!-- App tagline — shown on login screen below app name -->
@@ -24,10 +19,10 @@
     <!-- Compact disclosure shown permanently on the login screen, below the Sign-in button -->
     <string name="data_access_brief">Sign-in creates your account identity only. The app works fully with local data and Excel exports from the start.\n\nAccessing Admin\'s drive space (product list, test data, cloud backup) requires registration — go to Settings \u2192 Business Info after sign-in. Your personal Drive is never accessed.</string>
 
-    <!-- Privacy Policy link shown at the bottom of the login screen.
-         TODO: Replace the URL below with your actual hosted privacy policy
-               before submitting to Google for OAuth verification or to the
-               Play Store.  A publicly reachable URL is mandatory. -->
+    <!-- Privacy Policy link shown at the bottom of the login screen. -->
     <string name="privacy_policy_label">Privacy Policy</string>
     <string name="privacy_policy_url">https://sites.google.com/view/winentryapp/privacy-policy</string>
+
+    <!-- Terms of Service link shown alongside Privacy Policy on the login screen -->
+    <string name="tos_url">https://sites.google.com/view/winentryapp/tos</string>
 </resources>

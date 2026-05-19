@@ -19,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.simhadri.winentry.MainActivity
 import com.simhadri.winentry.R
 import com.simhadri.winentry.data.AppDatabase
+import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.databinding.FragmentHomeBinding
 import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.utils.AppStrings
@@ -227,7 +228,7 @@ class HomeFragment : Fragment() {
         if (_binding == null) return
         lifecycleScope.launch {
             // ── Check 1: cloud backup not configured ────────────────────────
-            val syncReady = com.simhadri.winentry.sync.SyncCoordinator(requireContext())
+            val syncReady = SyncCoordinator(requireContext())
                 .isUserSheetReady()
             if (!syncReady) {
                 if (_binding == null) return@launch

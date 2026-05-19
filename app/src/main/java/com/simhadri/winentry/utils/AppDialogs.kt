@@ -5,6 +5,7 @@ import android.content.DialogInterface
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import androidx.core.content.ContextCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -85,8 +86,7 @@ object AppDialogs {
 
     /**
      * Destructive confirmation (delete / sign-out / clear data).
-     * Semantically identical to confirm — kept separate so a future
-     * redesign (e.g. red button) only needs to change this function.
+     * Positive button is tinted red so the action is immediately recognisable.
      */
     fun destructive(
         context: Context,
@@ -95,12 +95,14 @@ object AppDialogs {
         actionLabel: String = "Delete",
         onConfirm: () -> Unit
     ) {
-        MaterialAlertDialogBuilder(context)
+        val dialog = MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setMessage(message)
             .setNegativeButton("Cancel", null)
             .setPositiveButton(actionLabel) { _, _ -> onConfirm() }
             .show()
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE)
+            .setTextColor(ContextCompat.getColor(context, R.color.app_color_delete))
     }
 
     /**

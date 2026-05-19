@@ -2,8 +2,10 @@ package com.simhadri.winentry.data.repository
 
 import androidx.lifecycle.LiveData
 import com.simhadri.winentry.data.dao.PurchaseDao
+import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
+import com.simhadri.winentry.util.ProductCodeResolver
 
 class PurchaseRepository(private val purchaseDao: PurchaseDao) {
 
@@ -110,16 +112,16 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
      */
     suspend fun getAllPurchaseQuantitiesByCodeForDate(
         date:     String,
-        products: List<com.simhadri.winentry.data.entity.Product>
+        products: List<Product>
     ): Map<String, Int> {
         val purchases = purchaseDao.getPurchasesByDateSync(date)
         val result    = mutableMapOf<String, Int>()
         for (p in purchases) {
             // Resolve alias → primary code
-            val canonical = com.simhadri.winentry.util.ProductCodeResolver
+            val canonical = ProductCodeResolver
                 .resolve(p.productCode.trim(), products)
             val base = if (canonical != null) {
-                com.simhadri.winentry.util.ProductCodeResolver.primaryCode(canonical)
+                ProductCodeResolver.primaryCode(canonical)
             } else {
                 p.productCode.trim()   // already primary or unrecognised — use as-is
             }

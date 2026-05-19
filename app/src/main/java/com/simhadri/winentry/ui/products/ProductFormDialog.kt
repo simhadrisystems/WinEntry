@@ -1,10 +1,14 @@
 package com.simhadri.winentry.ui.products
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
@@ -12,8 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simhadri.winentry.R
 import com.simhadri.winentry.data.entity.Product
-import android.content.res.ColorStateList
-import android.graphics.Color
 import com.simhadri.winentry.databinding.DialogProductFormBinding
 import com.simhadri.winentry.utils.TypeLabels
 import kotlinx.coroutines.launch
@@ -58,6 +60,12 @@ class ProductFormDialog : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val topPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            binding.headerBar.setPadding(0, topPx, 0, 0)
+            insets
+        }
 
         setupProductTypeDropdown()
         setupAutoGeneration()

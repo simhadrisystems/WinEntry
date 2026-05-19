@@ -47,6 +47,7 @@ class DayReconciliationViewModel(application: Application) : AndroidViewModel(ap
     // In-memory working values (not saved until user taps Save)
     private var workingUpi      = 0.0
     private var workingExpenses = 0.0
+    private var workingDeposits = 0.0
     private var workingNotes    = ""
     private var currentDate     = ""
 
@@ -81,10 +82,12 @@ class DayReconciliationViewModel(application: Application) : AndroidViewModel(ap
             if (existing != null) {
                 workingUpi      = existing.upiReceipts
                 workingExpenses = existing.dayExpenses
+                workingDeposits = existing.deposits
                 workingNotes    = existing.notes
             } else {
                 workingUpi      = 0.0
                 workingExpenses = 0.0
+                workingDeposits = 0.0
                 workingNotes    = ""
             }
 
@@ -115,6 +118,10 @@ class DayReconciliationViewModel(application: Application) : AndroidViewModel(ap
         recalculateCashForDeposit()
     }
 
+    fun updateDeposits(value: Double) {
+        workingDeposits = value
+    }
+
     fun updateNotes(value: String) {
         workingNotes = value
     }
@@ -139,6 +146,7 @@ class DayReconciliationViewModel(application: Application) : AndroidViewModel(ap
                     totalDaySales = total,
                     upiReceipts   = workingUpi,
                     dayExpenses   = workingExpenses,
+                    deposits      = workingDeposits,
                     notes         = workingNotes
                 )
                 // Reload to reflect saved state

@@ -23,6 +23,7 @@ data class DayReconciliation(
     val upiReceipts: Double = 0.0,      // UPI / online receipts (user)
     val dayExpenses: Double = 0.0,      // cash expenses paid out (user)
     val cashForDeposit: Double = 0.0,   // totalDaySales - upiReceipts - dayExpenses
+    val deposits: Double = 0.0,         // actual cash deposited to bank today (user)
     val notes: String = "",             // optional remarks
 
     val syncStatus: String = SyncStatus.PENDING_UPSERT,

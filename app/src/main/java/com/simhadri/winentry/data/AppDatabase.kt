@@ -47,7 +47,7 @@ import com.simhadri.winentry.data.entity.Purchase
         DailyStock::class,
         DayReconciliation::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -75,10 +75,21 @@ abstract class AppDatabase : RoomDatabase() {
                 // since all real data lives in Google Sheets.
                 // v2 → future versions must use explicit addMigrations().
                 .fallbackToDestructiveMigrationFrom(1)
-                .addMigrations(MIGRATION_2_3)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 .also { INSTANCE = it }
             }
+
+        /**
+         * v3 → v4: add deposits column to day_reconciliation.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE day_reconciliation ADD COLUMN deposits REAL NOT NULL DEFAULT 0.0"
+                )
+            }
+        }
 
         /**
          * v2 → v3: drop unused columns quantity, reorderLevel, createdAt from products.

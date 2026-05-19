@@ -52,7 +52,7 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <h2>1. What the App Is</h2>
   <p>
-    WinEntry is a free inventory management application designed for retail businesses
+    WinEntry is a simple inventory management application designed for retail businesses
     that manage products as countable units across multiple brands and sizes. It supports
     daily stock tracking, purchase recording, sales reporting, and optional cloud backup
     to a Google Sheets workspace managed by the administrator.
@@ -81,10 +81,10 @@
   <!-- ═══════════════════════════════════════════════════════════════════ -->
   <h2>3. Free Use — No Charge</h2>
   <p>
-    The App is provided free of charge. The developer reserves the right to introduce
-    optional paid features or change the availability model in the future. Any such
-    change will be communicated in advance through a notice within the App. Existing
-    free use will not be revoked without reasonable notice.
+    The App is currently provided free of charge. The developer reserves the right to introduce
+    optional paid features or convert some of existing features into paid features or change the
+    availability model in the future. Any such change will be communicated in advance through a
+    notice within the App. Existing free use will  be revoked with reasonable notice.
   </p>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -101,56 +101,54 @@
     is entitled to one cloud workspace. This type of misuse is detectable through
     an audit record retained by the administrator for security and fraud prevention
     purposes (see the
-    <a href="https://sites.google.com/view/winentryapp/privacy">Privacy Policy</a>,
+    <a href="https://sites.google.com/view/winentryapp/privacy-policy">Privacy Policy</a>,
     Section 10).</li>
     <li>If you enable cloud backup, you acknowledge that the administrator will
     have read access to all records synced to your workspace, as described in
-    the <a href="https://sites.google.com/view/winentryapp/privacy">Privacy Policy</a>.</li>
+    the <a href="https://sites.google.com/view/winentryapp/privacy-policy">Privacy Policy</a>.</li>
   </ul>
 
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
-  <h2>5. Google Account Permissions — Scope and Purpose</h2>
+  <h2>5. Google Account Sign-In — Scope and Purpose</h2>
   <p>
-    The App uses your Google Sign-In to identify your account. As part of sign-in,
-    the App requests permission to access Google Sheets. This permission is used
-    <strong>exclusively</strong> for the following two user-initiated operations — no
-    others:
+    The App uses Google Sign-In exclusively to verify your identity via Firebase
+    Authentication. The only information requested from your Google account is your
+    <strong>email address</strong> and a <strong>sign-in token</strong> (used internally
+    by Firebase to confirm your identity). No other Google account permissions are
+    requested.
   </p>
-  <ul>
-    <li>
-      <strong>Account Registration</strong>
-      (<em>Settings &rarr; Business Info &rarr; Save &amp; Register</em>) &mdash;
-      When you submit a workspace request, the App uses this permission to write your
-      registration details to the administrator's registration registry. This is a
-      one-time write, initiated by you. The result is immediately visible: your
-      registration status updates to &ldquo;&check;&nbsp;Registered&rdquo; in the App.
-    </li>
-    <li>
-      <strong>Account Deletion</strong>
-      (<em>Settings &rarr; Business Info &rarr; &vellip; &rarr; Delete Account &amp; Data</em>)
-      &mdash; When you choose to delete your account, the App uses this permission to
-      clear your cloud inventory data and remove your personal details from the
-      administrator's registry. This is initiated by you and results in your account
-      and all associated cloud data being permanently removed.
-    </li>
-  </ul>
   <div class="highlight">
-    <strong>This permission is not used for anything else.</strong> Specifically:
+    <strong>The App does not request permission to access Google Sheets, Google Drive,
+    Gmail, Google Calendar, Contacts, or any other Google service.</strong>
     <ul style="margin-top:8px; margin-bottom:0;">
-      <li>Routine inventory sync does not use your Google credentials — it is handled
-      by a secure server-side process managed by the administrator.</li>
-      <li>The Standard Product List and test data are read using a public API key —
-      your credentials are not involved.</li>
-      <li>This permission does not give the App access to your personal Google Drive
-      files, Gmail, Google Calendar, Contacts, or any other Google service.</li>
+      <li>
+        <strong>Account Registration</strong>
+        (<em>Settings &rarr; Business Info &rarr; Save &amp; Register</em>) —
+        Your registration details are submitted through a secure server-side process
+        (Firebase Cloud Function). Your Google credentials are not involved.
+      </li>
+      <li>
+        <strong>Account Deletion</strong>
+        (<em>Settings &rarr; Business Info &rarr; &vellip; &rarr; Delete Account &amp; Data</em>)
+        — Account and cloud data removal is also handled entirely server-side.
+        Your Google credentials are not involved.
+      </li>
+      <li>
+        <strong>Inventory sync</strong> — All reads and writes to your cloud workspace
+        are performed server-side by the administrator's Cloud Function using a
+        service account. Your Google credentials are never used for sync.
+      </li>
+      <li>
+        <strong>Standard Product List</strong> — Fetched from a server-side
+        Cloud Function. Your credentials are not involved.
+      </li>
     </ul>
   </div>
   <p>
-    The App requests only the minimum permissions necessary to provide the two
-    user-initiated features described above. Your cloud inventory data is stored
-    in a standard Google Sheets format in the administrator's managed workspace,
-    which means your data is portable and not locked into a proprietary format.
+    Your cloud inventory data is stored in standard Google Sheets format in the
+    administrator's managed workspace, which means your data is portable and not
+    locked into a proprietary format.
   </p>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -165,7 +163,7 @@
   <p>
     All data sync, storage, and retention terms applicable to cloud backup are
     described in the
-    <a href="https://sites.google.com/view/winentryapp/privacy">Privacy Policy</a>.
+    <a href="https://sites.google.com/view/winentryapp/privacy-policy">Privacy Policy</a>.
   </p>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -258,9 +256,11 @@
   <h2>12. Privacy</h2>
   <p>
     Your use of the App is also governed by the
-    <a href="https://sites.google.com/view/winentryapp/privacy">WinEntry Privacy Policy</a>,
-    which is incorporated into these Terms by reference. By agreeing to these Terms,
-    you also agree to the Privacy Policy.
+    <a href="https://sites.google.com/view/winentryapp/privacy-policy">WinEntry Privacy Policy</a>,
+    which is incorporated into these Terms by reference.
+    <strong>By installing or using WinEntry, you are deemed to have read, understood,
+    and agreed to both these Terms and the Privacy Policy.</strong>
+    No separate acceptance step is required.
   </p>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -268,7 +268,7 @@
   <p>
     These Terms are governed by the laws of India. Any disputes arising from the
     use of the App shall be subject to the exclusive jurisdiction of the courts
-    of India.
+    of Visakhapatnam, Andhra Pradesh, India.
   </p>
 
   <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -285,7 +285,7 @@
   <footer>
     &copy; 2026 Simhadri Systems. All rights reserved.
     &nbsp;|&nbsp; <a href="mailto:simhadrisystems@gmail.com">Contact</a>
-    &nbsp;|&nbsp; <a href="https://sites.google.com/view/winentryapp/privacy">Privacy Policy</a>
+    &nbsp;|&nbsp; <a href="https://sites.google.com/view/winentryapp/privacy-policy">Privacy Policy</a>
   </footer>
 
 </div>

@@ -13,7 +13,7 @@ import java.util.*
 data class DaySummaryRow(
     val date:                String,
     val displayDate:         String,
-    val purchases:           Double,
+    val deposits:            Double,
     val sales:               Double,
     val upiReceipts:         Double,
     val dayExpenses:         Double,
@@ -25,7 +25,7 @@ data class DaySummaryRow(
 
 data class MonthSummary(
     val rows:                       List<DaySummaryRow>,
-    val totalPurchases:             Double,
+    val totalDeposits:              Double,
     val totalSales:                 Double,
     val totalUpi:                   Double,
     val totalExpenses:              Double,
@@ -39,7 +39,6 @@ class MonthlySummaryViewModel(app: Application) : AndroidViewModel(app) {
     private val db       = AppDatabase.getInstance(app)
     private val recDao   = db.dayReconciliationDao()
     private val stockDao = db.dailyStockDao()
-    private val purchDao = db.purchaseDao()
 
     private val dbFmt   = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val lblFmt  = SimpleDateFormat("MMMM yyyy",  Locale.getDefault())
@@ -106,12 +105,7 @@ class MonthlySummaryViewModel(app: Application) : AndroidViewModel(app) {
                     .filter { it.isCommitted }
                 val stockDates = stockRows.map { it.date }.toSortedSet()
 
-                val purchMap = mutableMapOf<String, Double>()
-                purchDao.getPurchasesForDateRange(s, e).forEach { p ->
-                    purchMap[p.purchaseDate] = (purchMap[p.purchaseDate] ?: 0.0) + p.totalCost
-                }
-
-                val allDates = (stockDates + purchMap.keys + reconcMap.keys).toSortedSet()
+                val allDates = (stockDates + reconcMap.keys).toSortedSet()
 
                 // Staleness: map of date → max lastModified across all committed stock rows.
                 // If any stock row was saved AFTER the reconciliation, the reconciliation
@@ -128,13 +122,13 @@ class MonthlySummaryViewModel(app: Application) : AndroidViewModel(app) {
                 val rows = allDates.map { date ->
                     val rec       = reconcMap[date]
                     val hasRec    = rec != null
-                    val sales     = rec?.totalDaySales ?: 0.0
-                    val purchases = purchMap[date]     ?: 0.0
-                    val upi       = rec?.upiReceipts   ?: 0.0
-                    val expenses  = rec?.dayExpenses   ?: 0.0
+                    val sales     = rec?.totalDaySales  ?: 0.0
+                    val deposits  = rec?.deposits       ?: 0.0
+                    val upi       = rec?.upiReceipts    ?: 0.0
+                    val expenses  = rec?.dayExpenses    ?: 0.0
                     val cash      = rec?.cashForDeposit ?: 0.0
                     val isPast    = date <= todayStr
-                    val noRec     = isPast && !hasRec && (date in stockDates || purchases > 0)
+                    val noRec     = isPast && !hasRec && date in stockDates
                     // Stale: any committed stock row was saved AFTER reconciliation.
                     // False positives are prevented by cascade skip-unchanged logic —
                     // days where nothing changed are not written and lastModified is
@@ -147,7 +141,7 @@ class MonthlySummaryViewModel(app: Application) : AndroidViewModel(app) {
                     DaySummaryRow(
                         date                 = date,
                         displayDate          = try { dispFmt.format(dbFmt.parse(date)!!) } catch (_: Exception) { date },
-                        purchases            = purchases,
+                        deposits             = deposits,
                         sales                = sales,
                         upiReceipts          = upi,
                         dayExpenses          = expenses,
@@ -160,7 +154,7 @@ class MonthlySummaryViewModel(app: Application) : AndroidViewModel(app) {
 
                 _summary.value = MonthSummary(
                     rows                      = rows,
-                    totalPurchases            = rows.sumOf { it.purchases },
+                    totalDeposits             = rows.sumOf { it.deposits },
                     totalSales                = rows.sumOf { it.sales },
                     totalUpi                  = rows.sumOf { it.upiReceipts },
                     totalExpenses             = rows.sumOf { it.dayExpenses },

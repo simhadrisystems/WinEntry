@@ -2,13 +2,16 @@ package com.simhadri.winentry.ui.auth
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
-import com.simhadri.winentry.data.UserProfile
+import com.simhadri.winentry.BuildConfig
+import com.simhadri.winentry.sync.CloudFunctionClient
 import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -31,11 +34,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         const val PREFS_NAME        = "inventory_prefs"
-        const val KEY_USER_SHEET_ID      = "user_sheet_id"
-        const val KEY_USER_EMAIL         = "user_email"
-        const val KEY_USER_UID           = "user_uid"
-        const val KEY_USER_ROLE          = "user_role"          // "editor" | "viewer"
-        const val KEY_SHEET_ID_MISSING   = "sheet_id_missing"   // true = doc exists but sheetId not set by admin
+        const val KEY_USER_SHEET_ID        = "user_sheet_id"
+        const val KEY_USER_EMAIL           = "user_email"
+        const val KEY_USER_UID             = "user_uid"
+        const val KEY_USER_ROLE            = "user_role"             // "editor" | "viewer"
+        const val KEY_SHEET_ID_MISSING     = "sheet_id_missing"      // true = doc exists but sheetId not set by admin
+        const val KEY_LAST_REPORTED_VERSION = "last_reported_version" // last app version sent to registry
     }
 
     /**
@@ -73,6 +77,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 if (!cachedSheetId.isNullOrBlank()) {
                     saveToSyncPrefs(cachedSheetId)
                     _authState.value = AuthState.Success
+                    checkAndReportVersionIfChanged()
                     return@launch
                 }
 
@@ -81,6 +86,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 // set up cloud backup later via Settings → Sync Settings.
                 _authState.value = AuthState.Success
                 fetchSheetIdInBackground(user)
+                checkAndReportVersionIfChanged()
 
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Sign-in error: ${e.message}")
@@ -141,9 +147,50 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 android.util.Log.w("AuthViewModel",
                     "Background Firestore check failed (non-fatal): ${e.message}")
-                com.simhadri.winentry.ui.auth.ErrorLogger.log(
+                ErrorLogger.log(
                     getApplication(), "AuthViewModel",
                     "fetchSheetIdInBackground failed for uid=${user.uid}", e)
+            }
+        }
+    }
+
+    /**
+     * Silently updates the user registry with the current app version if it has
+     * changed since the last reported version.  Runs in the background after
+     * sign-in — never blocks or shows UI.  No-op if the user is not registered
+     * or the version has not changed.
+     */
+    private fun checkAndReportVersionIfChanged() {
+        viewModelScope.launch {
+            val ctx   = getApplication<Application>()
+            val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+            val storedVersion = prefs.getString(KEY_LAST_REPORTED_VERSION, null)
+            if (storedVersion == BuildConfig.VERSION_NAME) return@launch
+            if (!UserRegistrationManager.isRegistered(ctx)) return@launch
+
+            val uid   = prefs.getString(KEY_USER_UID, null) ?: return@launch
+            val email = prefs.getString(KEY_USER_EMAIL, null) ?: return@launch
+            val displayName = FirebaseAuth.getInstance().currentUser?.displayName ?: ""
+
+            val bizPrefs = ctx.getSharedPreferences("business_info", Context.MODE_PRIVATE)
+
+            val success = CloudFunctionClient().registerUserOnly(
+                uid            = uid,
+                email          = email,
+                displayName    = displayName,
+                ownerName      = bizPrefs.getString("owner_name", "") ?: "",
+                businessName   = bizPrefs.getString("business_name", "") ?: "",
+                phone          = bizPrefs.getString("phone", "") ?: "",
+                location       = bizPrefs.getString("location", "") ?: "",
+                androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                appVersion     = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                forceUpdate    = true
+            )
+            if (success) {
+                prefs.edit().putString(KEY_LAST_REPORTED_VERSION, BuildConfig.VERSION_NAME).apply()
+                android.util.Log.i("AuthViewModel",
+                    "Registry updated to v${BuildConfig.VERSION_NAME}")
             }
         }
     }

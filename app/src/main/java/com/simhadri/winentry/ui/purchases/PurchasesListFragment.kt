@@ -246,7 +246,7 @@ class PurchasesListFragment : Fragment() {
             .setPositiveButton("Edit") { _, _ ->
                 val bundle = Bundle().apply { putLong("purchaseId", purchase.id) }
                 findNavController().navigate(
-                    com.simhadri.winentry.R.id.action_purchasesList_to_purchaseEntry, bundle
+                    R.id.action_purchasesList_to_purchaseEntry, bundle
                 )
             }
             .setNegativeButton("Delete") { _, _ ->
@@ -417,12 +417,7 @@ class PurchasesListFragment : Fragment() {
                 val fileName = "Purchases_Export_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.xlsx"
                 
                 // Export - automatically groups by invoice and date
-                val uri = excelHelper.exportPurchases(
-                    purchases,
-                    "", // Not used - auto-groups
-                    "", // Not used - auto-groups
-                    fileName
-                )
+                val uri = excelHelper.exportPurchases(purchases, fileName = fileName)
                 
                 // Count unique shipments
                 val shipments = purchases.groupBy { Pair(it.invoiceNumber, it.purchaseDate) }.size
@@ -592,12 +587,7 @@ class PurchasesListFragment : Fragment() {
                 
                 val fileName = "Purchases_Filtered_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.xlsx"
                 
-                val uri = excelHelper.exportPurchases(
-                    purchases,
-                    "",
-                    "",
-                    fileName
-                )
+                val uri = excelHelper.exportPurchases(purchases, fileName = fileName)
                 
                 val shipments = purchases.groupBy { Pair(it.invoiceNumber, it.purchaseDate) }.size
                 

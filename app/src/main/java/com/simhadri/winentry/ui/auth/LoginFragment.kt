@@ -2,9 +2,12 @@ package com.simhadri.winentry.ui.auth
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,11 +29,15 @@ class LoginFragment : Fragment() {
 
     companion object {
         /**
-         * Stored in inventory_prefs (same file as auth prefs).
-         * Set to true once the user has acknowledged the data-access consent
-         * dialog.  Not cleared on sign-out — the consent is device-level and
-         * covers the app's data policy, not a specific account.
+         * Both flags live in inventory_prefs and are device-level — not cleared
+         * on sign-out, since the agreements cover the app's policies, not a
+         * specific account.
+         *
+         * KEY_TOS_ACCEPTED: set when the user accepts the data-access consent dialog
+         * that now includes the ToS paragraph.  Users who accepted the earlier version
+         * (without ToS) have this flag absent and will see the dialog once more.
          */
+        private const val KEY_TOS_ACCEPTED          = "tos_accepted"
         private const val KEY_DATA_ACCESS_CONSENTED = "data_access_consented"
     }
 
@@ -87,33 +94,61 @@ class LoginFragment : Fragment() {
             startGoogleSignIn()
         }
 
-        // Underline the privacy policy link so it reads as a tappable link.
-        binding.tvPrivacyPolicy.paintFlags =
-            binding.tvPrivacyPolicy.paintFlags or Paint.UNDERLINE_TEXT_FLAG
-        binding.tvPrivacyPolicy.setOnClickListener {
-            val url = getString(R.string.privacy_policy_url)
-            if (url.startsWith("http")) {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }
-        }
-
+        setupLegalLinks()
         observeAuthState()
+    }
+
+    /**
+     * Combines Privacy Policy and Terms of Service into one tappable line.
+     * Each segment opens its URL independently via ClickableSpan.
+     */
+    private fun setupLegalLinks() {
+        val privacyUrl = getString(R.string.privacy_policy_url)
+        val tosUrl     = getString(R.string.tos_url)
+
+        val privacy   = "Privacy Policy"
+        val separator = "  ·  "
+        val tos       = "Terms of Service"
+        val full      = "$privacy$separator$tos"
+
+        val spannable = SpannableStringBuilder(full)
+
+        spannable.setSpan(object : ClickableSpan() {
+            override fun onClick(widget: View) {
+                if (privacyUrl.startsWith("http"))
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl)))
+            }
+        }, 0, privacy.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+        spannable.setSpan(object : ClickableSpan() {
+            override fun onClick(widget: View) {
+                if (tosUrl.startsWith("http"))
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(tosUrl)))
+            }
+        }, privacy.length + separator.length, full.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+        binding.tvPrivacyPolicy.text            = spannable
+        binding.tvPrivacyPolicy.movementMethod  = LinkMovementMethod.getInstance()
+        // Force link text to a readable colour on the dark login background.
+        // ClickableSpan uses textColorLink from the theme, which is dark in light mode.
+        binding.tvPrivacyPolicy.setLinkTextColor(android.graphics.Color.parseColor("#94A3B8"))
     }
 
     /**
      * Entry point for the sign-in button.
      *
-     * On the first attempt, shows a one-time data-access consent dialog that
-     * explains exactly which Google Sheets the app accesses and which it does
-     * not.  This satisfies Google's OAuth verification requirement for
-     * sensitive-scope disclosure before the OAuth consent screen is shown.
-     *
-     * On subsequent attempts the dialog is skipped and OAuth launches directly.
+     * Shows a single data-access + ToS consent dialog before the OAuth screen.
+     * The dialog is shown when either consent flag is absent, so users who accepted
+     * the earlier version (data-access only, without the ToS paragraph) see it once
+     * more after the app update.  Satisfies Google OAuth verification requirement
+     * for sensitive-scope disclosure before the OAuth consent screen is shown.
      */
     private fun startGoogleSignIn() {
         val prefs = requireContext()
             .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(KEY_DATA_ACCESS_CONSENTED, false)) {
+        val consented = prefs.getBoolean(KEY_DATA_ACCESS_CONSENTED, false)
+                     && prefs.getBoolean(KEY_TOS_ACCEPTED, false)
+        if (!consented) {
             showDataAccessConsentDialog(prefs)
         } else {
             launchGoogleSignIn()
@@ -121,20 +156,23 @@ class LoginFragment : Fragment() {
     }
 
     /**
-     * Shows the data-access disclosure dialog.  On acceptance the consent flag
-     * is saved and OAuth sign-in proceeds.  On cancellation nothing happens —
+     * Shows the data-access + ToS disclosure dialog.  On acceptance both consent
+     * flags are saved and OAuth sign-in proceeds.  On cancellation nothing happens —
      * the user can try again.
      */
     private fun showDataAccessConsentDialog(
         prefs: android.content.SharedPreferences
     ) {
         AppDialogs.confirm(
-            context   = requireContext(),
-            title     = getString(R.string.data_access_consent_title),
-            message   = getString(R.string.data_access_consent_message),
+            context     = requireContext(),
+            title       = getString(R.string.data_access_consent_title),
+            message     = getString(R.string.data_access_consent_message),
             actionLabel = getString(R.string.data_access_accept)
         ) {
-            prefs.edit().putBoolean(KEY_DATA_ACCESS_CONSENTED, true).apply()
+            prefs.edit()
+                .putBoolean(KEY_DATA_ACCESS_CONSENTED, true)
+                .putBoolean(KEY_TOS_ACCEPTED, true)
+                .apply()
             launchGoogleSignIn()
         }
     }

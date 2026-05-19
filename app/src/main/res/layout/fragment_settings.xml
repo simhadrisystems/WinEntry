@@ -9,7 +9,8 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/app_toolbar">
+        android:background="@color/app_toolbar"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -390,6 +391,16 @@
                 android:visibility="gone"
                 android:layout_marginTop="4dp"
                 style="@style/Widget.Material3.Button.TextButton"/>
+
+            <TextView
+                android:id="@+id/tvAppVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="20dp"
+                android:paddingBottom="8dp"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@color/app_text_secondary" />
 
         </LinearLayout>
 

@@ -3,6 +3,8 @@ package com.simhadri.winentry
 import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -26,6 +28,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(
+            statusBarStyle     = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -258,6 +264,5 @@ class MainActivity : AppCompatActivity() {
             return prefs.getString(AuthViewModel.KEY_USER_SHEET_ID, null)
         }
 
-        const val MASTER_SPREADSHEET_ID = "1KQavYNe_uVk5GnUk8UOGKzQEEgC76I5aeVWP7RrcwaQ"
     }
 }

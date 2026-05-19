@@ -37,6 +37,7 @@ class DayReconciliationRepository(
         totalDaySales: Double,
         upiReceipts: Double,
         dayExpenses: Double,
+        deposits: Double = 0.0,
         notes: String
     ) {
         reconciliationDao.upsert(
@@ -47,6 +48,7 @@ class DayReconciliationRepository(
             cashForDeposit = DayReconciliation.calculateCashForDeposit(
                 totalDaySales, upiReceipts, dayExpenses
             ),
+            deposits       = deposits,
             notes          = notes
         )
     }

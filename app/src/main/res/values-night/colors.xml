@@ -43,6 +43,17 @@
     <color name="app_text_secondary">#CBD5E1</color>  <!-- Slate-300 — soft white  -->
     <color name="app_text_hint">#64748B</color>       <!-- Slate-500 — muted       -->
 
+    <!-- ── Daily stock CB bar (light in dark mode, dark in light mode) ── -->
+    <color name="daily_cb_bar">#CBD5E1</color>   <!-- Slate-300 — L≈0.730; needs 900-level dark text -->
+    <color name="cb_label_text">#1E293B</color>  <!-- Slate-800 — on Slate-300 bar -->
+    <color name="cb_text_qq">#1B5E20</color>     <!-- Green-900  L=0.023  contrast 4.5:1 on Slate-300 -->
+    <color name="cb_text_pp">#0D47A1</color>     <!-- Blue-900   L=0.026  contrast 4.3:1 on Slate-300 -->
+    <color name="cb_text_nn">#3E2723</color>     <!-- Brown-900  L=0.024  contrast 4.4:1 on Slate-300 -->
+    <color name="cb_text_dd">#2D0060</color>     <!-- Deep violet L=0.014 contrast 5.0:1 on Slate-300 -->
+
+    <!-- ── Size column DD accent (Purple-700 → Purple-200 for dark surfaces) -->
+    <color name="app_color_dd">#CE93D8</color>  <!-- Purple-200 -->
+
     <!-- ── Reports accent colours (lighter for dark surfaces) ─────── -->
     <color name="reports_accent_crimson">#F48FB1</color>  <!-- Pink-200    -->
     <color name="reports_accent_purple">#CE93D8</color>   <!-- Purple-200  -->

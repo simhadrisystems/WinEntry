@@ -83,6 +83,8 @@ class SettingsFragment : Fragment() {
             showDriveBackupOptions()
         }
 
+        binding.tvAppVersion.text = "WinEntry v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+
         // ── Error Log ─────────────────────────────────────────────────────
         // Show share button only when errors exist — hidden otherwise
         updateErrorLogButton()

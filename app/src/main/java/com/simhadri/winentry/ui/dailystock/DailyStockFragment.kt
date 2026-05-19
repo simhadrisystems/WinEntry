@@ -26,15 +26,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simhadri.winentry.R
+import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.DailyEntry
+import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.stockCode
+import com.simhadri.winentry.data.repository.DailyStockRepository
+import com.simhadri.winentry.databinding.FooterDayReconciliationBinding
 import com.simhadri.winentry.databinding.FragmentDailyStockBinding
+import com.simhadri.winentry.sync.SyncHelper
+import com.simhadri.winentry.ui.util.ScrollNavigationHelper
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockExcelHelper
 import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.utils.UserRegistrationManager
-import com.simhadri.winentry.ui.dailystock.DailyStockDataViewModel
-import com.simhadri.winentry.ui.dailystock.DayReconciliationViewModel  // ← NEW: import for reconciliation dialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.FillPatternType
@@ -71,13 +75,13 @@ class DailyStockFragment : Fragment() {
     // Results are buffered here and applied only after the animation
     // completes — so RecyclerView layout never competes with the transition.
     private var holdForAnimation = false
-    private var pendingEntries: List<com.simhadri.winentry.data.entity.DailyEntry>? = null
+    private var pendingEntries: List<DailyEntry>? = null
     private lateinit var concatAdapter: ConcatAdapter
     private var footerAdded = false
 
     private val repository by lazy {
-        val db = com.simhadri.winentry.data.AppDatabase.getInstance(requireContext())
-        com.simhadri.winentry.data.repository.DailyStockRepository(
+        val db = AppDatabase.getInstance(requireContext())
+        DailyStockRepository(
             productDao    = db.productDao(),
             dailyStockDao = db.dailyStockDao()
         )
@@ -151,7 +155,7 @@ class DailyStockFragment : Fragment() {
             popup.setOnMenuItemClickListener { item ->
                 when (item.itemId) {
                     RESTORE_FROM_CLOUD_ID -> {
-                        com.simhadri.winentry.sync.SyncHelper.downloadDailyStockFromCloud(
+                        SyncHelper.downloadDailyStockFromCloud(
                             context    = requireContext(),
                             scope      = lifecycleScope,
                             anchorView = binding.root
@@ -284,6 +288,9 @@ class DailyStockFragment : Fragment() {
                     else -> emptyList()
                 }
 
+                val imm = requireContext()
+                    .getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+
                 fun focusFirstField() {
                     val holder = recycler.findViewHolderForAdapterPosition(rvPosition)
                     val item   = holder?.itemView ?: return
@@ -292,10 +299,10 @@ class DailyStockFragment : Fragment() {
                                          ?: return
                     target.requestFocus()
                     target.selectAll()
+                    // Explicitly keep the keyboard open — clearFocus() or a long scroll
+                    // would otherwise dismiss it before the new field claims focus.
+                    imm.showSoftInput(target, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
                 }
-
-                // Clear focus from current field first so keyboard doesn't snap back
-                recycler.clearFocus()
 
                 val lm = recycler.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
                 val firstVisible = lm?.findFirstCompletelyVisibleItemPosition() ?: 0
@@ -824,7 +831,7 @@ class DailyStockFragment : Fragment() {
 
     /** Apply a batch of daily entries to the UI — called from the dailyEntries observer
      *  directly (date changes, saves) or after the animation guard releases on first load. */
-    private fun applyEntries(entries: List<com.simhadri.winentry.data.entity.DailyEntry>) {
+    private fun applyEntries(entries: List<DailyEntry>) {
         // Add footer once, here — never in a raw dailyEntries observer — so it
         // only appears after the animation guard releases, together with the list.
         if (!footerAdded && entries.isNotEmpty()) {
@@ -882,7 +889,7 @@ class DailyStockFragment : Fragment() {
         }
     }
 
-    private fun wireFooter(footer: com.simhadri.winentry.databinding.FooterDayReconciliationBinding) {
+    private fun wireFooter(footer: FooterDayReconciliationBinding) {
         val textDate            = footer.textReconciliationDate
         val textTotal           = footer.textTotalDaySales
         val textCash            = footer.textCashForDeposit
@@ -895,6 +902,7 @@ class DailyStockFragment : Fragment() {
         footerTextSoldUnits       = textSoldUnits
         val editUpi        = footer.editUpiReceipts
         val editExpenses   = footer.editDayExpenses
+        val editDeposits   = footer.editDeposits
         val editNotes      = footer.editNotes
         val btnSave        = footer.buttonSaveReconciliation
         val textLastSaved  = footer.textLastSaved
@@ -961,6 +969,7 @@ class DailyStockFragment : Fragment() {
 
         editUpi.addTextChangedListener(makeCurrencyWatcher(editUpi) { reconciliationViewModel.updateUpi(it) })
         editExpenses.addTextChangedListener(makeCurrencyWatcher(editExpenses) { reconciliationViewModel.updateExpenses(it) })
+        editDeposits.addTextChangedListener(makeCurrencyWatcher(editDeposits) { reconciliationViewModel.updateDeposits(it) })
         editNotes.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
             override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
@@ -1017,12 +1026,14 @@ class DailyStockFragment : Fragment() {
             if (record != null) {
                 setAmount(editUpi,      record.upiReceipts)
                 setAmount(editExpenses, record.dayExpenses)
+                setAmount(editDeposits, record.deposits)
                 setText(editNotes,      record.notes)
                 val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                 textLastSaved.text = "Last saved ${sdf.format(java.util.Date(record.lastModified))}"
             } else {
                 if (forceUpdate || !editUpi.isFocused)      editUpi.setText("")
                 if (forceUpdate || !editExpenses.isFocused) editExpenses.setText("")
+                if (forceUpdate || !editDeposits.isFocused) editDeposits.setText("")
                 if (forceUpdate || !editNotes.isFocused)    editNotes.setText("")
                 textLastSaved.text = ""
             }
@@ -1065,7 +1076,7 @@ class DailyStockFragment : Fragment() {
     // ── Scroll navigation ────────────────────────────────────────────────────────
 
     private fun setupScrollNavigation() {
-        com.simhadri.winentry.ui.util.ScrollNavigationHelper.setup(
+        ScrollNavigationHelper.setup(
             recyclerView   = binding.productRecyclerView,
             fabTop         = binding.fabScrollTop,
             fabBottom      = binding.fabScrollBottom,
@@ -1387,7 +1398,7 @@ class DailyStockFragment : Fragment() {
         unknownList: List<String>,
         anomalyList: List<String>,
         result:      DailyStockImportHelper.ImportResult,
-        products:    List<com.simhadri.winentry.data.entity.Product>,
+        products:    List<Product>,
         @Suppress("UNUSED_PARAMETER") dateRange: String
     ) {
         val sb = StringBuilder()
@@ -1598,32 +1609,29 @@ class DailyStockFragment : Fragment() {
     // ═══════════════════════════════════════════════════════════════
     private fun clearCurrentDateData() {
         val date = viewModel.selectedDate.value ?: return
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Clear Current Date Data")
-            .setMessage("Delete all stock entries for $date?\nThis cannot be undone.")
-            .setPositiveButton("Delete") { _, _ ->
-                lifecycleScope.launch {
-                    dataViewModel.clearDateDataAwait(date)
-                    viewModel.clearDirty()
-                    viewModel.loadEntriesForDate()
-                    Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
-                }
+        AppDialogs.destructive(
+            requireContext(),
+            "Clear Current Date Data",
+            "Delete all stock entries for $date?\nThis cannot be undone."
+        ) {
+            lifecycleScope.launch {
+                dataViewModel.clearDateDataAwait(date)
+                viewModel.clearDirty()
+                viewModel.loadEntriesForDate()
+                Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     private fun clearAllDailyStock() {
-        // Stage 1 — initial warning
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("⚠ Clear ALL Daily Stock Data")
-            .setMessage(
-                "This will permanently delete the ENTIRE stock history across ALL dates.\n\n" +
-                "This action cannot be undone."
-            )
-            .setNegativeButton("Cancel", null)
-            .setPositiveButton("Continue…") { _, _ -> showClearAllConfirmation() }
-            .show()
+        // Stage 1 — initial warning; stage 2 requires typing "DELETE ALL"
+        AppDialogs.destructive(
+            requireContext(),
+            "⚠ Clear ALL Daily Stock Data",
+            "This will permanently delete the ENTIRE stock history across ALL dates.\n\n" +
+            "This action cannot be undone.",
+            actionLabel = "Continue…"
+        ) { showClearAllConfirmation() }
     }
 
     /** Stage 2 — user must type DELETE ALL to unlock the confirm button. */
@@ -1652,7 +1660,7 @@ class DailyStockFragment : Fragment() {
 
         val confirmBtn = dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).also {
             it.isEnabled = false
-            it.setTextColor(android.graphics.Color.parseColor("#B71C1C"))
+            it.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.app_color_delete))
         }
 
         input.addTextChangedListener(object : android.text.TextWatcher {

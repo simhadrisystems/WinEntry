@@ -22,12 +22,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.core.content.ContextCompat
+import com.simhadri.winentry.R
 import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.SyncStatus
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
+import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.ui.dailystock.DailyStockDataViewModel
 import com.simhadri.winentry.sync.SyncCoordinator
@@ -48,6 +51,7 @@ class OpeningStockFragment : Fragment() {
 
     private val quantities = mutableMapOf<Long, IntArray>()
 
+    private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     // ── Header info rows (3 coloured summary lines) ───────────────────────────
     private lateinit var tvDateInfo:    TextView   // row 1: date / trading day
     private lateinit var tvValueInfo:   TextView   // row 2: stock value
@@ -114,15 +118,15 @@ class OpeningStockFragment : Fragment() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.simhadri.winentry.R.color.app_surface))
+            setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.app_surface))
         }
 
         // ── Fixed toolbar ─────────────────────────────────────────────────────
-        val toolbar = Toolbar(requireContext()).apply {
+        toolbar = Toolbar(requireContext()).apply {
             title = "Opening Stock Setup"
-            setBackgroundColor(androidx.core.content.ContextCompat.getColor(requireContext(), com.simhadri.winentry.R.color.app_toolbar))
+            setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.app_toolbar))
             setTitleTextColor(android.graphics.Color.WHITE)
-            setNavigationIcon(com.simhadri.winentry.R.drawable.ic_chevron_left)
+            setNavigationIcon(R.drawable.ic_chevron_left)
             setNavigationOnClickListener { findNavController().navigateUp() }
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -374,6 +378,11 @@ class OpeningStockFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.hide()
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(view) { _, windowInsets ->
+            val topPx = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
+            toolbar.setPadding(0, topPx, 0, 0)
+            windowInsets
+        }
 
         dataViewModel = ViewModelProvider(this)[DailyStockDataViewModel::class.java]
         importHelper  = DailyStockImportHelper(requireContext().applicationContext)
@@ -690,7 +699,7 @@ class OpeningStockFragment : Fragment() {
 
     private fun loadProducts() {
         lifecycleScope.launch {
-            products = repository.getAllProductsSync()  // all products — inactive still need opening stock
+            products = repository.getActiveProductsSortedSync()
             quantities.clear()
             products.forEach { quantities[it.id] = IntArray(4) }
 
@@ -782,26 +791,23 @@ class OpeningStockFragment : Fragment() {
     }
 
     private fun confirmDelete(date: String, productCount: Int) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Delete Opening Stock")
-            .setMessage(
-                "Delete all opening stock entries for\n${formatDisplay(date)}?\n\n" +
-                "$productCount product(s) will be removed.\n\n" +
-                "⚠ Any Daily Stock data that used these as opening balances " +
-                "will no longer have prior history."
-            )
-            .setPositiveButton("Delete") { _, _ ->
-                dataViewModel.clearDateData(date)
-                quantities.keys.forEach { quantities[it] = IntArray(4) }
-                if (::adapter.isInitialized) adapter.updateProducts(products)
-                updateSummary()
-                refreshSavedDates()
-                Toast.makeText(requireContext(),
-                    "Opening stock for ${formatDisplay(date)} deleted.",
-                    Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        AppDialogs.destructive(
+            requireContext(),
+            "Delete Opening Stock",
+            "Delete all opening stock entries for\n${formatDisplay(date)}?\n\n" +
+            "$productCount product(s) will be removed.\n\n" +
+            "⚠ Any Daily Stock data that used these as opening balances " +
+            "will no longer have prior history."
+        ) {
+            dataViewModel.clearDateData(date)
+            quantities.keys.forEach { quantities[it] = IntArray(4) }
+            if (::adapter.isInitialized) adapter.updateProducts(products)
+            updateSummary()
+            refreshSavedDates()
+            Toast.makeText(requireContext(),
+                "Opening stock for ${formatDisplay(date)} deleted.",
+                Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ── Header info helpers ───────────────────────────────────────────────────
@@ -1197,6 +1203,26 @@ private class OpeningStockAdapter(
                 background = null
                 layoutParams = LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setOnFocusChangeListener { v, hasFocus ->
+                    if (hasFocus) (v as EditText).post { v.selectAll() }
+                }
+                // gravity=CENTER + TYPE_CLASS_NUMBER resets cursor to 0 after each
+                // keystroke, causing digits to insert in reverse. Always keep cursor
+                // at end so typing flows left-to-right normally.
+                // IMPORTANT: re-read text.length inside the lambda — RecyclerView may
+                // rebind this view (clearing text to length 0) before the post runs,
+                // which would make setSelection(capturedLen) throw IndexOutOfBounds.
+                addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                    override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                    override fun afterTextChanged(s: Editable?) {
+                        val len = s?.length ?: 0
+                        if (selectionStart != len) post {
+                            val current = text?.length ?: 0
+                            setSelection(current)
+                        }
+                    }
+                })
             }.also { row.addView(it) }
         }
 

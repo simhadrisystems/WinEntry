@@ -9,6 +9,16 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# Strip verbose log calls from release builds.
+# Log.w and Log.e are kept — they guard real error paths.
+# Log.d / Log.i / Log.v are development-only and log business data (product
+# names, invoice numbers, UIDs) that must not appear in release logcat.
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int i(...);
+    public static int v(...);
+}
+
 # ── App resources referenced in layouts ──────────────────────────────────
 # R8 resource shrinking removes mipmap/ic_launcher if only referenced in
 # XML layouts (not in code). Keep all app icon variants explicitly.

@@ -14,6 +14,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.R
 import com.simhadri.winentry.data.entity.getAllBrandCodes
@@ -258,7 +259,7 @@ class PurchaseEntryFragment : Fragment() {
         android.util.Log.d("PurchaseEntry", "UI populated from purchase data - Product can be deleted, edit still works!")
     }
     
-    private fun populateUIForEdit(purchase: Purchase, @Suppress("UNUSED_PARAMETER") product: com.simhadri.winentry.data.entity.Product) {
+    private fun populateUIForEdit(purchase: Purchase, @Suppress("UNUSED_PARAMETER") product: Product) {
         // This method is now OBSOLETE - kept for backwards compatibility
         // New edit mode uses populateUIFromPurchaseData instead
         populateUIFromPurchaseData(purchase)
@@ -374,7 +375,7 @@ class PurchaseEntryFragment : Fragment() {
     }
 
     private fun buildProductAdapter(
-        products: List<com.simhadri.winentry.data.entity.Product>,
+        products: List<Product>,
         productStrings: List<String>
     ): ArrayAdapter<String> {
         return object : ArrayAdapter<String>(requireContext(), R.layout.dropdown_item, productStrings.toMutableList()) {
@@ -414,7 +415,7 @@ class PurchaseEntryFragment : Fragment() {
         }
     }
 
-    private fun updateProductInfo(product: com.simhadri.winentry.data.entity.Product) {
+    private fun updateProductInfo(product: Product) {
         // Disable text watcher callbacks temporarily
         isTextWatchersActive = false
         
@@ -992,7 +993,7 @@ class PurchaseEntryFragment : Fragment() {
                             val navController = findNavController()
                             navController.navigateUp()
                             navController.navigate(
-                                com.simhadri.winentry.R.id.action_purchasesList_to_purchaseEntry,
+                                R.id.action_purchasesList_to_purchaseEntry,
                                 bundle
                             )
                         }

@@ -16,6 +16,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simhadri.winentry.R
+import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
 import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.databinding.FragmentProductListBinding
@@ -240,7 +241,7 @@ class ProductListFragment : Fragment() {
             .show()
     }
 
-    private fun showProductDialog(product: com.simhadri.winentry.data.entity.Product?) {
+    private fun showProductDialog(product: Product?) {
         ProductFormDialog.newInstance(product).show(
             childFragmentManager,
             "ProductFormDialog"
@@ -403,7 +404,7 @@ class ProductListFragment : Fragment() {
         Toast.makeText(requireContext(), successMessage, Toast.LENGTH_SHORT).show()
     }
 
-    private fun confirmDelete(product: com.simhadri.winentry.data.entity.Product) {
+    private fun confirmDelete(product: Product) {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete Product")
             .setMessage("Are you sure you want to delete ${product.displayName}?")

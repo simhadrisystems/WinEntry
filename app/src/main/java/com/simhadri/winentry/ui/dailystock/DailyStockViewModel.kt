@@ -14,6 +14,8 @@ import com.simhadri.winentry.data.entity.ProductSizeQty
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.CascadePreview
 import com.simhadri.winentry.data.repository.CascadeResult
+import com.simhadri.winentry.data.dao.PurchaseDao
+import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.data.repository.PurchaseRepository
 import kotlinx.coroutines.launch
@@ -94,7 +96,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     private val purchaseChangeObserver =
-        Observer<List<com.simhadri.winentry.data.entity.Purchase>> {
+        Observer<List<Purchase>> {
             // Don't reload if user has unsaved edits — would overwrite in-progress changes
             if (entriesCache.isNotEmpty() && dirtyProducts.isEmpty()) loadEntriesForDate()
         }
@@ -234,7 +236,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         prevRowMap:  Map<String, DailyStock>,   // productCode → previous row
         purchaseMap: Map<String, Int>,           // size-code → purch units
         stockMap:    Map<String, DailyStock>,    // productCode → today's row
-        purchaseDao: com.simhadri.winentry.data.dao.PurchaseDao
+        purchaseDao: PurchaseDao
     ): DailyEntry {
         var stock = stockMap[product.stockCode]
 

@@ -239,7 +239,6 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
 
-                // Debug logging
                 android.util.Log.d("PurchaseViewModel", "===== SAVING PURCHASE =====")
                 android.util.Log.d("PurchaseViewModel", "Purchase date: ${calc.purchaseDate}")
                 android.util.Log.d("PurchaseViewModel", "Product: ${calc.productName}")

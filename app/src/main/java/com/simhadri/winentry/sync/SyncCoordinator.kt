@@ -10,6 +10,8 @@ import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.DayReconciliation
+import com.simhadri.winentry.data.entity.Product
+import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -50,7 +52,7 @@ class SyncCoordinator(private val context: Context) {
         private const val PREF_WORKSPACE_REQUESTED = "workspace_requested"
 
         // Master sheet — products only, admin-managed, never changes per-user
-        const val MASTER_SPREADSHEET_ID = "1KQavYNe_uVk5GnUk8UOGKzQEEgC76I5aeVWP7RrcwaQ"
+        const val MASTER_SPREADSHEET_ID = "1rOd-l13Vs1LRa764lM40sjDeN70FWOArCn6NpfHUggs"
 
         /**
          * Admin User Registry spreadsheet ID.
@@ -67,34 +69,13 @@ class SyncCoordinator(private val context: Context) {
          * Leave blank to skip sheet-based registration (Firestore-only).
          *
          * ── Tab ownership ────────────────────────────────────────────────────────
-         * "UserRegistry"  — written ONLY by this app (appendUserRegistration).
-         * "CFRequests"    — written ONLY by the Cloud Function (service account).
+         * "UserRegistry" (12 cols A–L) — written ONLY by Cloud Function (CF format).
+         * "AppRequests"  (16 cols A–P) — written ONLY by Cloud Function (Android format).
          *
-         * Keeping writers on separate tabs avoids cross-writer dedup collisions.
-         * The Cloud Function must target tab "CFRequests"; see CF_REQUESTS_TAB_HEADERS.
-         *
-         * TODO: Set this to your admin user registry sheet ID before release.
+         * All registration writes go through the Cloud Function service account.
+         * The app does not write directly to the registry sheet.
          */
-        const val ADMIN_USER_REGISTRY_SPREADSHEET_ID = "1L4PpNtS2AxfhP2XwnPYVD8ltUSPUJSUcAZbVm7yn5LM"
-
-        /**
-         * Column headers for the "CFRequests" tab — Cloud Function writes here.
-         *
-         * Tell whoever manages the CF to create a tab named exactly "CFRequests"
-         * in the same registry spreadsheet and use this row as the header (row 1):
-         *
-         *   A=Row#  B=Requested At  C=UID  D=Email  E=Display Name
-         *   F=Owner Name  G=Business Name  H=Phone  I=Location  J=Device
-         *   K=Status  L=Sheet ID  M=Sheet URL  N=Processed At  O=Role  P=Notes
-         *
-         * The CF should append one row per new admin_request document and update
-         * in-place (match by UID in col C) when the sheet is provisioned.
-         */
-        val CF_REQUESTS_TAB_HEADERS = listOf(
-            "Row#", "Requested At", "UID", "Email", "Display Name",
-            "Owner Name", "Business Name", "Phone", "Location", "Device",
-            "Status", "Sheet ID", "Sheet URL", "Processed At", "Role", "Notes"
-        )
+        const val ADMIN_USER_REGISTRY_SPREADSHEET_ID = "1zw5Xek9lW4cohUbjaX6468ZqGF7m7--mdoplByv6Rps"
     }
 
     // ── Configuration ─────────────────────────────────────────────────────────
@@ -301,7 +282,7 @@ class SyncCoordinator(private val context: Context) {
 
     /** Preview import from the PurchaseImport tab (vendor invoice format, one-way). */
     suspend fun previewPurchaseDownSync(
-        products: List<com.simhadri.winentry.data.entity.Product>
+        products: List<Product>
     ): SyncResult = withContext(Dispatchers.IO) {
 
         if (!isNetworkAvailable())
@@ -338,7 +319,7 @@ class SyncCoordinator(private val context: Context) {
 
     /** Preview restore from the Purchases tab (normalised app format, already synced). */
     suspend fun previewPurchasesTabDownSync(
-        products: List<com.simhadri.winentry.data.entity.Product>
+        products: List<Product>
     ): SyncResult = withContext(Dispatchers.IO) {
 
         if (!isNetworkAvailable())
@@ -372,8 +353,8 @@ class SyncCoordinator(private val context: Context) {
     }
 
     suspend fun commitPurchaseDownSync(
-        toInsert:  List<com.simhadri.winentry.data.entity.Purchase>,
-        toReplace: List<com.simhadri.winentry.data.entity.Purchase>
+        toInsert:  List<Purchase>,
+        toReplace: List<Purchase>
     ): SyncResult = withContext(Dispatchers.IO) {
         return@withContext try {
             val purchaseDao = database.purchaseDao()
@@ -388,7 +369,7 @@ class SyncCoordinator(private val context: Context) {
                     // Preserve txnId from cloud (Purchases tab restore); generate one only
                     // if blank (PurchaseImport admin import path).
                     val withTxnId = if (p.txnId.isBlank())
-                        p.copy(txnId = com.simhadri.winentry.data.entity.Purchase.generateTxnId())
+                        p.copy(txnId = Purchase.generateTxnId())
                     else p
                     // If a soft-deleted tombstone exists with the same txnId, cancel it so
                     // the next sync does not delete the just-restored cloud row.
@@ -425,7 +406,7 @@ class SyncCoordinator(private val context: Context) {
 
     // Backward compat — delegates to preview+commit with skip behaviour
     suspend fun downloadPurchasesFromCloud(
-        products: List<com.simhadri.winentry.data.entity.Product>
+        products: List<Product>
     ): SyncResult {
         return when (val preview = previewPurchaseDownSync(products)) {
             is SyncResult.PurchaseDownSyncPreview ->
@@ -447,41 +428,46 @@ class SyncCoordinator(private val context: Context) {
      */
     suspend fun syncProductsOnly(preserveUserSettings: Boolean = true): SyncResult =
         withContext(Dispatchers.IO) {
-            val syncManager = CloudSyncManager(context, MASTER_SPREADSHEET_ID)
-
-            if (!syncManager.initialize())
-                return@withContext SyncResult.Error("Not signed in to Google")
+            if (!isNetworkAvailable())
+                return@withContext SyncResult.Error("No internet connection")
 
             return@withContext try {
-                val productsResult = syncManager.syncProductsFromCloud()
-                if (productsResult.isSuccess) {
-                    val cloudProducts = productsResult.getOrNull() ?: emptyList()
-                    if (cloudProducts.isEmpty())
-                        return@withContext SyncResult.Error("No products found in sheet")
+                val masterResult = CloudFunctionClient().getMasterProducts()
+                if (masterResult is MasterSheetResult.NotInvited)
+                    return@withContext SyncResult.Error(
+                        "Your account has not been activated yet.\n\nAsk the admin to add your email to the invited users list."
+                    )
+                if (masterResult is MasterSheetResult.Error)
+                    return@withContext SyncResult.Error("Failed to fetch master products from cloud")
 
-                    // Build lookup of existing local products keyed by brandCode
-                    val existing = database.productDao().getAllProductsSync()
-                        .associateBy { it.brandCode }
+                val cloudProducts = CloudSyncManager.parseProductRows(
+                    (masterResult as MasterSheetResult.Success).data.products
+                )
+                if (cloudProducts.isEmpty())
+                    return@withContext SyncResult.Error("No products found in master sheet")
 
-                    val merged = cloudProducts.map { cloud ->
-                        val local = existing[cloud.brandCode]
-                        if (local != null) {
-                            // Existing product — always preserve id; optionally preserve user settings
-                            cloud.copy(
-                                id           = local.id,
-                                isActive     = if (preserveUserSettings) local.isActive     else cloud.isActive,
-                                dailySortKey = if (preserveUserSettings) local.dailySortKey else cloud.dailySortKey
-                            )
-                        } else {
-                            cloud  // new product — insert as-is
-                        }
+                val existing = database.productDao().getAllProductsSync()
+                    .associateBy { it.brandCode }
+
+                val merged = cloudProducts.map { cloud ->
+                    val local = existing[cloud.brandCode]
+                    if (local != null) {
+                        cloud.copy(
+                            id           = local.id,
+                            isActive     = if (preserveUserSettings) local.isActive     else cloud.isActive,
+                            dailySortKey = if (preserveUserSettings) local.dailySortKey else cloud.dailySortKey,
+                            qqSalePrice  = if (preserveUserSettings) local.qqSalePrice  else cloud.qqSalePrice,
+                            ppSalePrice  = if (preserveUserSettings) local.ppSalePrice  else cloud.ppSalePrice,
+                            nnSalePrice  = if (preserveUserSettings) local.nnSalePrice  else cloud.nnSalePrice,
+                            ddSalePrice  = if (preserveUserSettings) local.ddSalePrice  else cloud.ddSalePrice
+                        )
+                    } else {
+                        cloud
                     }
-
-                    database.productDao().insertProducts(merged)
-                    SyncResult.Success(merged.size, 0, 0)
-                } else {
-                    SyncResult.Error(productsResult.exceptionOrNull()?.message ?: "Unknown error")
                 }
+
+                database.productDao().insertProducts(merged)
+                SyncResult.Success(merged.size, 0, 0)
             } catch (e: Exception) {
                 SyncResult.Error(e.message ?: "Unknown error")
             }
@@ -733,8 +719,8 @@ class SyncCoordinator(private val context: Context) {
         ) : SyncResult()
 
         data class PurchaseDownSyncPreview(
-            val newRows:       List<com.simhadri.winentry.data.entity.Purchase>,
-            val dupRows:       List<com.simhadri.winentry.data.entity.Purchase>,
+            val newRows:       List<Purchase>,
+            val dupRows:       List<Purchase>,
             val notFoundCodes: Set<String> = emptySet()
         ) : SyncResult()
 

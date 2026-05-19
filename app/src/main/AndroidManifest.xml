@@ -20,6 +20,19 @@
     -->
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 
+    <!--
+        RECEIVE_BOOT_COMPLETED and WAKE_LOCK are required by WorkManager for
+        background sync (every 6 hours when cloud backup is enabled).
+        RECEIVE_BOOT_COMPLETED: reschedules the periodic sync job after a device
+        restart so the sync continues uninterrupted.
+        WAKE_LOCK: prevents the CPU from sleeping while a sync task runs to
+        completion. Used only during active sync operations.
+        Both are also auto-merged from WorkManager's library manifest, but
+        declared here explicitly for Play Store Data Safety transparency.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <queries>
         <package android:name="com.google.android.gms" />
         <package android:name="com.android.vending" />

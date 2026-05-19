@@ -1,7 +1,6 @@
 package com.simhadri.winentry.sync
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.Product
@@ -10,7 +9,6 @@ import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -67,22 +65,24 @@ object TestDataImportManager {
         data class Failure(val message: String) : ImportResult()
     }
 
-    // ── Network fetch — API key, no OAuth ────────────────────────────────────
+    // ── Network fetch — via getMasterProducts Cloud Function ─────────────────
 
     suspend fun fetchTestData(context: Context): Result<TestData> = withContext(Dispatchers.IO) {
         try {
-            val apiKey  = context.getString(com.simhadri.winentry.R.string.sheets_api_key)
-            val sheetId = SyncCoordinator.MASTER_SPREADSHEET_ID
-
-            // Read TestOB and TestCB in parallel (two separate network calls)
-            val obRaw = fetchTab(sheetId, "$TAB_TEST_OB!A2:G", apiKey)
-                ?: return@withContext Result.failure(
+            val masterResult = CloudFunctionClient().getMasterProducts()
+            if (masterResult is MasterSheetResult.NotInvited) {
+                return@withContext Result.failure(
+                    Exception("Your account has not been activated yet. Ask the admin to add your email to the invited users list.")
+                )
+            }
+            if (masterResult is MasterSheetResult.Error) {
+                return@withContext Result.failure(
                     Exception("Unable to reach the master sheet. Check your internet connection.")
                 )
-            val cbRaw = fetchTab(sheetId, "$TAB_TEST_CB!A2:H", apiKey)
-                ?: return@withContext Result.failure(
-                    Exception("Unable to read TestCB tab from master sheet.")
-                )
+            }
+            val masterData = (masterResult as MasterSheetResult.Success).data
+            val obRaw = masterData.testOb
+            val cbRaw = masterData.testCb
 
             // ── TestOB parsing ────────────────────────────────────────────────
             // Columns: A=PRODUCT_TYPE  B=BRAND_CODE  C=PRODUCT_NAME(skip)
@@ -208,40 +208,6 @@ object TestDataImportManager {
             } catch (_: Exception) {}
         }
         return null
-    }
-
-    private fun fetchTab(sheetId: String, range: String, apiKey: String): List<List<Any>>? {
-        return try {
-            val url = "https://sheets.googleapis.com/v4/spreadsheets/$sheetId" +
-                    "/values/${Uri.encode(range)}" +
-                    "?key=$apiKey&valueRenderOption=UNFORMATTED_VALUE"
-
-            val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-            conn.requestMethod  = "GET"
-            conn.connectTimeout = 15_000
-            conn.readTimeout    = 30_000
-
-            val code = conn.responseCode
-            if (code != 200) {
-                Log.e(TAG, "HTTP $code for $range")
-                conn.disconnect()
-                return null
-            }
-
-            val body = conn.inputStream.bufferedReader().readText()
-            conn.disconnect()
-
-            val root = JSONObject(body)
-            if (!root.has("values")) return emptyList()
-            val vals = root.getJSONArray("values")
-            (0 until vals.length()).map { i ->
-                val arr = vals.getJSONArray(i)
-                (0 until arr.length()).map { j -> arr.get(j) }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchTab $range: ${e.message}")
-            null
-        }
     }
 
     // ── Save to Room DB ───────────────────────────────────────────────────────

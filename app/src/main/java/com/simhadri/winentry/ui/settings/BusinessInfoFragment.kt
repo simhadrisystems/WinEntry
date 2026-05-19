@@ -340,9 +340,15 @@ class BusinessInfoFragment : Fragment() {
                 val msg = if (forceUpdate) "Registration updated \u2713" else "Registered \u2713  Cloud features unlocked"
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(requireContext(),
-                    "Business info saved. Registration failed \u2014 check connection and try again.",
-                    Toast.LENGTH_LONG).show()
+                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Registration Failed")
+                    .setMessage(
+                        "Your account has not been activated yet.\n\n" +
+                        "Ask the admin to add your email address to the invited users list.\n\n" +
+                        "Your business info has been saved on this device."
+                    )
+                    .setPositiveButton("OK", null)
+                    .show()
             }
             binding.buttonSave.isEnabled = true
             findNavController().navigateUp()

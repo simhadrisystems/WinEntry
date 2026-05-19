@@ -5,16 +5,11 @@ import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
 /**
- * Firestore document model for /users/{uid}
- *
- * Fields written by the admin on first setup:
- *   uid, email, displayName, userSheetId, createdAt
- *
- * Fields written by the app after the user completes their profile on first login:
- *   businessName, ownerName, phone, address, profileCompletedAt
- *
- * The app reads userSheetId from this document on subsequent logins
- * (if the local SharedPreferences cache has been cleared).
+ * Firestore document model for /users/{uid}.
+ * Fields written by the Cloud Function: uid, email, displayName, userSheetId,
+ * userSheetUrl, ownerName, businessName, phone, location, role, createdAt.
+ * The app reads userSheetId and role on login (via snapshot.getString —
+ * toObject() is not currently used, but this class is kept for ProGuard safety).
  */
 data class UserProfile(
     @DocumentId

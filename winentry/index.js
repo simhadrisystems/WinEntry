@@ -84,8 +84,11 @@ const SHARED_FOLDER_ID = "1MZq03EyglI4JR3pr_5siStY7JC0RLKII";
  */
 const ADMIN_EMAIL = "tomsrao@gmail.com";
 
-/** Admin user registry sheet. Share with App Engine SA as Editor. */
-const REGISTRY_SHEET_ID = "1L4PpNtS2AxfhP2XwnPYVD8ltUSPUJSUcAZbVm7yn5LM";
+/** Master products sheet (simhadrisystems@gmail.com Drive, WinEntry app folder). */
+const MASTER_SHEET_ID = "1rOd-l13Vs1LRa764lM40sjDeN70FWOArCn6NpfHUggs";
+
+/** Admin user registry sheet (simhadrisystems@gmail.com Drive, WinEntry app folder). */
+const REGISTRY_SHEET_ID = "1zw5Xek9lW4cohUbjaX6468ZqGF7m7--mdoplByv6Rps";
 const REGISTRY_TAB      = "UserRegistry";
 
 // ── TAB HEADERS (must match CloudSyncManager.kt exactly) ─────────────────────
@@ -446,4 +449,70 @@ exports.onAdminRequestCreated = functions
 
     // ── 3. Append to admin UserRegistry sheet (with actual sheetId) ───────
     await appendToRegistry(uid, data, sheetId, sheetUrl);
+  });
+
+// ── HTTP FUNCTION: getMasterProducts ─────────────────────────────────────────
+// Returns the master products list and test data tabs from MASTER_SHEET_ID.
+// All reads use the service account — the master sheet no longer needs to be
+// shared publicly.  Requires a valid Firebase ID token (any signed-in user).
+//
+// Response: { products: [[...], ...], testOb: [[...], ...], testCb: [[...], ...] }
+//   products — Products!A2:U  (UNFORMATTED_VALUE)
+//   testOb   — TestOB!A2:G   (UNFORMATTED_VALUE)
+//   testCb   — TestCB!A2:H   (UNFORMATTED_VALUE)
+// testOb / testCb are empty arrays if the tab does not exist.
+
+exports.getMasterProducts = functions
+  .region("asia-south1")
+  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .https.onRequest(async (req, res) => {
+
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST");
+      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      return res.status(204).send("");
+    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Missing token" });
+
+    try {
+      await admin.auth().verifyIdToken(authHeader.split("Bearer ")[1]);
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    try {
+      const [productsRes, testObRes, testCbRes] = await Promise.all([
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "Products!A2:U",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "TestOB!A2:G",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }).catch(() => ({ data: { values: null } })),
+        sheets.spreadsheets.values.get({
+          spreadsheetId: MASTER_SHEET_ID,
+          range: "TestCB!A2:H",
+          valueRenderOption: "UNFORMATTED_VALUE"
+        }).catch(() => ({ data: { values: null } }))
+      ]);
+
+      return res.status(200).json({
+        products: productsRes.data.values || [],
+        testOb:   testObRes.data.values   || [],
+        testCb:   testCbRes.data.values   || []
+      });
+    } catch (err) {
+      console.error("getMasterProducts failed:", err.message);
+      return res.status(500).json({ error: err.message });
+    }
   });

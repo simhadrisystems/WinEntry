@@ -13,10 +13,13 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.*
+import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.simhadri.winentry.R
 import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.ui.purchases.DeleteDateRangeDialog
@@ -41,7 +44,7 @@ class MonthlySummaryFragment : Fragment() {
     }
 
     // View references set during onCreateView
-    private lateinit var toolbar:    androidx.appcompat.widget.Toolbar
+    private lateinit var toolbar: Toolbar
     private lateinit var monthLabel: TextView
     private lateinit var tvBizName:  TextView
     private lateinit var tvBizLoc:   TextView
@@ -50,7 +53,7 @@ class MonthlySummaryFragment : Fragment() {
     private lateinit var tableRows:  LinearLayout
     private lateinit var totalsRow:  LinearLayout
     private lateinit var emptyText:  TextView
-    private lateinit var tvTotPurch: TextView
+    private lateinit var tvTotDeposits: TextView
     private lateinit var tvTotSales: TextView
     private lateinit var tvTotUpi:   TextView
     private lateinit var tvTotExp:   TextView
@@ -72,22 +75,22 @@ class MonthlySummaryFragment : Fragment() {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(androidx.core.content.ContextCompat.getColor(ctx, com.simhadri.winentry.R.color.app_surface))
+            setBackgroundColor(ContextCompat.getColor(ctx, R.color.app_surface))
         }
 
         // ── Toolbar ───────────────────────────────────────────────────────────
-        toolbar = androidx.appcompat.widget.Toolbar(ctx).apply {
+        toolbar = Toolbar(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 (56 * dp).toInt()
             )
-            setBackgroundColor(androidx.core.content.ContextCompat.getColor(ctx, com.simhadri.winentry.R.color.app_toolbar))
+            setBackgroundColor(ContextCompat.getColor(ctx, R.color.app_toolbar))
             setTitleTextColor(Color.WHITE)
             title = "Monthly Summary"
-            setNavigationIcon(com.simhadri.winentry.R.drawable.ic_chevron_left)
+            setNavigationIcon(R.drawable.ic_chevron_left)
             setNavigationOnClickListener { findNavController().navigateUp() }
-            inflateMenu(com.simhadri.winentry.R.menu.menu_monthly_summary)
-            overflowIcon = androidx.core.content.ContextCompat.getDrawable(ctx, com.simhadri.winentry.R.drawable.ic_more_vert)
+            inflateMenu(R.menu.menu_monthly_summary)
+            overflowIcon = ContextCompat.getDrawable(ctx, R.drawable.ic_more_vert)
             setOnMenuItemClickListener { item -> onMenuItemSelected(item) }
         }
         root.addView(toolbar)
@@ -377,7 +380,7 @@ class MonthlySummaryFragment : Fragment() {
             rowView.addView(dividerV(dp))
             rowView.addView(cell(fmt(row.cashForDeposit),  80,  dp, cashCol, bold = true))
             rowView.addView(dividerV(dp))
-            rowView.addView(cell(fmt(row.purchases),       80,  dp, Color.parseColor("#2563EB")))
+            rowView.addView(cell(fmt(row.deposits),        80,  dp, Color.parseColor("#00695C")))
             rowView.addView(dividerV(dp))
             rowView.addView(cell(row.notes.take(40),       100, dp, Color.parseColor("#616161"), false, Gravity.START or Gravity.CENTER_VERTICAL))
             tableRows.addView(rowView)
@@ -385,11 +388,11 @@ class MonthlySummaryFragment : Fragment() {
         }
 
         // Fill totals
-        tvTotPurch.text = fmt(s.totalPurchases)
-        tvTotSales.text = fmt(s.totalSales)
-        tvTotUpi.text   = fmt(s.totalUpi)
-        tvTotExp.text   = fmt(s.totalExpenses)
-        tvTotCash.text  = fmt(s.totalCash)
+        tvTotDeposits.text = fmt(s.totalDeposits)
+        tvTotSales.text    = fmt(s.totalSales)
+        tvTotUpi.text      = fmt(s.totalUpi)
+        tvTotExp.text      = fmt(s.totalExpenses)
+        tvTotCash.text     = fmt(s.totalCash)
         tvTotCash.setTextColor(
             if (s.totalCash < 0) Color.parseColor("#C62828") else Color.parseColor("#1B5E20")
         )
@@ -423,7 +426,7 @@ class MonthlySummaryFragment : Fragment() {
         row.addView(h("UPI",       80));                 row.addView(dividerV(dp))
         row.addView(h("Expense",   80));                 row.addView(dividerV(dp))
         row.addView(h("Cash Dep.", 80));                 row.addView(dividerV(dp))
-        row.addView(h("Purchase",  80));                 row.addView(dividerV(dp))
+        row.addView(h("Bank Dep.", 80));                 row.addView(dividerV(dp))
         row.addView(h("Notes",     100, Gravity.START))
         return row
     }
@@ -460,11 +463,11 @@ class MonthlySummaryFragment : Fragment() {
             setPadding((6 * dp).toInt(), 0, (6 * dp).toInt(), 0)
         })
         row.addView(dividerV(dp))
-        tvTotSales = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
-        tvTotUpi   = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
-        tvTotExp   = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
-        tvTotCash  = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
-        tvTotPurch = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
+        tvTotSales    = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
+        tvTotUpi      = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
+        tvTotExp      = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
+        tvTotCash     = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
+        tvTotDeposits = t(80).also { row.addView(it) }; row.addView(dividerV(dp))
         row.addView(t(100, false))
         return row
     }
@@ -529,12 +532,12 @@ class MonthlySummaryFragment : Fragment() {
 
     private fun onMenuItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            com.simhadri.winentry.R.id.action_share -> { shareAsText(); true }
-            com.simhadri.winentry.R.id.action_print -> { printOrPdf();  true }
-            com.simhadri.winentry.R.id.action_import_reconciliation -> {
+            R.id.action_share -> { shareAsText(); true }
+            R.id.action_print -> { printOrPdf();  true }
+            R.id.action_import_reconciliation -> {
                 importReconciliationFromCloud(); true
             }
-            com.simhadri.winentry.R.id.action_delete_reconciliation_range -> {
+            R.id.action_delete_reconciliation_range -> {
                 showDeleteReconciliationDialog(); true
             }
             else -> false
@@ -685,7 +688,7 @@ class MonthlySummaryFragment : Fragment() {
             "<td class=n>${fmt(r.sales)}</td>" +
             "<td class=n>${fmt(r.upiReceipts)}</td><td class=n>${fmt(r.dayExpenses)}</td>" +
             "<td class=n style=\"$cs\">${fmt(r.cashForDeposit)}</td>" +
-            "<td class=n>${fmt(r.purchases)}</td>" +
+            "<td class=n>${fmt(r.deposits)}</td>" +
             "<td>${r.notes}</td></tr>"
         }.joinToString("")
 
@@ -703,12 +706,12 @@ class MonthlySummaryFragment : Fragment() {
             headerHtml +
             "<table><thead><tr>" +
             "<th>Date</th><th>Sales</th><th>UPI</th>" +
-            "<th>Expense</th><th>Cash Dep.</th><th>Purchase</th><th>Notes</th>" +
+            "<th>Expense</th><th>Cash Dep.</th><th>Bank Dep.</th><th>Notes</th>" +
             "</tr></thead><tbody>$rows" +
             "<tr class=tot><td>TOTAL</td>" +
-            "<td class=n>${fmt(s.totalPurchases)}</td><td class=n>${fmt(s.totalSales)}</td>" +
-            "<td class=n>${fmt(s.totalUpi)}</td><td class=n>${fmt(s.totalExpenses)}</td>" +
-            "<td class=n>${fmt(s.totalCash)}</td><td></td>" +
+            "<td class=n>${fmt(s.totalSales)}</td><td class=n>${fmt(s.totalUpi)}</td>" +
+            "<td class=n>${fmt(s.totalExpenses)}</td><td class=n>${fmt(s.totalCash)}</td>" +
+            "<td class=n>${fmt(s.totalDeposits)}</td><td></td>" +
             "</tr></tbody></table></body></html>"
     }
 

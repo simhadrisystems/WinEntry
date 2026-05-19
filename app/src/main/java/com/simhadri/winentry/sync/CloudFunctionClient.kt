@@ -14,6 +14,18 @@ import java.net.URL
 
 data class SheetInfo(val sheetId: String, val sheetUrl: String)
 
+data class MasterSheetData(
+    val products: List<List<Any>>,
+    val testOb:   List<List<Any>>,
+    val testCb:   List<List<Any>>
+)
+
+sealed class MasterSheetResult {
+    data class Success(val data: MasterSheetData) : MasterSheetResult()
+    object NotInvited : MasterSheetResult()
+    object Error : MasterSheetResult()
+}
+
 sealed class CreateSheetResult {
     data class Success(val sheetInfo: SheetInfo) : CreateSheetResult()
     object NotInvited : CreateSheetResult()
@@ -39,10 +51,11 @@ class CloudFunctionClient {
         private const val CLOUD_FUNCTION_BASE_URL =
             "https://asia-south1-winentry-a87f2.cloudfunctions.net"
 
-        private const val CREATE_SHEET_ENDPOINT       = "$CLOUD_FUNCTION_BASE_URL/createUserSheet"
-        private const val REGISTER_USER_ENDPOINT      = "$CLOUD_FUNCTION_BASE_URL/registerUserOnly"
-        private const val SYNC_SHEET_ENDPOINT         = "$CLOUD_FUNCTION_BASE_URL/syncUserSheet"
+        private const val CREATE_SHEET_ENDPOINT        = "$CLOUD_FUNCTION_BASE_URL/createUserSheet"
+        private const val REGISTER_USER_ENDPOINT       = "$CLOUD_FUNCTION_BASE_URL/registerUserOnly"
+        private const val SYNC_SHEET_ENDPOINT          = "$CLOUD_FUNCTION_BASE_URL/syncUserSheet"
         private const val DELETE_REGISTRATION_ENDPOINT = "$CLOUD_FUNCTION_BASE_URL/deleteUserRegistration"
+        private const val MASTER_PRODUCTS_ENDPOINT     = "$CLOUD_FUNCTION_BASE_URL/getMasterProducts"
 
         private const val TIMEOUT_MS = 60_000
     }
@@ -137,8 +150,12 @@ class CloudFunctionClient {
                 put("appVersion", appVersion)
                 put("forceUpdate", forceUpdate)
             }.toString()
-            withContext(Dispatchers.IO) {
+            val (statusCode, responseBody) = withContext(Dispatchers.IO) {
                 postJson(REGISTER_USER_ENDPOINT, requestBody, idToken)
+            }
+            if (statusCode !in 200..299) {
+                android.util.Log.w("CloudFunctionClient", "registerUserOnly HTTP $statusCode: $responseBody")
+                return false
             }
             true
         } catch (e: Exception) {
@@ -217,6 +234,39 @@ class CloudFunctionClient {
         } catch (e: Exception) {
             android.util.Log.e("CloudFunctionClient", "syncUserSheet [$operation] failed", e)
             SyncSheetResult.Error
+        }
+    }
+
+    suspend fun getMasterProducts(): MasterSheetResult {
+        return try {
+            val idToken = getFirebaseIdToken() ?: return MasterSheetResult.Error
+            val (statusCode, responseBody) = withContext(Dispatchers.IO) {
+                postJson(MASTER_PRODUCTS_ENDPOINT, "{}", idToken)
+            }
+            if (statusCode !in 200..299) {
+                android.util.Log.e("CloudFunctionClient", "getMasterProducts HTTP $statusCode: $responseBody")
+                if (statusCode == 403) {
+                    val error = runCatching { JSONObject(responseBody).optString("error") }.getOrNull()
+                    if (error == "not_invited") return MasterSheetResult.NotInvited
+                }
+                return MasterSheetResult.Error
+            }
+            val json = JSONObject(responseBody)
+            fun parseTab(key: String): List<List<Any>> {
+                val arr = json.optJSONArray(key) ?: return emptyList()
+                return (0 until arr.length()).map { i ->
+                    val row = arr.optJSONArray(i) ?: return@map emptyList()
+                    (0 until row.length()).map { j -> row.get(j) }
+                }
+            }
+            MasterSheetResult.Success(MasterSheetData(
+                products = parseTab("products"),
+                testOb   = parseTab("testOb"),
+                testCb   = parseTab("testCb")
+            ))
+        } catch (e: Exception) {
+            android.util.Log.e("CloudFunctionClient", "getMasterProducts failed", e)
+            MasterSheetResult.Error
         }
     }
 

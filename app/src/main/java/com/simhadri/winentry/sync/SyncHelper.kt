@@ -5,6 +5,7 @@ import android.view.View
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.simhadri.winentry.data.entity.Product
+import com.simhadri.winentry.data.entity.Purchase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -209,8 +210,18 @@ object SyncHelper {
                         "✓ ${result.productsCount} products imported from standard product list"
                     snack(anchorView, msg, Snackbar.LENGTH_LONG)
                 }
-                is SyncCoordinator.SyncResult.Error ->
-                    snack(anchorView, "Product sync failed: ${result.message}", Snackbar.LENGTH_LONG)
+                is SyncCoordinator.SyncResult.Error -> {
+                    val isNotInvited = result.message.startsWith("Your account has not been activated")
+                    if (isNotInvited) {
+                        MaterialAlertDialogBuilder(anchorView.context)
+                            .setTitle("Account Not Activated")
+                            .setMessage(result.message)
+                            .setPositiveButton("OK", null)
+                            .show()
+                    } else {
+                        snack(anchorView, "Product sync failed: ${result.message}", Snackbar.LENGTH_LONG)
+                    }
+                }
                 else -> {}
             }
         }
@@ -270,7 +281,7 @@ object SyncHelper {
                     val hasDups      = preview.dupRows.isNotEmpty()
                     val hasNotFound  = preview.notFoundCodes.isNotEmpty()
 
-                    val toReplace: List<com.simhadri.winentry.data.entity.Purchase> =
+                    val toReplace: List<Purchase> =
                         if (hasDups || hasNotFound) {
                             suspendCancellableCoroutine { cont ->
                                 activity.runOnUiThread {
@@ -462,13 +473,6 @@ object SyncHelper {
 
     // ── Daily stock down-sync (cloud → local DB) ──────────────────────────────
 
-    /**
-     * Pull all committed DailyStock rows from the cloud sheet and upsert them
-     * into the local DB. Used for device restore or data recovery.
-     *
-     * Shows a confirmation dialog before overwriting local data.
-     * After import, caller should refresh the Daily Stock screen.
-     */
     /**
      * Full restore — downloads ALL committed rows from cloud, no date filter.
      * Shows a confirmation dialog before proceeding.

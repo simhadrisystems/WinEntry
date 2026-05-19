@@ -1089,8 +1089,8 @@ exports.onInvitedUserAdded = functions
         continue;
       }
 
-      if (data.status !== "awaiting_approval") {
-        console.log(`onInvitedUserAdded — uid=${uid} already has status=${data.status}, skipping`);
+      if (data.status === "sheet_created") {
+        console.log(`onInvitedUserAdded — uid=${uid} already sheet_created, skipping`);
         continue;
       }
 

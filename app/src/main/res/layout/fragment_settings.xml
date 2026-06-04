@@ -256,17 +256,18 @@
                     android:padding="16dp">
 
                     <FrameLayout
+                        android:id="@+id/driveBackupIconContainer"
                         android:layout_width="52dp"
                         android:layout_height="52dp"
                         android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/settings_sync_light">
+                        android:backgroundTint="@color/module_settings_light">
                         <ImageView
                             android:id="@+id/iconDriveBackup"
                             android:layout_width="40dp"
                             android:layout_height="40dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_settings_drive_backup"
-                            android:tint="@color/settings_sync"
+                            android:tint="@color/module_settings"
                             android:scaleType="fitCenter" />
                     </FrameLayout>
 
@@ -295,11 +296,12 @@
                     </LinearLayout>
 
                     <ImageView
+                        android:id="@+id/driveBackupChevron"
                         android:layout_width="18dp"
                         android:layout_height="18dp"
                         android:layout_marginStart="8dp"
                         android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/settings_sync" />
+                        android:tint="@color/module_settings" />
 
                 </LinearLayout>
 
@@ -392,15 +394,36 @@
                 android:layout_marginTop="4dp"
                 style="@style/Widget.Material3.Button.TextButton"/>
 
-            <TextView
-                android:id="@+id/tvAppVersion"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="20dp"
-                android:paddingBottom="8dp"
-                android:textSize="12sp"
+                android:orientation="horizontal"
                 android:gravity="center"
-                android:textColor="@color/app_text_secondary" />
+                android:paddingTop="20dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:id="@+id/tvAppVersion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/app_text_secondary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCheckUpdate"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Check for Update"
+                    android:textSize="12sp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="0dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 

@@ -44,6 +44,8 @@
     <color name="module_reports_light">#DDD6FE</color><!-- Violet-200 (was Violet-50) -->
     <color name="module_settings">#64748B</color>
     <color name="module_settings_light">#CBD5E1</color><!-- Slate-300 (was Slate-50) -->
+    <color name="module_onboarding">#D97706</color>        <!-- Amber-600 -->
+    <color name="module_onboarding_light">#FDE68A</color>  <!-- Amber-200 -->
 
     <!-- ── Settings sub-menu accent colours (all distinct from home screen modules) ── -->
     <color name="settings_language">#0891B2</color>        <!-- Cyan-600   -->
@@ -112,7 +114,7 @@
     <color name="app_color_qq">#FF4CAF50</color>  <!-- Green-500  -->
     <color name="app_color_pp">#FF2196F3</color>  <!-- Blue-500   -->
     <color name="app_color_nn">#FFFF9800</color>  <!-- Orange-500 -->
-    <color name="app_color_dd">#FF9C27B0</color>  <!-- Purple-700 — overridden in values-night -->
+    <color name="app_color_dd">#AB47BC</color>    <!-- Purple-400 — overridden to Purple-200 in values-night -->
 
     <!-- ── Destructive action colour ────────────────────────────── -->
     <color name="app_color_delete">#B71C1B</color>  <!-- Red-900 -->

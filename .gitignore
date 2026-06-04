@@ -15,3 +15,11 @@ app/build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release artifacts — built outputs, not source
+app/release/
+*.aab
+*.apk
+
+# Firebase / Node dependencies
+functions/node_modules/

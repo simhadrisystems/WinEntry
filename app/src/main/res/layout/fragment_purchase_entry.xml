@@ -23,8 +23,8 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Main Scrollable Content -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
@@ -34,29 +34,44 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:paddingBottom="180dp">
+            android:padding="12dp">
 
-            <!-- Date and Product Selection Card -->
+            <!-- Invoice + Date + Product header card -->
             <com.google.android.material.card.MaterialCardView
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
+                android:layout_marginBottom="10dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="12dp">
 
-                    <!-- Date Picker -->
+                    <!-- Invoice Number (frozen across Add Another) -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:hint="Invoice Number"
+                        app:startIconDrawable="@android:drawable/ic_menu_agenda">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editInvoiceNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurface"
+                            android:inputType="text" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Date picker -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
                         android:hint="Purchase Date"
                         app:startIconDrawable="@android:drawable/ic_menu_today">
 
@@ -64,21 +79,21 @@
                             android:id="@+id/textPurchaseDate"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@android:color/black"
+                            android:textColor="?attr/colorOnSurface"
                             android:focusable="false"
                             android:clickable="true"
                             android:inputType="none" />
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Product Selector with Filtering -->
+                    <!-- Product selector -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/layoutProduct"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="Select Product (Type to filter)"
+                        android:layout_marginTop="10dp"
+                        android:hint="Select Product (type to filter)"
                         app:endIconMode="clear_text"
                         app:startIconDrawable="@android:drawable/arrow_down_float">
 
@@ -86,7 +101,7 @@
                             android:id="@+id/autoCompleteProduct"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@android:color/black"
+                            android:textColor="?attr/colorOnSurface"
                             android:gravity="start|center_vertical"
                             android:ellipsize="end"
                             android:maxLines="1"
@@ -100,23 +115,21 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- QQ Size Card - REDESIGNED -->
+            <!-- QQ Size Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardQQ"
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
+                android:layout_marginBottom="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
-                    <!-- Line 1: Size label + Units/Box -->
+                    <!-- Row 1: Size | Boxes | Loose | Total(Units) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -124,70 +137,20 @@
                         android:gravity="center_vertical">
 
                         <TextView
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="30dp"
                             android:layout_height="wrap_content"
-                            android:text="QQ Size"
-                            android:textStyle="bold"
-                            android:textSize="18sp"
-                            android:textColor="?attr/colorPrimary" />
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchQQEdit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Edit units/box"
-                            android:textSize="12sp"
-                            android:layout_marginEnd="8dp" />
-
-                        <TextView
-                            android:id="@+id/textQQUnitsPerBox"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="12 units/box"
+                            android:text="QQ"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#0D47A1"
-                            android:background="#E3F2FD"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="6dp" />
-
-                    </LinearLayout>
-
-                    <!-- Editable Units Per Box (Hidden by default) -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutQQUnitsPerBox"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="150dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:visibility="gone"
-                        android:hint="Units per box">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editQQUnitsPerBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:textColor="@android:color/black"
-                            android:text="12" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Line 2: Boxes + Loose + Total Units -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp"
-                        android:gravity="center_vertical">
+                            android:textColor="@color/app_color_qq" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Boxes">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -196,8 +159,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -208,7 +171,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Loose">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -217,8 +180,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -226,17 +189,17 @@
 
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1.2"
+                            android:layout_weight="0.7"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Units"
-                                android:textSize="11sp"
-                                android:textColor="#757575" />
+                                android:text="Units"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textQQTotal"
@@ -244,63 +207,78 @@
                                 android:layout_height="wrap_content"
                                 android:text="0"
                                 android:textStyle="bold"
-                                android:textSize="20sp"
-                                android:textColor="?attr/colorPrimary" />
+                                android:textSize="18sp"
+                                android:textColor="@color/app_color_qq" />
 
                         </LinearLayout>
 
                     </LinearLayout>
 
-                    <!-- Line 3: Unit Price + Cost -->
+                    <!-- Row 2: units/box | Price | Edit | Cost -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/textQQUnitsPerBox"
+                            android:layout_width="52dp"
+                            android:layout_height="wrap_content"
+                            android:text="12/box"
+                            android:textSize="11sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:hint="Unit Price"
-                            app:prefixText="₹ ">
+                            android:layout_marginEnd="6dp"
+                            android:hint="₹ Price">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editQQUnitPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
                                 android:text="0" />
 
                         </com.google.android.material.textfield.TextInputLayout>
 
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchQQEdit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="4dp"
+                            android:text="Edit"
+                            android:textSize="11sp" />
+
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_weight="0.8"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Cost"
-                                android:textSize="12sp"
-                                android:textColor="#757575" />
+                                android:text="Cost"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textQQCost"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="₹0.00"
+                                android:text="₹0"
                                 android:textStyle="bold"
-                                android:textSize="18sp"
-                                android:textColor="?attr/colorPrimary"
-                                android:layout_marginTop="4dp" />
+                                android:textSize="13sp"
+                                android:textColor="@color/app_color_qq" />
 
                         </LinearLayout>
 
@@ -310,21 +288,19 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- PP Size Card - Same structure as QQ -->
+            <!-- PP Size Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardPP"
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
+                android:layout_marginBottom="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -333,68 +309,20 @@
                         android:gravity="center_vertical">
 
                         <TextView
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="30dp"
                             android:layout_height="wrap_content"
-                            android:text="PP Size"
-                            android:textStyle="bold"
-                            android:textSize="18sp"
-                            android:textColor="?attr/colorPrimary" />
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchPPEdit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Edit units/box"
-                            android:textSize="12sp"
-                            android:layout_marginEnd="8dp" />
-
-                        <TextView
-                            android:id="@+id/textPPUnitsPerBox"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="24 units/box"
+                            android:text="PP"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#0D47A1"
-                            android:background="#E3F2FD"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="6dp" />
-
-                    </LinearLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutPPUnitsPerBox"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="150dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:visibility="gone"
-                        android:hint="Units per box">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editPPUnitsPerBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:textColor="@android:color/black"
-                            android:text="24" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp"
-                        android:gravity="center_vertical">
+                            android:textColor="@color/app_color_pp" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Boxes">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -403,8 +331,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -415,7 +343,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Loose">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -424,8 +352,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -433,17 +361,17 @@
 
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1.2"
+                            android:layout_weight="0.7"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Units"
-                                android:textSize="11sp"
-                                android:textColor="#757575" />
+                                android:text="Units"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textPPTotal"
@@ -451,8 +379,8 @@
                                 android:layout_height="wrap_content"
                                 android:text="0"
                                 android:textStyle="bold"
-                                android:textSize="20sp"
-                                android:textColor="?attr/colorPrimary" />
+                                android:textSize="18sp"
+                                android:textColor="@color/app_color_pp" />
 
                         </LinearLayout>
 
@@ -462,51 +390,66 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/textPPUnitsPerBox"
+                            android:layout_width="52dp"
+                            android:layout_height="wrap_content"
+                            android:text="24/box"
+                            android:textSize="11sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:hint="Unit Price"
-                            app:prefixText="₹ ">
+                            android:layout_marginEnd="6dp"
+                            android:hint="₹ Price">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editPPUnitPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
                                 android:text="0" />
 
                         </com.google.android.material.textfield.TextInputLayout>
 
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchPPEdit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="4dp"
+                            android:text="Edit"
+                            android:textSize="11sp" />
+
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_weight="0.8"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Cost"
-                                android:textSize="12sp"
-                                android:textColor="#757575" />
+                                android:text="Cost"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textPPCost"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="₹0.00"
+                                android:text="₹0"
                                 android:textStyle="bold"
-                                android:textSize="18sp"
-                                android:textColor="?attr/colorPrimary"
-                                android:layout_marginTop="4dp" />
+                                android:textSize="13sp"
+                                android:textColor="@color/app_color_pp" />
 
                         </LinearLayout>
 
@@ -519,18 +462,16 @@
             <!-- NN Size Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardNN"
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
+                android:layout_marginBottom="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -539,68 +480,20 @@
                         android:gravity="center_vertical">
 
                         <TextView
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="30dp"
                             android:layout_height="wrap_content"
-                            android:text="NN Size"
-                            android:textStyle="bold"
-                            android:textSize="18sp"
-                            android:textColor="?attr/colorPrimary" />
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchNNEdit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Edit units/box"
-                            android:textSize="12sp"
-                            android:layout_marginEnd="8dp" />
-
-                        <TextView
-                            android:id="@+id/textNNUnitsPerBox"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="48 units/box"
+                            android:text="NN"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#0D47A1"
-                            android:background="#E3F2FD"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="6dp" />
-
-                    </LinearLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutNNUnitsPerBox"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="150dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:visibility="gone"
-                        android:hint="Units per box">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editNNUnitsPerBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:textColor="@android:color/black"
-                            android:text="48" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp"
-                        android:gravity="center_vertical">
+                            android:textColor="@color/app_color_nn" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Boxes">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -609,8 +502,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -621,7 +514,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Loose">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -630,8 +523,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -639,17 +532,17 @@
 
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1.2"
+                            android:layout_weight="0.7"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Units"
-                                android:textSize="11sp"
-                                android:textColor="#757575" />
+                                android:text="Units"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textNNTotal"
@@ -657,8 +550,8 @@
                                 android:layout_height="wrap_content"
                                 android:text="0"
                                 android:textStyle="bold"
-                                android:textSize="20sp"
-                                android:textColor="?attr/colorPrimary" />
+                                android:textSize="18sp"
+                                android:textColor="@color/app_color_nn" />
 
                         </LinearLayout>
 
@@ -668,51 +561,66 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/textNNUnitsPerBox"
+                            android:layout_width="52dp"
+                            android:layout_height="wrap_content"
+                            android:text="48/box"
+                            android:textSize="11sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:hint="Unit Price"
-                            app:prefixText="₹ ">
+                            android:layout_marginEnd="6dp"
+                            android:hint="₹ Price">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editNNUnitPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
                                 android:text="0" />
 
                         </com.google.android.material.textfield.TextInputLayout>
 
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchNNEdit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="4dp"
+                            android:text="Edit"
+                            android:textSize="11sp" />
+
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_weight="0.8"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Cost"
-                                android:textSize="12sp"
-                                android:textColor="#757575" />
+                                android:text="Cost"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textNNCost"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="₹0.00"
+                                android:text="₹0"
                                 android:textStyle="bold"
-                                android:textSize="18sp"
-                                android:textColor="?attr/colorPrimary"
-                                android:layout_marginTop="4dp" />
+                                android:textSize="13sp"
+                                android:textColor="@color/app_color_nn" />
 
                         </LinearLayout>
 
@@ -725,18 +633,16 @@
             <!-- DD Size Card -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardDD"
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
+                android:layout_marginBottom="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -745,68 +651,20 @@
                         android:gravity="center_vertical">
 
                         <TextView
-                            android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_width="30dp"
                             android:layout_height="wrap_content"
-                            android:text="DD Size"
-                            android:textStyle="bold"
-                            android:textSize="18sp"
-                            android:textColor="?attr/colorPrimary" />
-
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchDDEdit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Edit units/box"
-                            android:textSize="12sp"
-                            android:layout_marginEnd="8dp" />
-
-                        <TextView
-                            android:id="@+id/textDDUnitsPerBox"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="96 units/box"
+                            android:text="DD"
                             android:textSize="14sp"
                             android:textStyle="bold"
-                            android:textColor="#0D47A1"
-                            android:background="#E3F2FD"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="6dp" />
-
-                    </LinearLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutDDUnitsPerBox"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="150dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:visibility="gone"
-                        android:hint="Units per box">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editDDUnitsPerBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number"
-                            android:textColor="@android:color/black"
-                            android:text="96" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp"
-                        android:gravity="center_vertical">
+                            android:textColor="@color/app_color_dd" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Boxes">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -815,8 +673,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -827,7 +685,7 @@
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="4dp"
                             android:hint="Loose">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -836,8 +694,8 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:imeOptions="actionNext"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="18sp"
                                 android:textStyle="bold"
                                 android:text="0" />
 
@@ -845,17 +703,17 @@
 
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1.2"
+                            android:layout_weight="0.7"
                             android:layout_height="wrap_content"
                             android:orientation="vertical"
-                            android:gravity="center">
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Units"
-                                android:textSize="11sp"
-                                android:textColor="#757575" />
+                                android:text="Units"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textDDTotal"
@@ -863,8 +721,8 @@
                                 android:layout_height="wrap_content"
                                 android:text="0"
                                 android:textStyle="bold"
-                                android:textSize="20sp"
-                                android:textColor="?attr/colorPrimary" />
+                                android:textSize="18sp"
+                                android:textColor="@color/app_color_dd" />
 
                         </LinearLayout>
 
@@ -874,51 +732,66 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
                         android:gravity="center_vertical">
+
+                        <TextView
+                            android:id="@+id/textDDUnitsPerBox"
+                            android:layout_width="52dp"
+                            android:layout_height="wrap_content"
+                            android:text="96/box"
+                            android:textSize="11sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="16dp"
-                            android:hint="Unit Price"
-                            app:prefixText="₹ ">
+                            android:layout_marginEnd="6dp"
+                            android:hint="₹ Price">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/editDDUnitPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
-                                android:textColor="@android:color/black"
-                                android:textSize="16sp"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="14sp"
                                 android:text="0" />
 
                         </com.google.android.material.textfield.TextInputLayout>
 
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchDDEdit"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="4dp"
+                            android:text="Edit"
+                            android:textSize="11sp" />
+
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_weight="1"
+                            android:layout_weight="0.8"
                             android:layout_height="wrap_content"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:gravity="center_horizontal">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Total Cost"
-                                android:textSize="12sp"
-                                android:textColor="#757575" />
+                                android:text="Cost"
+                                android:textSize="10sp"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
 
                             <TextView
                                 android:id="@+id/textDDCost"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="₹0.00"
+                                android:text="₹0"
                                 android:textStyle="bold"
-                                android:textSize="18sp"
-                                android:textColor="?attr/colorPrimary"
-                                android:layout_marginTop="4dp" />
+                                android:textSize="13sp"
+                                android:textColor="@color/app_color_dd" />
 
                         </LinearLayout>
 
@@ -928,65 +801,25 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Grand Total Card -->
+            <!-- Optional: Supplier + Notes -->
             <com.google.android.material.card.MaterialCardView
+                style="@style/Style.App.Card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="4dp"
-                app:cardBackgroundColor="?attr/colorPrimary">
+                android:layout_marginBottom="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="12dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Grand Total"
-                        android:textSize="16sp"
-                        android:textColor="@android:color/white" />
-
-                    <TextView
-                        android:id="@+id/textGrandTotal"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="₹ 0.00"
-                        android:textSize="32sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/white"
-                        android:layout_marginTop="4dp" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Optional Info at Bottom -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@android:color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Optional Information"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="#757575"
+                        android:text="Optional"
+                        android:textSize="12sp"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:layout_marginBottom="8dp" />
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -999,7 +832,7 @@
                             android:id="@+id/editSupplierName"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@android:color/black"
+                            android:textColor="?attr/colorOnSurface"
                             android:inputType="textCapWords" />
 
                     </com.google.android.material.textfield.TextInputLayout>
@@ -1008,30 +841,14 @@
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="Invoice Number">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editInvoiceNumber"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:textColor="@android:color/black"
-                            android:inputType="text" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:hint="Notes">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/editNotes"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@android:color/black"
+                            android:textColor="?attr/colorOnSurface"
                             android:inputType="textMultiLine"
                             android:minLines="2"
                             android:gravity="top" />
@@ -1046,34 +863,55 @@
 
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Bottom Action Bar -->
+    <!-- Bottom action bar -->
     <LinearLayout
+        android:id="@+id/bottomActionBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:background="@color/app_surface"
+        android:orientation="vertical"
+        android:background="?attr/colorSurface"
         android:elevation="8dp">
 
-        <Button
-            android:id="@+id/btnCancel"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+        <TextView
+            android:id="@+id/textGrandTotal"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="Cancel" />
+            android:layout_gravity="end"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:text="Total: ₹0.00"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="?attr/colorPrimary" />
 
-        <Button
-            android:id="@+id/btnSave"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Save Purchase"
-            android:textColor="@android:color/white"
-            android:backgroundTint="#FF388E3C" />
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:paddingTop="4dp">
+
+            <Button
+                android:id="@+id/btnCancel"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Cancel" />
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="0dp"
+                android:layout_weight="2"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Save Purchase"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#FF388E3C" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

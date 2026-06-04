@@ -8,6 +8,10 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Filter
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
+import androidx.core.view.updatePadding
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -40,9 +44,16 @@ class PurchaseEntryFragment : Fragment() {
     // Edit mode tracking
     private var editingPurchaseId: Long? = null
     private var isEditMode = false
-    private var isInsertMode = false      // true when launched via "Insert Here"
-    private var lockedInvoice: String = "" // invoice locked in Insert Here mode
-    private var lockedDate: String = ""    // date locked in Insert Here mode
+    private var isInsertMode = false        // true when launched via "Insert Here" from list
+    private var isDateInvoiceFrozen = false // true after first "Add Another" — locks date+invoice visually but still shows "Add Another" dialog
+    private var lockedInvoice: String = ""
+    private var lockedDate: String = ""
+
+    // Units per box from product master — read-only in form, used for total calculation
+    private var qqUnitsPerBox = 12
+    private var ppUnitsPerBox = 24
+    private var nnUnitsPerBox = 48
+    private var ddUnitsPerBox = 96
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +75,19 @@ class PurchaseEntryFragment : Fragment() {
         setupSelectAllOnFocus()
         setupButtons()
         observeViewModel()
+
+        // Lift action bar above system nav bar if insets reach this fragment
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            if (navBar > 0) binding.bottomActionBar.updatePadding(bottom = navBar)
+            insets
+        }
+        // After the bar is fully measured, set scroll padding = bar height + 16 dp.
+        // doOnLayout fires post-measure so this adapts to actual density and text scale.
+        binding.bottomActionBar.doOnLayout { bar ->
+            val extra = (16 * resources.displayMetrics.density).toInt()
+            binding.nestedScrollView.updatePadding(bottom = bar.height + extra)
+        }
 
         // Check if we're in edit mode - get purchaseId from arguments manually
         arguments?.let {
@@ -171,70 +195,62 @@ class PurchaseEntryFragment : Fragment() {
         }
         
         // Set product name (read-only in edit mode - shows historical product name)
-        binding.autoCompleteProduct.setText(
-            "${purchase.productName} (${purchase.productCode})",
-            false
-        )
+        binding.autoCompleteProduct.setText("${purchase.productName} (${purchase.productCode})", false)
         // Disable product selector in edit mode - can't change product of existing purchase
         binding.autoCompleteProduct.isEnabled = false
         binding.layoutProduct.isEnabled = false
         
         // Populate QQ from Purchase data (uses stored snapshot)
+        if (purchase.qqUnitsPerBox > 0) {
+            qqUnitsPerBox = purchase.qqUnitsPerBox
+            binding.textQQUnitsPerBox.text = "${qqUnitsPerBox}/box"
+        }
         if (purchase.qqTotalUnits > 0 || purchase.qqUnitsPerBox > 0) {
             binding.editQQBoxes.setText(purchase.qqBoxes.toString())
             binding.editQQLoose.setText(purchase.qqLoose.toString())
             binding.editQQUnitPrice.setText(purchase.qqUnitPrice.toString())
-            binding.editQQUnitsPerBox.setText(purchase.qqUnitsPerBox.toString())
-            if (purchase.qqUnitsPerBox > 0) {
-                binding.textQQUnitsPerBox.text = "${purchase.qqUnitsPerBox} units/box"
-                binding.textQQUnitsPerBox.visibility = View.VISIBLE
-            }
-            // Enable fields and show edit controls
             binding.cardQQ.alpha = 1.0f
             binding.editQQBoxes.isEnabled = true
             binding.editQQLoose.isEnabled = true
         }
-        
+
         // Populate PP from Purchase data
+        if (purchase.ppUnitsPerBox > 0) {
+            ppUnitsPerBox = purchase.ppUnitsPerBox
+            binding.textPPUnitsPerBox.text = "${ppUnitsPerBox}/box"
+        }
         if (purchase.ppTotalUnits > 0 || purchase.ppUnitsPerBox > 0) {
             binding.editPPBoxes.setText(purchase.ppBoxes.toString())
             binding.editPPLoose.setText(purchase.ppLoose.toString())
             binding.editPPUnitPrice.setText(purchase.ppUnitPrice.toString())
-            binding.editPPUnitsPerBox.setText(purchase.ppUnitsPerBox.toString())
-            if (purchase.ppUnitsPerBox > 0) {
-                binding.textPPUnitsPerBox.text = "${purchase.ppUnitsPerBox} units/box"
-                binding.textPPUnitsPerBox.visibility = View.VISIBLE
-            }
             binding.cardPP.alpha = 1.0f
             binding.editPPBoxes.isEnabled = true
             binding.editPPLoose.isEnabled = true
         }
-        
+
         // Populate NN from Purchase data
+        if (purchase.nnUnitsPerBox > 0) {
+            nnUnitsPerBox = purchase.nnUnitsPerBox
+            binding.textNNUnitsPerBox.text = "${nnUnitsPerBox}/box"
+        }
         if (purchase.nnTotalUnits > 0 || purchase.nnUnitsPerBox > 0) {
             binding.editNNBoxes.setText(purchase.nnBoxes.toString())
             binding.editNNLoose.setText(purchase.nnLoose.toString())
             binding.editNNUnitPrice.setText(purchase.nnUnitPrice.toString())
-            binding.editNNUnitsPerBox.setText(purchase.nnUnitsPerBox.toString())
-            if (purchase.nnUnitsPerBox > 0) {
-                binding.textNNUnitsPerBox.text = "${purchase.nnUnitsPerBox} units/box"
-                binding.textNNUnitsPerBox.visibility = View.VISIBLE
-            }
             binding.cardNN.alpha = 1.0f
             binding.editNNBoxes.isEnabled = true
             binding.editNNLoose.isEnabled = true
         }
-        
+
         // Populate DD from Purchase data
+        if (purchase.ddUnitsPerBox > 0) {
+            ddUnitsPerBox = purchase.ddUnitsPerBox
+            binding.textDDUnitsPerBox.text = "${ddUnitsPerBox}/box"
+        }
         if (purchase.ddTotalUnits > 0 || purchase.ddUnitsPerBox > 0) {
             binding.editDDBoxes.setText(purchase.ddBoxes.toString())
             binding.editDDLoose.setText(purchase.ddLoose.toString())
             binding.editDDUnitPrice.setText(purchase.ddUnitPrice.toString())
-            binding.editDDUnitsPerBox.setText(purchase.ddUnitsPerBox.toString())
-            if (purchase.ddUnitsPerBox > 0) {
-                binding.textDDUnitsPerBox.text = "${purchase.ddUnitsPerBox} units/box"
-                binding.textDDUnitsPerBox.visibility = View.VISIBLE
-            }
             binding.cardDD.alpha = 1.0f
             binding.editDDBoxes.isEnabled = true
             binding.editDDLoose.isEnabled = true
@@ -332,12 +348,32 @@ class PurchaseEntryFragment : Fragment() {
     private fun setupProductSelector() {
         viewModel.allProducts.observe(viewLifecycleOwner) { products ->
             val productStrings = products.map { "${it.displayName} (${it.productType}${it.brandCode})" }
-            val productAdapter = buildProductAdapter(products, productStrings)
+            val noProducts = products.isEmpty()
 
+            val productAdapter = buildProductAdapter(products, productStrings, binding.autoCompleteProduct)
             binding.autoCompleteProduct.setAdapter(productAdapter)
             binding.autoCompleteProduct.threshold = 1
 
+            // Show hint in the field when no products are downloaded
+            binding.layoutProduct.hint = if (noProducts)
+                "No products — download from Home screen first"
+            else
+                "Select Product (type to filter)"
+
+            val noProductsMsg = "No products available. Go to Home screen → Getting Started → Import Product List."
+
+            binding.autoCompleteProduct.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus && noProducts) {
+                    Toast.makeText(requireContext(), noProductsMsg, Toast.LENGTH_LONG).show()
+                    binding.autoCompleteProduct.clearFocus()
+                }
+            }
+
             binding.layoutProduct.setStartIconOnClickListener {
+                if (noProducts) {
+                    Toast.makeText(requireContext(), noProductsMsg, Toast.LENGTH_LONG).show()
+                    return@setStartIconOnClickListener
+                }
                 productAdapter.setNotifyOnChange(false)
                 productAdapter.clear()
                 productAdapter.addAll(productStrings)
@@ -349,26 +385,13 @@ class PurchaseEntryFragment : Fragment() {
             }
 
             binding.autoCompleteProduct.setOnItemClickListener { parent, _, position, _ ->
-                // Get the actual text that was clicked
                 val selectedText = parent.getItemAtPosition(position) as String
-                
-                // Find the matching product by display text
                 val selectedProduct = products.find {
                     "${it.displayName} (${it.productType}${it.brandCode})" == selectedText
                 }
-                
                 if (selectedProduct != null) {
-                    // Update ViewModel first
                     viewModel.selectProduct(selectedProduct)
-                    
-                    // Wait for ViewModel to update, then update UI
-                    binding.root.post {
-                        // Verify ViewModel was updated correctly
-                        val currentCalc = viewModel.currentPurchase.value
-                        android.util.Log.d("PurchaseEntry", "Selected: ${selectedProduct.displayName}, QQ units/box: ${currentCalc?.qqUnitsPerBox}")
-                        
-                        updateProductInfo(selectedProduct)
-                    }
+                    binding.root.post { updateProductInfo(selectedProduct) }
                 }
             }
         }
@@ -376,7 +399,8 @@ class PurchaseEntryFragment : Fragment() {
 
     private fun buildProductAdapter(
         products: List<Product>,
-        productStrings: List<String>
+        productStrings: List<String>,
+        actv: android.widget.AutoCompleteTextView
     ): ArrayAdapter<String> {
         return object : ArrayAdapter<String>(requireContext(), R.layout.dropdown_item, productStrings.toMutableList()) {
             private val cachedFilter: Filter = object : Filter() {
@@ -408,9 +432,15 @@ class PurchaseEntryFragment : Fragment() {
                     clear()
                     if (results != null && results.count > 0) addAll(results.values as List<String>)
                     notifyDataSetChanged()
+                    // The internal AutoCompleteTextView onFilterComplete→showDropDown chain can
+                    // silently skip when hasWindowFocus() is false at filter-complete time (a
+                    // transient state caused by concurrent doOnLayout/inset layout passes).
+                    // Calling showDropDown() here, after the adapter is populated, is reliable.
+                    if (results != null && results.count > 0) {
+                        actv.post { if (actv.isFocused) actv.showDropDown() }
+                    }
                 }
             }
-
             override fun getFilter(): Filter = cachedFilter
         }
     }
@@ -419,40 +449,16 @@ class PurchaseEntryFragment : Fragment() {
         // Disable text watcher callbacks temporarily
         isTextWatchersActive = false
         
-        // Update units per box - only show if value is > 0
-        if (product.qqUnitsPerBox > 0) {
-            binding.textQQUnitsPerBox.text = "${product.qqUnitsPerBox} units/box"
-            binding.textQQUnitsPerBox.visibility = View.VISIBLE
-        } else {
-            binding.textQQUnitsPerBox.visibility = View.GONE
-        }
-        
-        if (product.ppUnitsPerBox > 0) {
-            binding.textPPUnitsPerBox.text = "${product.ppUnitsPerBox} units/box"
-            binding.textPPUnitsPerBox.visibility = View.VISIBLE
-        } else {
-            binding.textPPUnitsPerBox.visibility = View.GONE
-        }
-        
-        if (product.nnUnitsPerBox > 0) {
-            binding.textNNUnitsPerBox.text = "${product.nnUnitsPerBox} units/box"
-            binding.textNNUnitsPerBox.visibility = View.VISIBLE
-        } else {
-            binding.textNNUnitsPerBox.visibility = View.GONE
-        }
-        
-        if (product.ddUnitsPerBox > 0) {
-            binding.textDDUnitsPerBox.text = "${product.ddUnitsPerBox} units/box"
-            binding.textDDUnitsPerBox.visibility = View.VISIBLE
-        } else {
-            binding.textDDUnitsPerBox.visibility = View.GONE
-        }
+        // Update units per box member vars and read-only badge
+        qqUnitsPerBox = if (product.qqUnitsPerBox > 0) product.qqUnitsPerBox else 12
+        ppUnitsPerBox = if (product.ppUnitsPerBox > 0) product.ppUnitsPerBox else 24
+        nnUnitsPerBox = if (product.nnUnitsPerBox > 0) product.nnUnitsPerBox else 48
+        ddUnitsPerBox = if (product.ddUnitsPerBox > 0) product.ddUnitsPerBox else 96
 
-        // Update the editable units per box fields (actual values)
-        binding.editQQUnitsPerBox.setText(product.qqUnitsPerBox.toString())
-        binding.editPPUnitsPerBox.setText(product.ppUnitsPerBox.toString())
-        binding.editNNUnitsPerBox.setText(product.nnUnitsPerBox.toString())
-        binding.editDDUnitsPerBox.setText(product.ddUnitsPerBox.toString())
+        binding.textQQUnitsPerBox.text = "${qqUnitsPerBox}/box"
+        binding.textPPUnitsPerBox.text = "${ppUnitsPerBox}/box"
+        binding.textNNUnitsPerBox.text = "${nnUnitsPerBox}/box"
+        binding.textDDUnitsPerBox.text = "${ddUnitsPerBox}/box"
 
         // Set unit prices from product
         binding.editQQUnitPrice.setText(product.qqPurchasePrice.toString())
@@ -495,140 +501,65 @@ class PurchaseEntryFragment : Fragment() {
         binding.editQQUnitPrice.alpha = 0.6f
         
         binding.switchQQEdit.setOnCheckedChangeListener { _, isChecked ->
-            binding.layoutQQUnitsPerBox.visibility = if (isChecked) View.VISIBLE else View.GONE
             binding.editQQUnitPrice.isEnabled = isChecked
             binding.editQQUnitPrice.alpha = if (isChecked) 1.0f else 0.6f
-            
-            // Enable boxes/loose fields when edit is ON (even if price is 0)
-            binding.editQQBoxes.isEnabled = isChecked || (viewModel.selectedProduct.value?.qqPurchasePrice ?: 0.0) > 0
-            binding.editQQLoose.isEnabled = isChecked || (viewModel.selectedProduct.value?.qqPurchasePrice ?: 0.0) > 0
-            binding.cardQQ.alpha = if (isChecked || (viewModel.selectedProduct.value?.qqPurchasePrice ?: 0.0) > 0) 1.0f else 0.4f
-            
-            // Show units/box badge when edit is ON
-            binding.textQQUnitsPerBox.visibility = if (isChecked || (viewModel.selectedProduct.value?.qqPurchasePrice ?: 0.0) > 0) View.VISIBLE else View.GONE
+            val qqPrice = viewModel.selectedProduct.value?.qqPurchasePrice ?: 0.0
+            binding.editQQBoxes.isEnabled = isChecked || qqPrice > 0
+            binding.editQQLoose.isEnabled = isChecked || qqPrice > 0
+            binding.cardQQ.alpha = if (isChecked || qqPrice > 0) 1.0f else 0.4f
             wireImeChain()
-            android.util.Log.d("PurchaseEntry", "QQ Edit switch: $isChecked, Price enabled: ${binding.editQQUnitPrice.isEnabled}")
         }
-        
-        binding.editQQUnitsPerBox.addTextChangedListener {
-            if (binding.switchQQEdit.isChecked) {
-                val newValue = it.toString().toIntOrNull() ?: 12
-                binding.textQQUnitsPerBox.text = "$newValue units/box"
-                calculateQQ()
-            }
-        }
-        
-        binding.editQQBoxes.addTextChangedListener { 
-            calculateQQ()
-        }
-        binding.editQQLoose.addTextChangedListener { 
-            calculateQQ()
-        }
-        binding.editQQUnitPrice.addTextChangedListener { 
-            calculateQQ()
-        }
+        binding.editQQBoxes.addTextChangedListener { calculateQQ() }
+        binding.editQQLoose.addTextChangedListener { calculateQQ() }
+        binding.editQQUnitPrice.addTextChangedListener { calculateQQ() }
 
-        // PP Size - Initialize disabled state
+        // PP Size
         binding.editPPUnitPrice.isEnabled = false
         binding.editPPUnitPrice.alpha = 0.6f
-        
         binding.switchPPEdit.setOnCheckedChangeListener { _, isChecked ->
-            binding.layoutPPUnitsPerBox.visibility = if (isChecked) View.VISIBLE else View.GONE
             binding.editPPUnitPrice.isEnabled = isChecked
             binding.editPPUnitPrice.alpha = if (isChecked) 1.0f else 0.6f
-            
-            binding.editPPBoxes.isEnabled = isChecked || (viewModel.selectedProduct.value?.ppPurchasePrice ?: 0.0) > 0
-            binding.editPPLoose.isEnabled = isChecked || (viewModel.selectedProduct.value?.ppPurchasePrice ?: 0.0) > 0
-            binding.cardPP.alpha = if (isChecked || (viewModel.selectedProduct.value?.ppPurchasePrice ?: 0.0) > 0) 1.0f else 0.4f
-            binding.textPPUnitsPerBox.visibility = if (isChecked || (viewModel.selectedProduct.value?.ppPurchasePrice ?: 0.0) > 0) View.VISIBLE else View.GONE
+            val ppPrice = viewModel.selectedProduct.value?.ppPurchasePrice ?: 0.0
+            binding.editPPBoxes.isEnabled = isChecked || ppPrice > 0
+            binding.editPPLoose.isEnabled = isChecked || ppPrice > 0
+            binding.cardPP.alpha = if (isChecked || ppPrice > 0) 1.0f else 0.4f
             wireImeChain()
         }
+        binding.editPPBoxes.addTextChangedListener { calculatePP() }
+        binding.editPPLoose.addTextChangedListener { calculatePP() }
+        binding.editPPUnitPrice.addTextChangedListener { calculatePP() }
 
-        binding.editPPUnitsPerBox.addTextChangedListener {
-            if (binding.switchPPEdit.isChecked) {
-                val newValue = it.toString().toIntOrNull() ?: 24
-                binding.textPPUnitsPerBox.text = "$newValue units/box"
-                calculatePP()
-            }
-        }
-        
-        binding.editPPBoxes.addTextChangedListener { 
-            calculatePP()
-        }
-        binding.editPPLoose.addTextChangedListener { 
-            calculatePP()
-        }
-        binding.editPPUnitPrice.addTextChangedListener { 
-            calculatePP()
-        }
-
-        // NN Size - Initialize disabled state
+        // NN Size
         binding.editNNUnitPrice.isEnabled = false
         binding.editNNUnitPrice.alpha = 0.6f
-        
         binding.switchNNEdit.setOnCheckedChangeListener { _, isChecked ->
-            binding.layoutNNUnitsPerBox.visibility = if (isChecked) View.VISIBLE else View.GONE
             binding.editNNUnitPrice.isEnabled = isChecked
             binding.editNNUnitPrice.alpha = if (isChecked) 1.0f else 0.6f
-            
-            binding.editNNBoxes.isEnabled = isChecked || (viewModel.selectedProduct.value?.nnPurchasePrice ?: 0.0) > 0
-            binding.editNNLoose.isEnabled = isChecked || (viewModel.selectedProduct.value?.nnPurchasePrice ?: 0.0) > 0
-            binding.cardNN.alpha = if (isChecked || (viewModel.selectedProduct.value?.nnPurchasePrice ?: 0.0) > 0) 1.0f else 0.4f
-            binding.textNNUnitsPerBox.visibility = if (isChecked || (viewModel.selectedProduct.value?.nnPurchasePrice ?: 0.0) > 0) View.VISIBLE else View.GONE
+            val nnPrice = viewModel.selectedProduct.value?.nnPurchasePrice ?: 0.0
+            binding.editNNBoxes.isEnabled = isChecked || nnPrice > 0
+            binding.editNNLoose.isEnabled = isChecked || nnPrice > 0
+            binding.cardNN.alpha = if (isChecked || nnPrice > 0) 1.0f else 0.4f
             wireImeChain()
         }
+        binding.editNNBoxes.addTextChangedListener { calculateNN() }
+        binding.editNNLoose.addTextChangedListener { calculateNN() }
+        binding.editNNUnitPrice.addTextChangedListener { calculateNN() }
 
-        binding.editNNUnitsPerBox.addTextChangedListener {
-            if (binding.switchNNEdit.isChecked) {
-                val newValue = it.toString().toIntOrNull() ?: 48
-                binding.textNNUnitsPerBox.text = "$newValue units/box"
-                calculateNN()
-            }
-        }
-        
-        binding.editNNBoxes.addTextChangedListener { 
-            calculateNN()
-        }
-        binding.editNNLoose.addTextChangedListener { 
-            calculateNN()
-        }
-        binding.editNNUnitPrice.addTextChangedListener { 
-            calculateNN()
-        }
-
-        // DD Size - Initialize disabled state
+        // DD Size
         binding.editDDUnitPrice.isEnabled = false
         binding.editDDUnitPrice.alpha = 0.6f
-        
         binding.switchDDEdit.setOnCheckedChangeListener { _, isChecked ->
-            binding.layoutDDUnitsPerBox.visibility = if (isChecked) View.VISIBLE else View.GONE
             binding.editDDUnitPrice.isEnabled = isChecked
             binding.editDDUnitPrice.alpha = if (isChecked) 1.0f else 0.6f
-            
-            binding.editDDBoxes.isEnabled = isChecked || (viewModel.selectedProduct.value?.ddPurchasePrice ?: 0.0) > 0
-            binding.editDDLoose.isEnabled = isChecked || (viewModel.selectedProduct.value?.ddPurchasePrice ?: 0.0) > 0
-            binding.cardDD.alpha = if (isChecked || (viewModel.selectedProduct.value?.ddPurchasePrice ?: 0.0) > 0) 1.0f else 0.4f
-            binding.textDDUnitsPerBox.visibility = if (isChecked || (viewModel.selectedProduct.value?.ddPurchasePrice ?: 0.0) > 0) View.VISIBLE else View.GONE
+            val ddPrice = viewModel.selectedProduct.value?.ddPurchasePrice ?: 0.0
+            binding.editDDBoxes.isEnabled = isChecked || ddPrice > 0
+            binding.editDDLoose.isEnabled = isChecked || ddPrice > 0
+            binding.cardDD.alpha = if (isChecked || ddPrice > 0) 1.0f else 0.4f
             wireImeChain()
         }
-
-        binding.editDDUnitsPerBox.addTextChangedListener {
-            if (binding.switchDDEdit.isChecked) {
-                val newValue = it.toString().toIntOrNull() ?: 96
-                binding.textDDUnitsPerBox.text = "$newValue units/box"
-                calculateDD()
-            }
-        }
-        
-        binding.editDDBoxes.addTextChangedListener { 
-            calculateDD()
-        }
-        binding.editDDLoose.addTextChangedListener { 
-            calculateDD()
-        }
-        binding.editDDUnitPrice.addTextChangedListener { 
-            calculateDD()
-        }
+        binding.editDDBoxes.addTextChangedListener { calculateDD() }
+        binding.editDDLoose.addTextChangedListener { calculateDD() }
+        binding.editDDUnitPrice.addTextChangedListener { calculateDD() }
 
         // Metadata
         binding.editSupplierName.addTextChangedListener { updateMetadata() }
@@ -647,7 +578,7 @@ class PurchaseEntryFragment : Fragment() {
         val unitPrice = binding.editQQUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
         
         // Get units per box from edit field (updated by switch or product selection)
-        val unitsPerBox = binding.editQQUnitsPerBox.text.toString().toIntOrNull() ?: 12
+        val unitsPerBox = qqUnitsPerBox
         
         // VALIDATION: Loose units must be less than units per box
         if (loose >= unitsPerBox && unitsPerBox > 0) {
@@ -676,7 +607,7 @@ class PurchaseEntryFragment : Fragment() {
         val loose = binding.editPPLoose.text.toString().toIntOrNull() ?: 0
         val unitPrice = binding.editPPUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
         
-        val unitsPerBox = binding.editPPUnitsPerBox.text.toString().toIntOrNull() ?: 24
+        val unitsPerBox = ppUnitsPerBox
         
         // VALIDATION: Loose units must be less than units per box
         if (loose >= unitsPerBox && unitsPerBox > 0) {
@@ -704,7 +635,7 @@ class PurchaseEntryFragment : Fragment() {
         val loose = binding.editNNLoose.text.toString().toIntOrNull() ?: 0
         val unitPrice = binding.editNNUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
         
-        val unitsPerBox = binding.editNNUnitsPerBox.text.toString().toIntOrNull() ?: 48
+        val unitsPerBox = nnUnitsPerBox
         
         // VALIDATION: Loose units must be less than units per box
         if (loose >= unitsPerBox && unitsPerBox > 0) {
@@ -732,7 +663,7 @@ class PurchaseEntryFragment : Fragment() {
         val loose = binding.editDDLoose.text.toString().toIntOrNull() ?: 0
         val unitPrice = binding.editDDUnitPrice.text.toString().toDoubleOrNull() ?: 0.0
         
-        val unitsPerBox = binding.editDDUnitsPerBox.text.toString().toIntOrNull() ?: 96
+        val unitsPerBox = ddUnitsPerBox
         
         // VALIDATION: Loose units must be less than units per box
         if (loose >= unitsPerBox && unitsPerBox > 0) {
@@ -754,8 +685,8 @@ class PurchaseEntryFragment : Fragment() {
     }
 
     private fun updateMetadata() {
-        // In Insert Here mode, date and invoice are locked — never let text watchers overwrite them
-        if (isInsertMode) {
+        // In Insert Here mode or after Add Another, date and invoice are locked
+        if (isInsertMode || isDateInvoiceFrozen) {
             viewModel.updateMetadata(
                 date     = lockedDate,
                 supplier = binding.editSupplierName.text.toString(),
@@ -786,10 +717,10 @@ class PurchaseEntryFragment : Fragment() {
 
     private fun setupSelectAllOnFocus() {
         listOf(
-            binding.editQQBoxes, binding.editQQLoose, binding.editQQUnitPrice, binding.editQQUnitsPerBox,
-            binding.editPPBoxes, binding.editPPLoose, binding.editPPUnitPrice, binding.editPPUnitsPerBox,
-            binding.editNNBoxes, binding.editNNLoose, binding.editNNUnitPrice, binding.editNNUnitsPerBox,
-            binding.editDDBoxes, binding.editDDLoose, binding.editDDUnitPrice, binding.editDDUnitsPerBox
+            binding.editQQBoxes, binding.editQQLoose, binding.editQQUnitPrice,
+            binding.editPPBoxes, binding.editPPLoose, binding.editPPUnitPrice,
+            binding.editNNBoxes, binding.editNNLoose, binding.editNNUnitPrice,
+            binding.editDDBoxes, binding.editDDLoose, binding.editDDUnitPrice
         ).forEach { it.setSelectAllOnFocus(true) }
     }
 
@@ -860,49 +791,6 @@ class PurchaseEntryFragment : Fragment() {
     private fun observeViewModel() {
         // Observe current purchase calculations
         viewModel.currentPurchase.observe(viewLifecycleOwner) { calc ->
-            // Update units per box displays - hide if 0
-            if (calc.qqUnitsPerBox > 0) {
-                binding.textQQUnitsPerBox.text = "${calc.qqUnitsPerBox} units/box"
-                binding.textQQUnitsPerBox.visibility = View.VISIBLE
-            } else {
-                binding.textQQUnitsPerBox.visibility = View.GONE
-            }
-            
-            if (calc.ppUnitsPerBox > 0) {
-                binding.textPPUnitsPerBox.text = "${calc.ppUnitsPerBox} units/box"
-                binding.textPPUnitsPerBox.visibility = View.VISIBLE
-            } else {
-                binding.textPPUnitsPerBox.visibility = View.GONE
-            }
-            
-            if (calc.nnUnitsPerBox > 0) {
-                binding.textNNUnitsPerBox.text = "${calc.nnUnitsPerBox} units/box"
-                binding.textNNUnitsPerBox.visibility = View.VISIBLE
-            } else {
-                binding.textNNUnitsPerBox.visibility = View.GONE
-            }
-            
-            if (calc.ddUnitsPerBox > 0) {
-                binding.textDDUnitsPerBox.text = "${calc.ddUnitsPerBox} units/box"
-                binding.textDDUnitsPerBox.visibility = View.VISIBLE
-            } else {
-                binding.textDDUnitsPerBox.visibility = View.GONE
-            }
-            
-            // Update editable fields to keep them in sync (if not being manually edited)
-            if (!binding.switchQQEdit.isChecked) {
-                binding.editQQUnitsPerBox.setText(calc.qqUnitsPerBox.toString())
-            }
-            if (!binding.switchPPEdit.isChecked) {
-                binding.editPPUnitsPerBox.setText(calc.ppUnitsPerBox.toString())
-            }
-            if (!binding.switchNNEdit.isChecked) {
-                binding.editNNUnitsPerBox.setText(calc.nnUnitsPerBox.toString())
-            }
-            if (!binding.switchDDEdit.isChecked) {
-                binding.editDDUnitsPerBox.setText(calc.ddUnitsPerBox.toString())
-            }
-            
             // Update totals and costs
             binding.textQQTotal.text = calc.qqTotalUnits.toString()
             binding.textQQCost.text = currencyFormat.format(calc.qqTotalCost)
@@ -929,9 +817,18 @@ class PurchaseEntryFragment : Fragment() {
                 is PurchaseViewModel.SaveStatus.Success -> {
                     binding.btnSave.isEnabled = true
                     binding.btnSave.text = if (isEditMode) "Update Purchase" else "Save Purchase"
-                    
-                    val message = if (isEditMode) "✓ Purchase updated successfully" else "✓ Purchase saved successfully"
+
+                    val message = if (isEditMode) "Purchase updated" else "Purchase saved"
                     Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+
+                    if (status.activatedProductName.isNotEmpty()) {
+                        com.google.android.material.snackbar.Snackbar.make(
+                            binding.root,
+                            "'${status.activatedProductName}' activated — it will now appear in Daily Stock",
+                            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                        ).show()
+                    }
+
                     viewModel.clearSaveStatus()
                     
                     if (isEditMode || isInsertMode) {
@@ -944,7 +841,20 @@ class PurchaseEntryFragment : Fragment() {
                             .setMessage("Add another purchase or go back?")
                             .setCancelable(false)
                             .setPositiveButton("Add Another") { _, _ ->
+                                val keepInvoice = binding.editInvoiceNumber.text.toString()
+                                val keepDateDisplay = binding.textPurchaseDate.text.toString()
+                                lockedDate = try {
+                                    displayDateFormat.parse(keepDateDisplay)
+                                        ?.let { dateFormat.format(it) }
+                                        ?: dateFormat.format(Calendar.getInstance().time)
+                                } catch (e: Exception) { dateFormat.format(Calendar.getInstance().time) }
+                                lockedInvoice = keepInvoice
+                                isDateInvoiceFrozen = true
                                 resetForm()
+                                binding.editInvoiceNumber.isEnabled = false
+                                binding.editInvoiceNumber.alpha = 0.6f
+                                binding.textPurchaseDate.isEnabled = false
+                                binding.textPurchaseDate.alpha = 0.6f
                             }
                             .setNegativeButton("Go Back") { _, _ ->
                                 findNavController().navigateUp()
@@ -1041,19 +951,13 @@ class PurchaseEntryFragment : Fragment() {
         binding.textPurchaseDate.setText(retainedDate)
         binding.editInvoiceNumber.setText(retainedInvoice)
 
-        // Reset edit switches to OFF and lock prices
+        // Reset edit switches to OFF — switch listener handles price lock
         binding.switchQQEdit.isChecked = false
         binding.switchPPEdit.isChecked = false
         binding.switchNNEdit.isChecked = false
         binding.switchDDEdit.isChecked = false
 
-        // Hide units per box edit fields
-        binding.layoutQQUnitsPerBox.visibility = View.GONE
-        binding.layoutPPUnitsPerBox.visibility = View.GONE
-        binding.layoutNNUnitsPerBox.visibility = View.GONE
-        binding.layoutDDUnitsPerBox.visibility = View.GONE
-
-        // Lock and gray out prices
+        // Lock and gray out prices explicitly (switch listener may not fire if already unchecked)
         binding.editQQUnitPrice.isEnabled = false
         binding.editQQUnitPrice.alpha = 0.6f
         binding.editPPUnitPrice.isEnabled = false

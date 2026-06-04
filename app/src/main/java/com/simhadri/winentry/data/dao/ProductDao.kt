@@ -69,6 +69,9 @@ interface ProductDao {
     
     @Query("SELECT * FROM products ORDER BY displayName")
     suspend fun getAllProductsSync(): List<Product>
+
+    @Query("SELECT * FROM products ORDER BY dailySortKey ASC, displayName ASC")
+    suspend fun getAllProductsByDailySortKeySync(): List<Product>
     
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun getProductById(id: Long): Product?
@@ -88,6 +91,9 @@ interface ProductDao {
     @Delete
     suspend fun deleteProduct(product: Product)
     
+    @Query("SELECT COUNT(*) FROM products")
+    suspend fun getCount(): Int
+
     @Query("DELETE FROM products")
     suspend fun deleteAll()
 }

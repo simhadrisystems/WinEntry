@@ -1,15 +1,19 @@
 package com.simhadri.winentry.ui.settings
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Build
+import androidx.core.content.ContextCompat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.simhadri.winentry.ui.update.AppUpdateManager
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.simhadri.winentry.BuildConfig
@@ -34,6 +38,10 @@ class SettingsFragment : Fragment() {
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
+
+    private val updateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { /* result informational */ }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -83,7 +91,17 @@ class SettingsFragment : Fragment() {
             showDriveBackupOptions()
         }
 
-        binding.tvAppVersion.text = "WinEntry v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+        binding.tvAppVersion.text = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+
+        binding.btnCheckUpdate.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val updateStarted = AppUpdateManager(requireActivity())
+                    .checkForUpdatesManually(updateLauncher)
+                if (!updateStarted) {
+                    Toast.makeText(requireContext(), "You're up to date.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
 
         // ── Error Log ─────────────────────────────────────────────────────
         // Show share button only when errors exist — hidden otherwise
@@ -121,6 +139,7 @@ class SettingsFragment : Fragment() {
             sync.isUserSheetReady() -> {
                 binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupActiveTitle.get(lang)
                 binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupActiveDesc.get(lang)
+                updateDriveCardVisuals(DriveState.ACTIVE)
                 // One-time registry refresh: ensures processedAt/role/sheetUrl are updated
                 // for users whose sheet was activated before the full registry write was in place.
                 val prefs = requireContext()
@@ -149,6 +168,7 @@ class SettingsFragment : Fragment() {
                     binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupPendingTitle.get(lang)
                     binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupPendingDesc.get(lang)
                 }
+                updateDriveCardVisuals(DriveState.PENDING)
                 // Also check Firestore in case the sheet was created after the request
                 val uid = prefs.getString(AuthViewModel.KEY_USER_UID, null)
                 if (!uid.isNullOrBlank()) {
@@ -160,8 +180,30 @@ class SettingsFragment : Fragment() {
             else -> {
                 binding.textMyDriveTitle.text = AppStrings.settingsDriveBackupRequestTitle.get(lang)
                 binding.textMyDriveDesc.text  = AppStrings.settingsDriveBackupRequestDesc.get(lang)
+                updateDriveCardVisuals(DriveState.INACTIVE)
             }
         }
+    }
+
+    private enum class DriveState { INACTIVE, PENDING, ACTIVE }
+
+    private fun updateDriveCardVisuals(state: DriveState) {
+        val bgRes = when (state) {
+            DriveState.ACTIVE   -> R.color.settings_download_light
+            DriveState.PENDING  -> R.color.settings_test_data_light
+            DriveState.INACTIVE -> R.color.module_settings_light
+        }
+        val accentRes = when (state) {
+            DriveState.ACTIVE   -> R.color.settings_download
+            DriveState.PENDING  -> R.color.settings_test_data
+            DriveState.INACTIVE -> R.color.module_settings
+        }
+        val bg     = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), bgRes))
+        val accent = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), accentRes))
+        binding.cardMyDrive.setCardBackgroundColor(bg)
+        binding.driveBackupIconContainer.backgroundTintList = bg
+        binding.iconDriveBackup.imageTintList               = accent
+        binding.driveBackupChevron.imageTintList            = accent
     }
 
     /**

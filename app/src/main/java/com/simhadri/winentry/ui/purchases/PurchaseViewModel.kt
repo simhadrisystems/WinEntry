@@ -288,7 +288,15 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 android.util.Log.d("PurchaseViewModel", "Purchase object created with date: ${purchase.purchaseDate}")
                 repository.insert(purchase)
                 android.util.Log.d("PurchaseViewModel", "Purchase saved to database")
-                _saveStatus.value = SaveStatus.Success
+
+                // Auto-activate product if it was inactive — purchasing it means tracking it
+                val selectedProduct = _selectedProduct.value
+                val activatedName = if (selectedProduct != null && !selectedProduct.isActive) {
+                    productDao.updateProduct(selectedProduct.copy(isActive = true))
+                    selectedProduct.displayName
+                } else ""
+
+                _saveStatus.value = SaveStatus.Success(activatedName)
                 resetForm()
 
             } catch (e: Exception) {
@@ -509,7 +517,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
 
                 repository.update(purchase)
                 android.util.Log.d("PurchaseViewModel", "Purchase updated")
-                _saveStatus.value = SaveStatus.Success
+                _saveStatus.value = SaveStatus.Success()
                 resetForm()
 
             } catch (e: Exception) {
@@ -760,7 +768,8 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
 
     sealed class SaveStatus {
         object Saving : SaveStatus()
-        object Success : SaveStatus()
+        /** Purchase saved. activatedProductName is non-empty when an inactive product was auto-activated. */
+        data class Success(val activatedProductName: String = "") : SaveStatus()
         data class Error(val message: String) : SaveStatus()
         /** Duplicate product found for same date+invoice — carry its ID so Fragment can navigate to Edit */
         data class DuplicateFound(val existingPurchaseId: Long, val productName: String, val date: String, val invoice: String) : SaveStatus()

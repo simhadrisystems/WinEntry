@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Top row: language toggle (left) + close button (right) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/langToggleGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLangEn"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="English"
+                    android:textSize="12sp"
+                    android:minWidth="0dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLangTe"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="తెలుగు"
+                    android:textSize="12sp"
+                    android:minWidth="0dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp" />
+
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/btnClose"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_close"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close"
+                android:tint="?attr/colorOnSurface" />
+
+        </LinearLayout>
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvOnboardingTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:fontFamily="@font/ramabhadra_regular"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Welcome subtitle -->
+        <TextView
+            android:id="@+id/tvOnboardingWelcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:fontFamily="@font/ramabhadra_regular"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Description paragraphs -->
+        <TextView
+            android:id="@+id/tvOnboardingDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:lineSpacingMultiplier="1.4"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?attr/colorOutlineVariant"
+            android:layout_marginBottom="10dp" />
+
+        <!-- Checklist header row: label + progress -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/tvChecklistHeader"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:fontFamily="@font/ramabhadra_regular"
+                android:textAllCaps="true"
+                android:letterSpacing="0.08"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:id="@+id/tvOnboardingProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+        </LinearLayout>
+
+        <!-- Step 1: Business Info (required) -->
+        <include
+            android:id="@+id/stepBusinessInfo"
+            layout="@layout/item_onboarding_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Step 2: Import Products (required) -->
+        <include
+            android:id="@+id/stepImportProducts"
+            layout="@layout/item_onboarding_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Step 3: Import Sample/Test Data (optional) -->
+        <include
+            android:id="@+id/stepTestData"
+            layout="@layout/item_onboarding_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Step 4: Setup Opening Stock manually (optional alternative to step 3) -->
+        <include
+            android:id="@+id/stepOpeningStock"
+            layout="@layout/item_onboarding_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Divider before note -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?attr/colorOutlineVariant"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- User Guide note -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvUserGuideNote"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:lineSpacingMultiplier="1.3" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUserGuide"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:minWidth="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

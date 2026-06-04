@@ -99,6 +99,29 @@
                 app:popUpTo="@id/homeFragment"
                 app:popUpToInclusive="true" />
 
+            <action
+                android:id="@+id/action_home_to_businessInfo"
+                app:destination="@id/businessInfoFragment"
+                app:enterAnim="@anim/slide_in_right"
+                app:exitAnim="@anim/slide_out_left"
+                app:popEnterAnim="@anim/slide_in_left"
+                app:popExitAnim="@anim/slide_out_right" />
+
+            <action
+                android:id="@+id/action_home_to_helpSupport"
+                app:destination="@id/helpSupportFragment"
+                app:enterAnim="@anim/slide_in_right"
+                app:exitAnim="@anim/slide_out_left"
+                app:popEnterAnim="@anim/slide_in_left"
+                app:popExitAnim="@anim/slide_out_right" />
+
+            <action
+                android:id="@+id/action_home_to_openingStock"
+                app:destination="@id/openingStockFragment"
+                app:enterAnim="@anim/slide_in_right"
+                app:exitAnim="@anim/slide_out_left"
+                app:popEnterAnim="@anim/slide_in_left"
+                app:popExitAnim="@anim/slide_out_right" />
 
     </fragment>
 

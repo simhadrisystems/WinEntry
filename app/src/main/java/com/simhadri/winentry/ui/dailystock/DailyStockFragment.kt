@@ -21,6 +21,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -120,6 +123,7 @@ class DailyStockFragment : Fragment() {
         observeViewModel()
         setupReconciliationFooter() // ← NEW: setup for the reconciliation footer included at the bottom of the product list
         setupScrollNavigation()
+        setupWindowInsets()
         setupImportObserver()   // ← rotation-safe import progress observer
     }
 
@@ -1083,7 +1087,16 @@ class DailyStockFragment : Fragment() {
             lifecycleOwner = viewLifecycleOwner,
             dataReady      = viewModel.dailyEntries
         )
+    }
 
+    private fun setupWindowInsets() {
+        val basePx = (32 * resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(binding.productRecyclerView) { v, insets ->
+            val ime    = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            v.updatePadding(bottom = maxOf(navBar, ime) + basePx)
+            insets
+        }
     }
         /** Short form "10-MAR" used in the toolbar title where space is tight. */
     private fun formatDateForDisplay(dateString: String): String {

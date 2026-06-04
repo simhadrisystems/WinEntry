@@ -123,6 +123,81 @@
 
             </LinearLayout>
 
+            <!-- Getting Started card — visible only until setup is complete -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingTop="12dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardGettingStarted"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:visibility="gone"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="2dp"
+                    app:cardBackgroundColor="@color/module_onboarding_light"
+                    app:rippleColor="#1AD97706">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp">
+
+                        <FrameLayout
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:background="@drawable/bg_module_icon"
+                            android:backgroundTint="@color/module_onboarding_light">
+                            <ImageView
+                                android:layout_width="40dp"
+                                android:layout_height="40dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_onboarding_pending"
+                                android:scaleType="fitCenter" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="14dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Getting Started  ·  ప్రారంభం"
+                                android:textSize="17sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/app_text_primary" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Tap to complete setup  ·  సెటప్ పూర్తి చేయడానికి నొక్కండి"
+                                android:textSize="12sp"
+                                android:textColor="@color/app_text_secondary"
+                                android:layout_marginTop="3dp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
+                            android:layout_marginStart="8dp"
+                            android:src="@drawable/ic_chevron_right"
+                            android:tint="@color/module_onboarding" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
             <!-- Module navigation cards -->
             <LinearLayout
                 android:layout_width="match_parent"

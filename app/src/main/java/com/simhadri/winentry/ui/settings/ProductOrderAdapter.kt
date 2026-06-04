@@ -127,8 +127,20 @@ class ProductOrderAdapter(
         fun bind(product: Product) {
             b.textInactiveName.text = product.displayName
             b.textInactiveCode.text = "${product.productType}${product.brandCode}"
+            b.root.setOnClickListener(object : android.view.View.OnClickListener {
+                private var lastClickTime = 0L
+                override fun onClick(v: android.view.View) {
+                    if (editEnabled) return
+                    val now = System.currentTimeMillis()
+                    if (now - lastClickTime < 350L) {
+                        onActivate(product)
+                        lastClickTime = 0L
+                    } else {
+                        lastClickTime = now
+                    }
+                }
+            })
             b.root.setOnLongClickListener {
-                // Only offer activation in read mode; edit mode is for ordering active products
                 if (!editEnabled) { onActivate(product); true } else false
             }
         }
@@ -202,7 +214,20 @@ class ProductOrderAdapter(
                 }
             }
 
-            // Long-press in read mode → deactivate
+            // Double-tap in read mode → deactivate (long-press kept as fallback)
+            b.root.setOnClickListener(object : android.view.View.OnClickListener {
+                private var lastClickTime = 0L
+                override fun onClick(v: android.view.View) {
+                    if (editEnabled) return
+                    val now = System.currentTimeMillis()
+                    if (now - lastClickTime < 350L) {
+                        onDeactivate(product)
+                        lastClickTime = 0L
+                    } else {
+                        lastClickTime = now
+                    }
+                }
+            })
             b.root.setOnLongClickListener {
                 if (!editEnabled) { onDeactivate(product); true } else false
             }

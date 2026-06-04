@@ -14,7 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.appcompat.widget.SearchView
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.R
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
@@ -222,23 +222,17 @@ class ProductListFragment : Fragment() {
             return
         }
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Delete Inactive Products")
-            .setMessage("Delete ${inactiveProducts.size} inactive products? This cannot be undone.")
-            .setPositiveButton("Delete") { _, _ ->
-                lifecycleScope.launch {
-                    inactiveProducts.forEach { product ->
-                        viewModel.delete(product)
-                    }
-                    Toast.makeText(
-                        requireContext(),
-                        "${inactiveProducts.size} inactive products deleted",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+        AppDialogs.destructive(
+            requireContext(),
+            "Delete Inactive Products",
+            "Delete ${inactiveProducts.size} inactive products? This cannot be undone."
+        ) {
+            lifecycleScope.launch {
+                inactiveProducts.forEach { viewModel.delete(it) }
+                Toast.makeText(requireContext(),
+                    "${inactiveProducts.size} inactive products deleted", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     private fun showProductDialog(product: Product?) {
@@ -293,24 +287,17 @@ class ProductListFragment : Fragment() {
             return
         }
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Delete All Active Products")
-            .setMessage("Delete ${activeProducts.size} active products? This cannot be undone.")
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setPositiveButton("Delete") { _, _ ->
-                lifecycleScope.launch {
-                    activeProducts.forEach { product ->
-                        viewModel.delete(product)
-                    }
-                    Toast.makeText(
-                        requireContext(),
-                        "${activeProducts.size} active products deleted",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+        AppDialogs.destructive(
+            requireContext(),
+            "Delete All Active Products",
+            "Delete ${activeProducts.size} active products? This cannot be undone."
+        ) {
+            lifecycleScope.launch {
+                activeProducts.forEach { viewModel.delete(it) }
+                Toast.makeText(requireContext(),
+                    "${activeProducts.size} active products deleted", Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
 
     private fun deleteAllProducts() {
@@ -321,32 +308,25 @@ class ProductListFragment : Fragment() {
             return
         }
 
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Delete ALL Products")
-            .setMessage("Delete ALL ${allProducts.size} products? This will erase your entire inventory and cannot be undone!")
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setPositiveButton("Delete All") { _, _ ->
-                // Ask for confirmation again
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Are You Sure?")
-                    .setMessage("This will permanently delete ${allProducts.size} products. Type DELETE to confirm.")
-                    .setPositiveButton("Confirm Delete") { _, _ ->
-                        lifecycleScope.launch {
-                            allProducts.forEach { product ->
-                                viewModel.delete(product)
-                            }
-                            Toast.makeText(
-                                requireContext(),
-                                "All products deleted",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+        AppDialogs.destructive(
+            requireContext(),
+            "Delete ALL Products",
+            "Delete ALL ${allProducts.size} products?\n\nThis will erase your entire inventory and cannot be undone.",
+            actionLabel = "Continue…"
+        ) {
+            AppDialogs.withTextInput(
+                context      = requireContext(),
+                title        = "Confirm — Delete All Products",
+                message      = "Type  DELETE  to confirm permanently removing all ${allProducts.size} products:",
+                requiredText = "DELETE",
+                actionLabel  = "Delete All"
+            ) {
+                lifecycleScope.launch {
+                    allProducts.forEach { viewModel.delete(it) }
+                    Toast.makeText(requireContext(), "All products deleted", Toast.LENGTH_LONG).show()
+                }
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
     }
     private fun exportToExcel() {
         lifecycleScope.launch {
@@ -405,19 +385,14 @@ class ProductListFragment : Fragment() {
     }
 
     private fun confirmDelete(product: Product) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Delete Product")
-            .setMessage("Are you sure you want to delete ${product.displayName}?")
-            .setPositiveButton("Delete") { _, _ ->
-                viewModel.delete(product)
-                Toast.makeText(
-                    requireContext(),
-                    "Product deleted",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        AppDialogs.destructive(
+            requireContext(),
+            "Delete Product",
+            "Delete ${product.displayName}? This cannot be undone."
+        ) {
+            viewModel.delete(product)
+            Toast.makeText(requireContext(), "Product deleted", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onDestroyView() {

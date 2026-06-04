@@ -3,8 +3,12 @@ package com.simhadri.winentry.utils
 import android.content.Context
 import android.content.DialogInterface
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
+import android.view.Gravity
 import android.view.LayoutInflater
+import android.widget.EditText
+import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
@@ -152,6 +156,7 @@ object AppDialogs {
 
         val confirmBtn = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
         confirmBtn.isEnabled = false
+        confirmBtn.setTextColor(ContextCompat.getColor(context, R.color.app_color_delete))
 
         emailInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -170,6 +175,57 @@ object AppDialogs {
             } else {
                 inputLayout.error = "Email does not match your account"
             }
+        }
+    }
+
+    /**
+     * Text-confirmed destructive dialog — action button stays disabled until the user
+     * types [requiredText] exactly (case-insensitive). Used for high-stakes bulk deletes.
+     */
+    fun withTextInput(
+        context: Context,
+        title: String,
+        message: String,
+        requiredText: String,
+        actionLabel: String,
+        onConfirm: () -> Unit
+    ) {
+        val density = context.resources.displayMetrics.density
+        val input = EditText(context).apply {
+            hint = "Type  $requiredText"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            gravity = Gravity.CENTER
+            textSize = 15f
+        }
+        val container = FrameLayout(context).apply {
+            val px = (20 * density).toInt()
+            setPadding(px, (8 * density).toInt(), px, 0)
+            addView(input)
+        }
+
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setMessage(message)
+            .setView(container)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton(actionLabel, null)
+            .show()
+
+        val confirmBtn = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
+        confirmBtn.isEnabled = false
+        confirmBtn.setTextColor(ContextCompat.getColor(context, R.color.app_color_delete))
+
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                confirmBtn.isEnabled = s.toString().trim().equals(requiredText, ignoreCase = true)
+            }
+        })
+
+        confirmBtn.setOnClickListener {
+            dialog.dismiss()
+            onConfirm()
         }
     }
 

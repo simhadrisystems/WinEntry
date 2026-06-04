@@ -19,8 +19,9 @@ object SupportHelper {
     const val SUPPORT_EMAIL     = "simhadrisystems@gmail.com"
     const val SUPPORT_WHATSAPP  = "+911234567890"   // country code — WhatsApp support coming soon
 
-    // ── User guide — hosted on Google Sites ───────────────────────────────
-    const val USER_GUIDE_URL    = "https://sites.google.com/view/winentryapp/user-guide"
+    // ── User guide — GitHub Pages, language-specific ──────────────────────
+    private const val USER_GUIDE_URL_EN = "https://simhadrisystems.github.io/guides/en/"
+    private const val USER_GUIDE_URL_TE = "https://simhadrisystems.github.io/guides/te/"
     // ───────────────────────────────────────────────────────────────────────
 
     enum class IssueType(val label: String, val emoji: String) {
@@ -36,7 +37,7 @@ object SupportHelper {
             data = Uri.parse("mailto:")
             putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
             putExtra(Intent.EXTRA_SUBJECT, "[Win Entry] ${issueType.label}")
-            putExtra(Intent.EXTRA_TEXT, buildEmailBody(context, issueType))
+            putExtra(Intent.EXTRA_TEXT, buildEmailBody(issueType))
         }
         try {
             context.startActivity(Intent.createChooser(intent, "Send via email…"))
@@ -45,12 +46,14 @@ object SupportHelper {
         }
     }
 
-    /** Open the user guide (Google Sites) in the device browser. */
+    /** Open the user guide in the device browser, matching the app's current language. */
     fun openUserGuide(context: Context) {
+        val url = when (LangPrefs.get(context)) {
+            AppStrings.Lang.TE -> USER_GUIDE_URL_TE
+            else               -> USER_GUIDE_URL_EN
+        }
         try {
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(USER_GUIDE_URL))
-            )
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (e: Exception) {
             Toast.makeText(context, "Could not open the user guide. Please try again.", Toast.LENGTH_SHORT).show()
         }
@@ -59,7 +62,7 @@ object SupportHelper {
     /** Launch WhatsApp (or browser fallback) pre-filled with a support message. */
     fun sendWhatsApp(context: Context, issueType: IssueType) {
         val phone   = SUPPORT_WHATSAPP.filter { it.isDigit() || it == '+' }
-        val message = buildWhatsAppMessage(context, issueType)
+        val message = buildWhatsAppMessage(issueType)
         val url     = "https://api.whatsapp.com/send?phone=$phone&text=${Uri.encode(message)}"
 
         // Try native WhatsApp first; fall back to browser link if not installed.
@@ -81,7 +84,7 @@ object SupportHelper {
 
     // ── Private builders ────────────────────────────────────────────────────
 
-    private fun buildEmailBody(context: Context, issueType: IssueType): String = buildString {
+    private fun buildEmailBody(issueType: IssueType): String = buildString {
         appendLine("Hello,")
         appendLine()
         appendLine(messagePlaceholder(issueType))
@@ -90,7 +93,7 @@ object SupportHelper {
         append(optionalDetailsHint())
     }
 
-    private fun buildWhatsAppMessage(context: Context, issueType: IssueType): String = buildString {
+    private fun buildWhatsAppMessage(issueType: IssueType): String = buildString {
         appendLine("*Win Entry — ${issueType.label}*")
         appendLine()
         appendLine(messagePlaceholder(issueType))

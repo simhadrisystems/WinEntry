@@ -26,11 +26,11 @@
  *   The registry sheet was shared with the SA as Editor so values.append works fine.
  */
 
-const functions  = require("firebase-functions");
+const functions   = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
-const admin      = require("firebase-admin");
-const { google } = require("googleapis");
-const path       = require("path");
+const admin       = require("firebase-admin");
+const { google }  = require("googleapis");
+const path        = require("path");
 
 const SERVICE_ACCOUNT_KEY_PATH = path.join(__dirname, "service-account.json");
 
@@ -1307,6 +1307,14 @@ exports.getMasterProducts = functions
     const callerInvited = await isUserInvited(masterProductsToken.email);
     if (!callerInvited.invited) {
       console.log(`getMasterProducts — uid=${masterProductsToken.uid} (${masterProductsToken.email}) not in invited_users — blocked`);
+      // Record in admin_requests so the Firestore trigger alerts admin exactly once per new user.
+      db.collection("admin_requests").doc(masterProductsToken.uid).set({
+        uid:         masterProductsToken.uid,
+        email:       masterProductsToken.email,
+        displayName: masterProductsToken.name || masterProductsToken.email,
+        source:      "getMasterProducts",
+        requestedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch((e) => console.warn("admin_requests write failed:", e.message));
       return res.status(403).json({ error: "not_invited", message: "Access denied. Your account is not activated." });
     }
 

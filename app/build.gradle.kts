@@ -21,9 +21,10 @@ android {
         applicationId = "com.simhadri.winentry"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("Boolean", "FORCE_UPDATE", "false")
     }
 
     signingConfigs {
@@ -105,7 +106,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("com.google.android.material:material:1.12.0")
+    implementation("com.google.android.material:material:1.13.0")
     implementation("androidx.activity:activity-ktx:1.8.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
@@ -146,6 +147,9 @@ dependencies {
     // GoogleSignInClient intent-based API used throughout this app.
     // 21.x requires migration to the Credential Manager API.
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+
+    // ── Play In-App Update ────────────────────────────────────────────────
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
 
     // ── Firebase BOM + SDKs ───────────────────────────────────────────────
     // BOM manages all Firebase versions — do not add version numbers below

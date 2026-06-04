@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WinEntry — వినియోగదారు మార్గదర్శి v1.1</title>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Base ── */
+    body {
+      font-family: "Noto Sans Telugu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.85;
+      color: #1a2233;
+      background: #eef1f7;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Site Header ── */
+    .site-header {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1248a8 100%);
+      color: #fff;
+      padding: 52px 24px 44px;
+      margin-bottom: 32px;
+    }
+    .site-header .inner { max-width: 880px; margin: 0 auto; }
+    .app-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .lang-badge {
+      display: inline-block;
+      background: rgba(255,200,0,0.25);
+      color: #ffe082;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      margin-left: 8px;
+    }
+    .site-header h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .site-header .tagline {
+      font-size: 14px;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 20px;
+    }
+    .header-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .header-meta span {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75);
+      font-size: 12px;
+      padding: 3px 12px;
+      border-radius: 12px;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: #fff;
+      border: 1px solid #dde3f0;
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .toc-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #1248a8;
+      margin-bottom: 14px;
+    }
+    .toc ol { margin-left: 18px; column-count: 2; column-gap: 32px; }
+    .toc li { margin-bottom: 5px; break-inside: avoid; font-size: 14px; }
+    .toc a { color: #1248a8; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    @media (max-width: 560px) { .toc ol { column-count: 1; } }
+
+    /* ── Section card ── */
+    .section-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+      border: 1px solid #e4e9f5;
+    }
+    @media (max-width: 560px) { .section-card { padding: 20px 18px; } }
+
+    /* ── Headings ── */
+    h2 {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0d1b2a;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e8f0fe;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sec-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      min-width: 30px;
+      background: #1248a8;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1248a8;
+      margin: 26px 0 8px;
+      padding-left: 12px;
+      border-left: 3px solid #1248a8;
+    }
+    h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin: 18px 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Prose ── */
+    p { margin-bottom: 12px; color: #2d3748; }
+    ul, ol { margin: 8px 0 14px 22px; }
+    li { margin-bottom: 6px; color: #2d3748; }
+    strong { color: #1a2233; }
+
+    /* ── Step list ── */
+    ol.steps { list-style: none; margin: 10px 0 16px 0; counter-reset: step; }
+    ol.steps > li {
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+    ol.steps > li::before {
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      min-width: 24px;
+      background: #1248a8;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* ── Callout boxes ── */
+    .callout {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin: 14px 0;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .tip  { background: #e8f0fe; border-left: 4px solid #1248a8; color: #0d2460; }
+    .warn { background: #fff8e1; border-left: 4px solid #f9a825; color: #5a3e00; }
+    .note { background: #e8f5e9; border-left: 4px solid #43a047; color: #1b4d1e; }
+    .info { background: #f3e5f5; border-left: 4px solid #8e24aa; color: #480060; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 12px 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: #1248a8;
+      color: #fff;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    td { padding: 8px 14px; border: 1px solid #dde3f0; vertical-align: top; color: #2d3748; }
+    tr:nth-child(even) td { background: #f7f9ff; }
+    tr:nth-child(odd) td { background: #fff; }
+
+    /* ── Menu path ── */
+    .path {
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: 12px;
+      background: #f0f2f7;
+      color: #1248a8;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid #dde3f0;
+      display: inline;
+      white-space: nowrap;
+    }
+
+    /* ── Formula highlight ── */
+    .formula {
+      display: inline-block;
+      background: #1248a8;
+      color: #fff;
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 6px;
+      margin: 6px 0;
+    }
+
+    /* ── Option A / B boxes ── */
+    .option-box {
+      border: 1px solid #dde3f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .option-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .tag-a { background: #1248a8; }
+    .tag-b { background: #00796b; }
+
+    /* ── Mobile screenshot placeholder ── */
+    .screenshots-row {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin: 24px 0;
+    }
+    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .phone-caption {
+      font-size: 11px;
+      color: #8a97aa;
+      text-align: center;
+      max-width: 180px;
+      font-style: italic;
+    }
+    .phone-frame {
+      width: 200px;
+      background: #1a2233;
+      border-radius: 34px;
+      padding: 10px 6px 14px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.07);
+    }
+    .phone-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 0 6px;
+    }
+    .phone-cam {
+      width: 10px; height: 10px;
+      background: #0d1118;
+      border-radius: 50%;
+      border: 1.5px solid #2a3348;
+    }
+    .phone-speaker {
+      width: 36px; height: 5px;
+      background: #0d1118;
+      border-radius: 3px;
+    }
+    .phone-screen {
+      background: #eef1f7;
+      border-radius: 22px;
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 14px;
+      text-align: center;
+      border: 1px solid #d5dae8;
+    }
+    .ph-icon { font-size: 28px; margin-bottom: 10px; }
+    .ph-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #1248a8;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .ph-note {
+      font-size: 10px;
+      color: #8a97aa;
+      font-style: italic;
+      margin-top: 4px;
+    }
+    .phone-bottom { display: flex; justify-content: center; padding-top: 8px; }
+    .phone-pill { width: 48px; height: 5px; background: #2d3748; border-radius: 3px; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid #e8ecf5; margin: 24px 0; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 48px;
+      padding: 20px 0;
+      border-top: 1px solid #dde3f0;
+      font-size: 12px;
+      color: #8a97aa;
+      text-align: center;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="inner">
+    <div class="app-badge">అధికారిక వినియోగదారు మార్గదర్శి</div><div class="lang-badge">తెలుగు</div>
+    <h1>WinEntry</h1>
+    <p class="tagline">వ్యాపార Inventory &amp; Stock Management &nbsp;·&nbsp; Daily Stock &nbsp;·&nbsp; Sales &nbsp;·&nbsp; Purchases</p>
+    <div class="header-meta">
+      <span>Version 1.1 (Build 4)</span>
+      <span>Android App</span>
+      <span>మే 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">విషయసూచిక</div>
+  <ol>
+    <li><a href="#s1">WinEntry గురించి</a></li>
+    <li><a href="#s2">App Install చేయడం</a></li>
+    <li><a href="#s3">Sign In చేయడం</a></li>
+    <li><a href="#s4">మొదటిసారి Setup</a></li>
+    <li><a href="#s5">Home Screen</a></li>
+    <li><a href="#s6">Daily Stock Entry</a></li>
+    <li><a href="#s7">Purchases</a></li>
+    <li><a href="#s8">Reports</a></li>
+    <li><a href="#s9">Items / Products</a></li>
+    <li><a href="#s10">Settings</a></li>
+    <li><a href="#s11">Cloud Drive Backup</a></li>
+    <li><a href="#s12">Data Management &amp; Excel Import/Export</a></li>
+    <li><a href="#s13">Help మరియు Support</a></li>
+  </ol>
+</div>
+
+
+<!-- SECTION 1 -->
+<div class="section-card" id="s1">
+  <h2><span class="sec-num">1</span> WinEntry గురించి</h2>
+
+  <p>WinEntry ని <strong>Simhadri Systems</strong> వారు Telugu రాష్ట్రాల్లోని licensed retail wine &amp; liquor వ్యాపారాల కఠినమైన రోజువారీ stock reconciliation అవసరాలను తీర్చడానికి design &amp; engineer చేశారు. ఇది ఏ retail వ్యాపారానికైనా — unit-based stock tracking అవసరమయ్యే అన్ని రంగాలకు — పనికొచ్చే powerful inventory management tool.</p>
+
+  <h3>App ఏమి చేస్తుంది</h3>
+  <p>WinEntry అత్యంత కీలకమైన రోజువారీ reconciliation process ని — "opening vs. closing" balance — automate చేస్తుంది. అధిక volume గల retail వ్యాపారాలకు ఇది చాలా అవసరం.</p>
+  <ul>
+    <li><strong>Unit-Level Tracking</strong> — అనేక brands, categories మరియు వివిధ sizes అంతటా inventory manage చేయండి (bottles, cases, packets, bags మొదలైనవి)</li>
+    <li><strong>Daily Reconciliation</strong> — రోజువారీ purchases, sales మరియు expenses record చేసి, accurate daily stock balance sheets తక్షణమే generate చేయండి</li>
+    <li><strong>Calculated Sales</strong> — Opening Balance + Purchases − Closing Balance = Daily Sale — ప్రతి product మరియు size కు automatically calculate అవుతుంది</li>
+    <li><strong>Multilingual Interface</strong> — ప్రస్తుతం English మరియు Telugu support చేస్తుంది; కనీస మార్పులతో ఇతర Indian భాషలకు కూడా localise చేయవచ్చు</li>
+    <li><strong>Privacy-First Design</strong> — default గా పూర్తిగా offline పని చేస్తుంది; optional cloud backup మాత్రమే data బయటకు పంపుతుంది</li>
+    <li><strong>Excel Export</strong> — ప్రతి report మరియు record ని audits, accounts లేదా regulatory submission కోసం Excel కి export చేయవచ్చు</li>
+  </ul>
+
+  <h3>దీన్ని వాడడం ఎందుకు లాభదాయకం</h3>
+  <p><strong>వ్యాపారుల కోసం, వ్యాపారులే తయారు చేసింది.</strong> Retail licensees యొక్క విశేష అవసరాల నుండి పుట్టిన WinEntry, peers మధ్య share చేయబడే professional-grade tool గా అందించబడుతోంది. Feedback మరియు నిరంతర మెరుగుదల కోసం community ని promote చేస్తుంది.</p>
+  <p><strong>మానవ తప్పులను తొలగిస్తుంది.</strong> కాగితంపై manual entries కు బదులు digital logging వాడడం వల్ల mathematical errors మరియు financial discrepancies గణనీయంగా తగ్గుతాయి.</p>
+  <p><strong>అధికంగా customize చేయగలిగేది.</strong> Licensed retail trade కు అనువుగా ఉన్నా, underlying logic ఏ retail sector కైనా — Dairy, Hardware, Cosmetics — code మార్పులు లేకుండా adapt చేయవచ్చు.</p>
+
+  <h3>వ్యాపార Use Cases</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>రంగం</th><th>వినియోగం</th></tr>
+      <tr><td>Licensed retailer (ప్రస్తుత deployment)</td><td>Brand మరియు pack size వారీగా bottles — రోజువారీ reconciliation మరియు regulatory reports</td></tr>
+      <tr><td>Dairy &amp; Beverage</td><td>అధిక daily turnover గల crates మరియు individual bottles</td></tr>
+      <tr><td>Construction &amp; Hardware</td><td>Cement bags, tile boxes, plumbing fixtures</td></tr>
+      <tr><td>Personal Care &amp; Cosmetics</td><td>వివిధ sizes లో (ml / grams) అనేక brands</td></tr>
+      <tr><td>Pet Supply</td><td>Packaged food bags మరియు accessories by unit</td></tr>
+    </table>
+  </div>
+
+  <h3>Size Codes (ప్రస్తుత retail deployment)</h3>
+  <p>ప్రతి product కు గరిష్టంగా 5 size variants support చేస్తుంది. ప్రస్తుత licensed retail configuration లో ఇవి:</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Size Code</th><th>వివరణ</th><th>సాధారణ పరిమాణం</th><th>Case లో Units</th></tr>
+      <tr><td>QQ</td><td>Full / Big</td><td>551–900 ml (సాధారణంగా 750 ml లేదా 650 ml Beer)</td><td>12 per case</td></tr>
+      <tr><td>QQ + "L"</td><td>Litre</td><td>1000 ml (brand code కు "L" చేర్చడం ద్వారా)</td><td>9 per case</td></tr>
+      <tr><td>PP</td><td>Half / Pint</td><td>201–550 ml (సాధారణంగా 375 ml లేదా Can Beer)</td><td>24 per case</td></tr>
+      <tr><td>NN</td><td>Quarter / Nip</td><td>101–200 ml (సాధారణంగా 180 ml)</td><td>48 per case</td></tr>
+      <tr><td>DD</td><td>Dip / Miniature</td><td>≤ 100 ml (సాధారణంగా 90 ml లేదా 60 ml)</td><td>96 per case</td></tr>
+    </table>
+  </div>
+  <p style="font-size:13px;color:#666;">ఇతర రకాల వ్యాపారాలకు, ఆ deployment setup సమయంలో size codes మరియు వాటి వివరణలు configure చేయబడతాయి.</p>
+</div>
+
+
+<!-- SECTION 2 -->
+<div class="section-card" id="s2">
+  <h2><span class="sec-num">2</span> App Install చేయడం</h2>
+
+  <ol class="steps">
+    <li>మీ Android phone లో <strong>Google Play Store</strong> తెరవండి</li>
+    <li><strong>WinEntry</strong> లేదా <strong>WinEntry Simple Inventory</strong> search చేయండి</li>
+    <li><strong>Simhadri Systems</strong> publish చేసిన result తాకి <strong>Install</strong> తాకండి</li>
+    <li>Install అయిన తర్వాత <strong>Open</strong> తాకండి</li>
+  </ol>
+
+  <p><strong>అవసరమైనవి:</strong> Android 8.0 (Oreo) లేదా తదుపరి &nbsp;·&nbsp; Sign in కోసం Google account</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🛒</div>
+          <div class="ph-label">Google Play Store లో WinEntry listing — Install button చూపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Play Store listing</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <strong>Updates:</strong> కొత్త version release అయినప్పుడు Play Store automatically notify చేస్తుంది. WinEntry store page లో <strong>Update</strong> తాకండి, లేదా app లో నుండే check చేయండి: <span class="path">Settings → Check for Update</span>.
+  </div>
+</div>
+
+
+<!-- SECTION 3 -->
+<div class="section-card" id="s3">
+  <h2><span class="sec-num">3</span> Sign In చేయడం</h2>
+
+  <p>WinEntry మీ <strong>Google account</strong> తో sign in చేస్తుంది — Gmail లేదా YouTube కి వాడే అదే account.</p>
+
+  <ol class="steps">
+    <li>WinEntry తెరవండి — Sign In screen కనిపిస్తుంది</li>
+    <li><strong>Sign in with Google</strong> తాకండి</li>
+    <li>List నుండి మీ Google account ఎంచుకోండి (అవసరమైతే కొత్తది add చేయండి)</li>
+    <li>Request చేసిన permissions అనుమతించండి — app కు Sheets access కేవలం optional cloud backup కోసం మాత్రమే అవసరం</li>
+    <li>Home screen కి తీసుకెళ్ళబడతారు</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🔑</div>
+          <div class="ph-label">Sign In screen — "Sign in with Google" button చూపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Sign In screen</div>
+    </div>
+  </div>
+
+  <div class="callout warn">ఎప్పుడూ same Google account వాడండి. వేరే account తో sign in చేస్తే మీ previous data కనిపించదు.</div>
+</div>
+
+
+<!-- SECTION 4 -->
+<div class="section-card" id="s4">
+  <h2><span class="sec-num">4</span> మొదటిసారి Setup</h2>
+
+  <p>మొదటిసారి sign in చేసిన తర్వాత app తెరిచినప్పుడు, Home screen పై భాగంలో amber రంగులో <strong>Getting Started</strong> card కనిపిస్తుంది. <strong>ఈ card తాకి setup checklist తెరవండి.</strong></p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🏠</div>
+          <div class="ph-label">Home screen — పై భాగంలో amber "Getting Started" card కనిపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Home — Getting Started card</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">✅</div>
+          <div class="ph-label">Getting Started dialog — పై భాగంలో language toggle తో 4-step checklist</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Setup checklist dialog</div>
+    </div>
+  </div>
+
+  <p>Checklist లో 4 steps ఉన్నాయి. Step 1 మరియు Step 2 తప్పనిసరి. Card మాయమవ్వాలంటే Step 3 లేదా Step 4 లో ఏదైనా ఒకటి కూడా complete చేయాలి — అప్పుడే రోజువారీ వ్యాపారం మొదలుపెట్టవచ్చు.</p>
+
+  <div class="callout tip">
+    <strong>Language toggle:</strong> ఈ dialog పై భాగంలో <strong>English / తెలుగు</strong> buttons app language ని switch చేస్తాయి. మార్పు వెంటనే అన్ని screens కు apply అవుతుంది. Settings నుండి ఎప్పుడైనా మళ్ళీ మార్చవచ్చు.
+  </div>
+
+  <hr />
+
+  <h3>Step 1 — Business Info</h3>
+  <p>మీ business పేరు మరియు owner వివరాలు exported reports మరియు Home screen లో header గా కనిపిస్తాయి.</p>
+
+  <ol class="steps">
+    <li>"Set Up Business Information" పక్కన <strong>Set Up</strong> తాకండి — Business Info screen తెరుచుకుంటుంది</li>
+    <li>Fields పూరించండి:
+      <ul>
+        <li><strong>Owner Name</strong> — మీ పూర్తి పేరు</li>
+        <li><strong>Business Name</strong> (తప్పనిసరి) — మీ వ్యాపారం లేదా దుకాణం పేరు</li>
+        <li><strong>Licence / Reg. No</strong> — registration లేదా licence number (locally మాత్రమే store అవుతుంది, admin కి share కాదు)</li>
+        <li><strong>Address Lines 1 &amp; 2, Location</strong> — దుకాణం చిరునామా మరియు ప్రాంతం</li>
+        <li><strong>Phone</strong> — 10-digit mobile number</li>
+      </ul>
+    </li>
+    <li><strong>Save &amp; Register</strong> తాకండి</li>
+    <li>Confirmation dialog లో admin కి share చేయబడే fields వివరిస్తుంది. <strong>Save &amp; Register</strong> తాకి confirm చేయండి.</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🏢</div>
+          <div class="ph-label">Business Info screen — save చేయడానికి ముందు అన్ని fields పూర్తిగా నింపబడ్డాయి</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Business Info form</div>
+    </div>
+  </div>
+
+  <p>Save చేసిన తర్వాత checklist లో Step 1 పై green tick కనిపిస్తుంది. తదుపరి మార్పులకు button label "Save &amp; Update Registration" గా మారుతుంది.</p>
+  <div class="callout tip">Form పై భాగంలో "Account: ..." అని మీ Google sign-in email చూపిస్తుంది — ఇది read-only మరియు మీ data ని మీ account కు link చేస్తుంది.</div>
+
+  <hr />
+
+  <h3>Step 2 — Product List Import చేయడం</h3>
+  <p>Admin యొక్క standard product master list (product codes, పేర్లు, sizes మరియు prices) మీ phone కి download చేస్తుంది.</p>
+
+  <ol class="steps">
+    <li>"Import Product List" పక్కన <strong>Download</strong> తాకండి</li>
+    <li>Progress spinner కనిపిస్తుంది — connection speed బట్టి 5–30 seconds వేచి ఉండండి</li>
+    <li>Complete అయిన తర్వాత green tick కనిపిస్తుంది</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">⬇️</div>
+          <div class="ph-label">Step 2 — Download button, download అవుతున్నప్పుడు spinner, తర్వాత green tick</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Product list download</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>"Download" బదులుగా "Request Access" కనిపిస్తే:</strong> మీ account ని admin ఇంకా activate చేయలేదు. "Request Access" తాకి email లేదా WhatsApp ద్వారా activation request పంపండి. Admin మీ account ని invited list కు add చేసిన తర్వాత తిరిగి వచ్చి Download చేయండి.
+  </div>
+  <p>Download తర్వాత, <span class="path">Items/Products → Product Display Order</span> కి వెళ్ళి products ని మీరు stock count చేసే క్రమంలో arrange చేయండి. ఇది daily closing entry వేగంగా చేయడానికి సహాయపడుతుంది.</p>
+  <p>ఇక్కడ set చేసిన order app అంతటా consistently కనిపిస్తుంది — Daily Stock Entry, Opening Stock మరియు అన్ని reports లో products ఈ sequence లో appear అవుతాయి. Reorder చేయడానికి: <span class="path">Product Display Order</span> తాకి <strong>Edit</strong> switch on చేయండి, తర్వాత left వైపు drag handle తో rows move చేయండి లేదా ప్రతి product పక్కన ↑ ↓ nudge arrows తాకండి. పూర్తయినప్పుడు <strong>Renumber &amp; Save</strong> తాకండి. Edit switch off చేసిన స్థితిలో ఏదైనా product row ని double-tap చేస్తే దాన్ని deactivate చేయవచ్చు — deactivated products Inactive section కి move అవుతాయి మరియు daily stock entry లో కనిపించవు.</p>
+
+  <hr />
+
+  <h3>Step 3 — Sample Data Load చేయడం (ఐచ్ఛికం)</h3>
+  <p>Sample data వల్ల real figures enter చేయడానికి ముందు app ని practice చేయవచ్చు. Dummy opening stock మరియు కొన్ని రోజుల transactions load అవుతాయి — అన్ని screens ని real data తో చూడవచ్చు.</p>
+
+  <div class="callout info"><strong>Real opening stock enter చేయాలంటే ఈ step skip చేసి నేరుగా Step 4 కి వెళ్ళండి.</strong></div>
+
+  <ol class="steps">
+    <li>"Import Sample / Test Data (Optional)" పక్కన <strong>Load</strong> తాకండి</li>
+    <li>Date picker తెరుచుకుంటుంది — sample data కు opening balance తేదీగా ఏ తేదీ కావాలో ఎంచుకోండి. Default: 7 రోజుల క్రితం.</li>
+    <li><strong>OK</strong> తాకండి — sample data background లో load అవుతుంది (10–30 seconds)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📅</div>
+          <div class="ph-label">Date picker dialog — "Opening Balance Date for Sample Data" title తో</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Sample data date picker</div>
+    </div>
+  </div>
+
+  <p>Load అయిన తర్వాత green tick కనిపిస్తుంది మరియు card "Trial setup complete — you're all set!" చూపిస్తుంది.</p>
+  <div class="callout tip">Sample data తర్వాత clear చేయవచ్చు. <span class="path">Settings → Help &amp; Support → Import Test Data</span> ద్వారా fresh sample data reload చేయవచ్చు. అన్ని local data తొలగించాలంటే: <span class="path">Settings → Business Info → (⋮ menu) → Clear Local Data</span>.</div>
+
+  <hr />
+
+  <h3>Step 4 — Opening Stock Setup చేయడం</h3>
+  <p>Sample data కాకుండా real data తో start చేస్తున్నారంటే, ప్రారంభ inventory గా ప్రతి product మరియు size కి actual unit count enter చేయాలి. ఇది మొదటిసారి live వ్యాపారం ప్రారంభించేటప్పుడు ఒకసారి మాత్రమే చేస్తారు. రెండు పద్ధతులు ఉన్నాయి — మీకు అనుకూలమైనది ఎంచుకోండి.</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Option A — Manual Entry (Screen లో నేరుగా)</div>
+    <p>చిన్న product lists కు suitable.</p>
+    <ol class="steps">
+      <li>"Setup Opening Stock (manual)" పక్కన <strong>Enter</strong> తాకండి</li>
+      <li>Opening Stock Setup screen తెరుచుకుంటుంది</li>
+      <li>పై భాగంలో మీ మొదటి trading తేదీ ఎంచుకోండి</li>
+      <li>ప్రతి product కు size fields తాకి మీ దగ్గర ఉన్న unit count type చేయండి</li>
+      <li>Size fields మరియు products మధ్య వేగంగా move చేయడానికి keyboard Next key వాడండి</li>
+      <li>దిగువన <strong>SAVE</strong> తాకండి — confirm చేయడానికి ముందు total unit count చూపిస్తుంది</li>
+    </ol>
+    <div class="screenshots-row">
+      <div class="phone-wrap">
+        <div class="phone-frame">
+          <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+          <div class="phone-screen">
+            <div class="ph-icon">✏️</div>
+            <div class="ph-label">Opening Stock Setup screen — size columns తో product grid manually నింపబడుతోంది</div>
+            <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+          </div>
+          <div class="phone-bottom"><div class="phone-pill"></div></div>
+        </div>
+        <div class="phone-caption">Manual opening stock entry</div>
+      </div>
+    </div>
+    <div class="callout tip">Case counts కాదు, individual unit counts enter చేయండి. 2 full cases (12 units per case) మరియు 3 loose units ఉంటే 27 enter చేయండి.</div>
+  </div>
+
+  <div class="option-box">
+    <div class="option-tag tag-b">Option B — Excel నుండి Import చేయడం (పెద్ద lists కు వేగంగా)</div>
+    <p>Opening stock figures ఇప్పటికే spreadsheet లో ఉంటే, లేదా product list పెద్దగా ఉంటే Excel import చాలా వేగంగా ఉంటుంది.</p>
+    <ol class="steps">
+      <li>"Setup Opening Stock (manual)" పక్కన <strong>Enter</strong> తాకి Opening Stock Setup screen తెరవండి</li>
+      <li><strong>⋮</strong> (కుడివైపు పై menu) → <strong>Download Template</strong> తాకండి</li>
+      <li>App మీ phone Downloads folder లో pre-filled Excel file save చేస్తుంది. Template లో ప్రతి product కు ఒక row, ప్రతి size కు (L, QQ, PP, NN, DD) ఒక column ఉంటుంది. Product codes ముందే fill అయి ఉంటాయి — వాటిని మార్చకండి.</li>
+      <li>Computer లో లేదా phone లో Google Sheets / Microsoft Excel లో template తెరవండి</li>
+      <li>ప్రతి product మరియు size కు quantity columns లో opening stock counts enter చేయండి. ఆ size లేకపోతే blank వదలండి లేదా 0 enter చేయండి.</li>
+      <li>File save చేసి phone కు transfer చేయండి (WhatsApp, Google Drive, email లేదా USB ద్వారా)</li>
+      <li>Opening Stock Setup screen లో తిరిగి వచ్చి <strong>⋮ → Import from Excel</strong> తాకండి</li>
+      <li>Phone storage నుండి saved file ఎంచుకోండి</li>
+      <li>App figures import చేసి import result summary చూపిస్తుంది (<a href="#s12">Section 12</a> చూడండి)</li>
+    </ol>
+    <div class="screenshots-row">
+      <div class="phone-wrap">
+        <div class="phone-frame">
+          <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+          <div class="phone-screen">
+            <div class="ph-icon">📂</div>
+            <div class="ph-label">Opening Stock Setup — ⋮ menu తెరిచి "Download Template" మరియు "Import from Excel" కనిపిస్తున్నాయి</div>
+            <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+          </div>
+          <div class="phone-bottom"><div class="phone-pill"></div></div>
+        </div>
+        <div class="phone-caption">⋮ menu — import/export options</div>
+      </div>
+    </div>
+    <div class="callout tip">Import తర్వాత SAVE తాకడానికి ముందు screen లో figures review చేయండి. Save చేసిన తర్వాత bottom bar లో <strong>Upload to Cloud</strong> లేదా <strong>Restore from Cloud</strong> buttons కనిపిస్తాయి.</div>
+  </div>
+
+  <p>ఏ పద్ధతి అయినా save చేసిన తర్వాత Step 4 పై green tick కనిపిస్తుంది. అన్ని required steps complete అయిన తర్వాత Getting Started card automatically మాయమవుతుంది.</p>
+</div>
+
+
+<!-- SECTION 5 -->
+<div class="section-card" id="s5">
+  <h2><span class="sec-num">5</span> Home Screen</h2>
+
+  <p>Setup తర్వాత, Home screen లో five module cards కనిపిస్తాయి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🏠</div>
+          <div class="ph-label">Setup తర్వాత Home screen — 5 module cards, header లో business name, పైన sync &amp; account icons</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Home screen (setup తర్వాత)</div>
+    </div>
+  </div>
+
+  <h3>Header (పైన బార్)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Element</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Business name + location</td><td>పైన చూపిస్తుంది — Business Info నుండి తీసుకుంటుంది</td></tr>
+      <tr><td>Cloud/Sync icon (కుడివైపు పైన)</td><td>Data ని cloud కి manually push చేయడానికి తాకండి. <strong>White</strong> = అన్నీ synced; <strong>Red</strong> = sync errors, retry కు తాకండి; <strong>Amber</strong> = Drive Backup setup కాలేదు</td></tr>
+      <tr><td>Account icon</td><td>Sign in అయినప్పుడు Google profile photo చూపిస్తుంది. Account email చూడటానికి లేదా sign out కు తాకండి</td></tr>
+    </table>
+  </div>
+
+  <h3>Module Cards</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Card</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Daily Closing Stock Entry</td><td>నేటి closing unit count enter చేసి day-end totals commit చేయండి</td></tr>
+      <tr><td>Purchases</td><td>Reference number, quantities మరియు prices తో supplier delivery invoices record చేయండి</td></tr>
+      <tr><td>Reports</td><td>Daily, period మరియు monthly reports చూసి Excel కి export చేయండి</td></tr>
+      <tr><td>Items / Products</td><td>Product list, display order మరియు opening stock manage చేయండి</td></tr>
+      <tr><td>Settings</td><td>Business info, language, cloud backup, sync settings మరియు support</td></tr>
+    </table>
+  </div>
+
+  <p>Module తెరవడానికి ఏదైనా card తాకండి. Home కి తిరిగి రావడానికి (module లోపల) back arrow లేదా phone back button వాడండి.</p>
+</div>
+
+
+<!-- SECTION 6 -->
+<div class="section-card" id="s6">
+  <h2><span class="sec-num">6</span> Daily Stock Entry</h2>
+
+  <p>ఇది రోజువారీ ముఖ్యమైన workflow. రోజు చివరలో shelves లో units count చేసి closing balance enter చేయండి. App automatically daily sales calculate చేస్తుంది.</p>
+
+  <p><span class="formula">Opening Balance + Purchases − Closing Balance = Daily Sale</span></p>
+
+  <h3>Screen తెరవడం</h3>
+  <p>Home screen నుండి <strong>Daily Closing Stock Entry</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📋</div>
+          <div class="ph-label">Daily Stock screen — size columns తో product list, date selector మరియు CB Entry / View toggle</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Daily Stock screen</div>
+    </div>
+  </div>
+
+  <p><strong>పైన controls:</strong></p>
+  <ul>
+    <li><strong>Date selector</strong> — default గా నేటి తేదీ. ‹ మరియు › arrows వాడి లేదా date తాకి వేరే తేదీ ఎంచుకోండి.</li>
+    <li><strong>CB Entry / View Only toggle</strong> — edit mode మరియు read-only view మధ్య switch చేస్తుంది. Default: View Only.</li>
+  </ul>
+
+  <h3>Closing Balances Enter చేయడం</h3>
+  <ol class="steps">
+    <li>Top bar లో <strong>CB Entry</strong> తాకి edit mode లోకి వెళ్ళండి</li>
+    <li>Configure చేసిన ప్రతి size కు ఒక column తో product list కనిపిస్తుంది</li>
+    <li>ప్రతి row లో Opening Balance (OB) మరియు Purchases (PQ) ముందే fill అయి ఉంటాయి</li>
+    <li>Closing Balance field తాకి మీరు physically count చేసిన unit count type చేయండి</li>
+    <li>Sale quantity (SQ) వెంటనే చూపిస్తుంది: SQ = OB + PQ − CB</li>
+    <li>అన్ని products enter చేసిన తర్వాత toolbar లో <strong>Save</strong> button (green checkmark) తాకండి</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🔢</div>
+          <div class="ph-label">CB Entry mode — ఒక product కు OB, PQ మరియు CB fields చూపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">CB Entry mode</div>
+    </div>
+  </div>
+
+  <div class="callout tip">Keyboard Next key ఒక size field నుండి తదుపరి product కి automatically focus move చేస్తుంది. Active field కనిపించేలా list automatically scroll అవుతుంది.</div>
+  <div class="callout warn"><strong>Negative sale warning:</strong> Closing balance, OB + PQ కంటే ఎక్కువగా ఉంటే app warning చూపిస్తుంది. Save చేయడానికి ముందు figures check చేయండి.</div>
+
+  <h3>Excel నుండి Closing Balances Import చేయడం</h3>
+  <p>Products ఎక్కువగా ఉన్నప్పుడు, లేదా closing stock ఇప్పటికే spreadsheet లో record అయి ఉంటే, Excel నుండి directly import చేయడం వేగంగా ఉంటుంది.</p>
+
+  <ol class="steps">
+    <li>Daily Stock screen లో <strong>⋮</strong> → <strong>Download Closing Template</strong> తాకండి</li>
+    <li>App Downloads folder లో pre-filled Excel file save చేస్తుంది. Product codes మరియు names ముందే fill అయి ఉంటాయి — వాటిని మార్చకండి.</li>
+    <li>Computer లో లేదా Google Sheets / Microsoft Excel లో template తెరవండి</li>
+    <li>ప్రతి product మరియు size కు closing balance counts enter చేయండి. ఆ size లేకపోతే blank వదలండి లేదా 0 enter చేయండి.</li>
+    <li>Date column లో మీరు enter చేస్తున్న trading తేదీ set చేయండి.</li>
+    <li>File save చేసి phone కు transfer చేయండి (WhatsApp, Google Drive, email లేదా USB ద్వారా)</li>
+    <li>Daily Stock screen లో తిరిగి వచ్చి <strong>⋮ → Import Closing</strong> తాకండి</li>
+    <li>Phone storage నుండి file ఎంచుకోండి</li>
+    <li>App closing balances import చేసి result summary చూపిస్తుంది (<a href="#s12">Section 12</a> చూడండి)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📊</div>
+          <div class="ph-label">Daily Stock ⋮ menu — "Download Closing Template" మరియు "Import Closing" కనిపిస్తున్నాయి</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Daily Stock import/export menu</div>
+    </div>
+  </div>
+
+  <div class="callout tip">ఒకే file లో అనేక తేదీలకు closing balances import చేయవచ్చు — ప్రతి product-date combination కు ఒక వేరే row చేర్చండి.</div>
+
+  <h3>Day-End Reconciliation</h3>
+  <p>Closing balances enter చేసిన తర్వాత, day-end summary complete చేయడానికి list దిగువకు scroll చేయండి:</p>
+  <ul>
+    <li><strong>Total Day Sales</strong> — అన్ని products మరియు వాటి prices నుండి automatically calculate అవుతుంది</li>
+    <li><strong>UPI Receipts</strong> — రోజు UPI మరియు digital payment collections మొత్తం (₹)</li>
+    <li><strong>Day Expenses</strong> — ఆ రోజు petty cash expenses</li>
+    <li><strong>Cash for Deposit</strong> — Sales − UPI − Expenses గా calculate అవుతుంది (negative అయితే red లో చూపిస్తుంది)</li>
+    <li><strong>Cash Deposit</strong> — bank లో physically deposit చేసిన amount</li>
+    <li><strong>Notes</strong> — రోజుకు సంబంధించిన గమనికలు</li>
+  </ul>
+  <p>Reconciliation section దిగువన <strong>Save</strong> తాకి day-end summary lock చేయండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">💰</div>
+          <div class="ph-label">Day-end reconciliation section — UPI, Expenses, Cash Deposit fields మరియు calculated total</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Day-end reconciliation</div>
+    </div>
+  </div>
+
+  <div class="callout tip">తప్పులు సరిచేయడానికి అదే రోజుని ఎప్పుడైనా re-edit చేసి re-save చేయవచ్చు. Re-saving వల్ల previous figures overwrite అవుతాయి.</div>
+
+  <h3>Daily Stock Menu (⋮ కుడివైపు పైన)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Menu Item</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Export Daily Stock</td><td>పూర్తి stock sheet ని Excel గా export చేయండి</td></tr>
+      <tr><td>Export Current Date</td><td>నేటి data మాత్రమే Excel గా export చేయండి</td></tr>
+      <tr><td>Export Date Range</td><td>ఒక date range Excel గా export చేయండి</td></tr>
+      <tr><td>Download Closing Template</td><td>Bulk CB entry కోసం pre-filled Excel template download చేయండి</td></tr>
+      <tr><td>Import Closing</td><td>Excel file నుండి closing balances import చేయండి</td></tr>
+      <tr><td>Restore from Cloud</td><td>Cloud workspace నుండి daily stock data pull చేయండి</td></tr>
+      <tr><td>Clear Current Date</td><td>ఎంచుకున్న తేదీ entries మాత్రమే delete చేయండి</td></tr>
+      <tr><td>Clear ALL Daily Stock</td><td>అన్ని daily stock data delete చేయండి ("DELETE ALL" type చేసి confirm చేయాలి)</td></tr>
+    </table>
+  </div>
+
+  <h3>Search</h3>
+  <p>Daily stock screen లో ఉండగా product పేరు లేదా product code ద్వారా filter చేయడానికి toolbar లో search icon తాకండి.</p>
+
+  <h3>Save చేయని మార్పులు</h3>
+  <p>Save చేయకుండా navigate away అయినా లేదా dates switch చేసినా, app అడుగుతుంది: <strong>Save Now / Discard / Keep Editing</strong>. మీరు explicitly discard చేసే వరకు data safe గా ఉంటుంది.</p>
+</div>
+
+
+<!-- SECTION 7 -->
+<div class="section-card" id="s7">
+  <h2><span class="sec-num">7</span> Purchases</h2>
+
+  <p>ప్రతి supplier delivery invoice ఇక్కడ record చేయండి. Purchases ఆ purchase తేదీ daily stock calculation లో automatically include అవుతాయి.</p>
+
+  <h3>Purchases List</h3>
+  <p>అన్ని recorded invoices చూడడానికి Home screen నుండి <strong>Purchases</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🧾</div>
+          <div class="ph-label">Purchases list — date, reference number, supplier మరియు total cost తో invoice rows</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchases list</div>
+    </div>
+  </div>
+
+  <ul>
+    <li>ప్రతి row లో: date, invoice reference number, supplier పేరు మరియు total cost కనిపిస్తాయి</li>
+    <li>పూర్తి invoice details చూడడానికి row తాకండి</li>
+    <li>కొత్త purchase add చేయడానికి <strong>+</strong> (కుడివైపు పైన toolbar లో) తాకండి</li>
+    <li>Product పేరు, code, తేదీ లేదా invoice number ద్వారా filter చేయడానికి పైన search bar వాడండి</li>
+  </ul>
+
+  <h3>Purchase Record చేయడం</h3>
+  <p>Purchase Entry form తెరవడానికి <strong>+</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📝</div>
+          <div class="ph-label">Purchase Entry form — పై సగం: Invoice No, Reference No, Supplier మరియు Date fields</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchase Entry — header fields</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📦</div>
+          <div class="ph-label">Purchase Entry — product select అయి Cases / Loose / Price fields మరియు calculated total</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchase Entry — product detail</div>
+    </div>
+  </div>
+
+  <h4>Invoice వివరాలు (పై సగం)</h4>
+  <ul>
+    <li><strong>Invoice No</strong> — delivery document నుండి supplier invoice number</li>
+    <li><strong>Reference No</strong> — ఈ delivery కు unique reference (permit లేదా transport number వంటివి) — duplicate imports నివారించడానికి వాడతారు</li>
+    <li><strong>Supplier</strong> — dropdown నుండి ఎంచుకోండి లేదా manually type చేయండి</li>
+    <li><strong>Date</strong> — goods receive అయిన తేదీ (default: నేడు)</li>
+    <li><strong>Notes</strong> — ఐచ్ఛిక గమనికలు</li>
+  </ul>
+
+  <h4>Product వివరాలు (కింది సగం)</h4>
+  <ol class="steps">
+    <li>Product ఎంచుకోవడానికి <strong>Select Product</strong> తాకండి</li>
+    <li>Receive అయిన ప్రతి size కు enter చేయండి:
+      <ul>
+        <li><strong>Cases</strong> — పూర్తిగా sealed cases సంఖ్య</li>
+        <li><strong>Loose</strong> — individual loose units (partial case)</li>
+        <li><strong>Price</strong> — per unit price (product master నుండి auto-fill అవుతుంది)</li>
+      </ul>
+    </li>
+    <li>Total units = (Cases × units per case) + Loose, Cost = Total × Price — automatically calculate అవుతుంది</li>
+    <li>అదే invoice లో మరొక product add చేయడానికి <strong>Add Another Product</strong> తాకండి</li>
+    <li>పూర్తయినప్పుడు <strong>Save</strong> తాకండి</li>
+  </ol>
+  <div class="callout tip">ఈ delivery లో ఒక size రాకపోతే దాని Cases మరియు Loose fields zero లో వదలండి.</div>
+
+  <h3>Purchase Edit లేదా Delete చేయడం</h3>
+  <p>List లో ఏదైనా purchase ని double-tap చేస్తే <strong>Edit</strong>, <strong>Delete</strong> లేదా <strong>Insert Here</strong> options తో action dialog తెరుచుకుంటుంది. Deletions permanent అవుతాయి మరియు ఆ తేదీ daily stock totals వెంటనే update అవుతాయి.</p>
+
+  <h3>అదే Invoice లో Multiple Items చేర్చడం</h3>
+  <p>Purchases list లో existing purchase ని double-tap చేసి <strong>Insert Here</strong> ఎంచుకోండి. అదే invoice number, తేదీ మరియు supplier తో pre-filled కొత్త purchase form తెరుచుకుంటుంది — product మాత్రమే మార్చండి.</p>
+
+  <h3>Excel నుండి Purchases Import చేయడం</h3>
+  <p>చాలా products తో delivery వచ్చినప్పుడు, లేదా bulk historical invoices enter చేసేటప్పుడు, Excel నుండి import చేయడం చాలా వేగంగా ఉంటుంది.</p>
+
+  <ol class="steps">
+    <li>Purchases screen లో <strong>⋮</strong> → <strong>Download Template</strong> తాకండి</li>
+    <li>App Downloads folder లో pre-filled Excel template save చేస్తుంది. Columns: Date, Invoice No, Reference No, Supplier, Product Code, మరియు ప్రతి size కు Cases, Loose, Price.</li>
+    <li>Computer లో లేదా Google Sheets / Microsoft Excel లో template తెరవండి</li>
+    <li>ప్రతి invoice యొక్క ప్రతి product line కు ఒక row fill చేయండి:
+      <ul>
+        <li>Delivery <strong>Date</strong> enter చేయండి (format: DD-MM-YYYY లేదా YYYY-MM-DD)</li>
+        <li>Delivery document నుండి <strong>Invoice No</strong> మరియు <strong>Reference No</strong> enter చేయండి</li>
+        <li><strong>Supplier</strong> పేరు enter చేయండి</li>
+        <li><strong>Product Code</strong> column లో సరైన product row వెతకండి</li>
+        <li>Receive అయిన ప్రతి size కు <strong>Cases</strong> మరియు <strong>Loose</strong> enter చేయండి</li>
+        <li>ప్రతి size కు per unit <strong>Price</strong> enter చేయండి</li>
+      </ul>
+    </li>
+    <li>ప్రతి product కు rows repeat చేయండి. ఒకే file లో అనేక invoices enter చేయవచ్చు — ప్రతి delivery కు వేరే Invoice No వాడండి.</li>
+    <li>File save చేసి phone కు transfer చేయండి</li>
+    <li>Purchases screen లో తిరిగి వచ్చి <strong>⋮ → Import from Excel</strong> తాకండి</li>
+    <li>Phone storage నుండి file ఎంచుకోండి</li>
+    <li>App అన్ని rows import చేసి result summary చూపిస్తుంది (<a href="#s12">Section 12</a> చూడండి)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📥</div>
+          <div class="ph-label">Purchases ⋮ menu — "Download Template" మరియు "Import from Excel" కనిపిస్తున్నాయి</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchases import/export menu</div>
+    </div>
+  </div>
+
+  <div class="callout warn"><strong>Duplicate detection:</strong> Existing record తో same product + invoice number + date ఉన్న rows ని app flag చేసి update చేయాలా లేదా skip చేయాలా అని అడుగుతుంది.</div>
+
+  <h3>Purchases Menu (⋮ కుడివైపు పైన)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Menu Item</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Import from Excel</td><td>Excel file నుండి purchases bulk-import చేయండి (ముందు template download చేయండి)</td></tr>
+      <tr><td>Export All</td><td>అన్ని purchase records ని Excel గా export చేయండి</td></tr>
+      <tr><td>Export Filtered</td><td>ఒక date range లో purchases export చేయండి</td></tr>
+      <tr><td>Download Template</td><td>మీ product list తో pre-filled Excel template పొందండి</td></tr>
+      <tr><td>Delete by Date Range</td><td>ఒక date range లో అన్ని purchases delete చేయండి</td></tr>
+      <tr><td>Multi-Select</td><td>ఒకేసారి delete చేయడానికి multiple purchases select చేయండి</td></tr>
+      <tr><td>Download from Cloud</td><td>Cloud workspace నుండి purchase data pull చేయండి</td></tr>
+    </table>
+  </div>
+</div>
+
+
+<!-- SECTION 8 -->
+<div class="section-card" id="s8">
+  <h2><span class="sec-num">8</span> Reports</h2>
+
+  <p>Home screen నుండి <strong>Reports</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📈</div>
+          <div class="ph-label">Reports screen — Daily Reports, Period Reports మరియు Monthly Reports గా grouped report cards</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Reports menu</div>
+    </div>
+  </div>
+
+  <h3>Daily Stock Sheet</h3>
+  <p>ఎంచుకున్న తేదీలో అన్ని products మరియు sizes కు opening balance, purchases, closing balance మరియు calculated sales తో పూర్తి table.</p>
+  <ol class="steps">
+    <li><strong>Daily Stock Sheet</strong> తాకండి</li>
+    <li>తేదీ ఎంచుకోండి</li>
+    <li><strong>View Report</strong> తాకండి</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📄</div>
+          <div class="ph-label">Daily Stock Sheet report viewer — ప్రతి product మరియు size కు OB / PQ / SQ / CB columns</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Daily Stock Sheet report</div>
+    </div>
+  </div>
+
+  <ul>
+    <li>Business name, owner name మరియు తేదీ report header గా కనిపిస్తాయి (Business Info నుండి)</li>
+    <li>Sheet ని Downloads కు save చేయడానికి <strong>Export to Excel</strong> (కుడివైపు పైన) తాకండి</li>
+  </ul>
+
+  <h3>Closing Balances</h3>
+  <p>ఎంచుకున్న తేదీలో అన్ని sizes లో per product end-of-day stock quantities. Physical stock quick verification కు useful.</p>
+
+  <h3>Daily Brand Wise Account</h3>
+  <p>Product category వారీగా brand పర్ sales మరియు stock summary తో daily account. మీ business type కు అవసరమైన regulatory reporting కు useful.</p>
+  <ol class="steps">
+    <li><strong>Daily Brand Wise A/c</strong> తాకండి</li>
+    <li>తేదీ ఎంచుకోండి</li>
+    <li><strong>View Report</strong> తాకండి</li>
+    <li>అవసరమైతే Excel కి export చేయండి</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📊</div>
+          <div class="ph-label">Brand Wise Account report — category వారీగా products, sale totals చూపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Brand Wise Account</div>
+    </div>
+  </div>
+
+  <h3>Purchase Report (Period)</h3>
+  <p>ఒక date range లో invoice వారీగా group చేయబడిన అన్ని purchase records — supplier-wise లేదా invoice-wise reconciliation కు useful.</p>
+  <ol class="steps">
+    <li><strong>Purchase Report</strong> తాకండి</li>
+    <li>From మరియు To తేదీలు ఎంచుకోండి</li>
+    <li><strong>View Report</strong> తాకండి</li>
+  </ol>
+
+  <h3>Monthly Sale Data</h3>
+  <p>ఎంచుకున్న నెలలో ప్రతి రోజు day-end commit totals (sale amount, UPI receipts, expenses, cash deposit) చూపిస్తుంది — monthly reconciliation మరియు accounts కు.</p>
+  <ol class="steps">
+    <li><strong>Monthly Sale Data</strong> తాకండి</li>
+    <li>◀ మరియు ▶ arrows తో months navigate చేయండి, లేదా month పేరు తాకి ఏ నెల/సంవత్సరానికైనా jump చేయండి</li>
+  </ol>
+  <p>Day-end reconciliation save కాని రోజులు amber రంగులో * marker తో highlight అవుతాయి. Closing balances reconciliation తర్వాత update అయిన రోజులు refresh icon తో mark అవుతాయి. Column totals దిగువన కనిపిస్తాయి; negative అయితే red లో చూపిస్తాయి.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Monthly Summary Menu (⋮)</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Share</td><td>Report ని colour-coded HTML file గా share చేయండి</td></tr>
+      <tr><td>Print / Save as PDF</td><td>Phone print service ద్వారా print చేయండి లేదా PDF గా save చేయండి</td></tr>
+      <tr><td>Import Reconciliation from Cloud</td><td>Cloud workspace నుండి day-end data pull చేయండి</td></tr>
+      <tr><td>Delete Reconciliation Range</td><td>ఒక date range లో day-end records remove చేయండి</td></tr>
+    </table>
+  </div>
+
+  <h3>Monthly Stock Purchases</h3>
+  <p>ఎంచుకున్న నెలలో ప్రతి product కు total purchase quantities, ఒక product కు ఒక row.</p>
+
+  <h3>Zero-Activity Products చేర్చడం</h3>
+  <p>Report filter లో <strong>"Include products with zero activity"</strong> toggle చేసి, ఆ తేదీలో sales లేదా purchases లేని products చూడవచ్చు. Default గా off ఉంటుంది.</p>
+
+  <div class="callout tip">అన్ని reports లో <span class="path">Settings → Business Info</span> నుండి business name మరియు owner వివరాలు header గా కనిపిస్తాయి. Reports generate చేయడానికి ముందు Step 1 లో వీటిని setup చేయండి.</div>
+</div>
+
+
+<!-- SECTION 9 -->
+<div class="section-card" id="s9">
+  <h2><span class="sec-num">9</span> Items / Products</h2>
+
+  <p>Home screen నుండి <strong>Items / Products</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🗂️</div>
+          <div class="ph-label">Products Menu screen — Display Order, Stock Setup, Master Data, Download Standard List</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Products menu</div>
+    </div>
+  </div>
+
+  <h3>Product Display Order</h3>
+  <p>Daily Stock Entry screen మరియు reports లో products కనిపించే క్రమాన్ని నియంత్రిస్తుంది.</p>
+  <ol class="steps">
+    <li><strong>Product Display Order</strong> తాకండి</li>
+    <li>Edit mode లోకి వెళ్ళడానికి <strong>Edit switch</strong> toggle చేయండి</li>
+    <li>ఏదైనా product ని up లేదా down move చేయడానికి <strong>Long-press చేసి drag</strong> చేయండి</li>
+    <li>Edit switch off చేసి product row ని double-tap చేస్తే <strong>Deactivate</strong> option వస్తుంది (daily stock నుండి దాచి, దిగువన Inactive section కి move చేస్తుంది). Inactive product ని double-tap చేసి <strong>Re-activate</strong> చేయండి.</li>
+    <li>పూర్తయినప్పుడు <strong>Renumber &amp; Save</strong> తాకండి, లేదా <strong>Discard</strong> తో cancel చేయండి</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">↕️</div>
+          <div class="ph-label">Product Order screen — edit mode లో ప్రతి row కు ఎడమవైపు drag handles కనిపిస్తున్నాయి</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Product Display Order (edit mode)</div>
+    </div>
+  </div>
+
+  <div class="callout tip">మీరు shelves count చేసే క్రమంలో products arrange చేయండి. ఇది daily closing entry చాలా వేగంగా చేయడానికి సహాయపడుతుంది.</div>
+
+  <h3>Opening Stock Setup</h3>
+  <p>కొత్త period start చేసేటప్పుడు లేదా starting quantities సరిచేసేటప్పుడు వాడతారు. పూర్తి walkthrough కోసం <a href="#s4">Section 4 — Step 4</a> చూడండి.</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Manual Entry</div>
+    <ol class="steps">
+      <li><strong>Opening Stock Setup</strong> తాకండి</li>
+      <li>తేదీ ఎంచుకుని <strong>Begin Entry</strong> లేదా <strong>Edit</strong> తాకండి</li>
+      <li>Keyboard వాడి ప్రతి product కు per size unit counts enter చేయండి</li>
+      <li>దిగువన <strong>SAVE</strong> తాకండి</li>
+    </ol>
+  </div>
+  <div class="option-box">
+    <div class="option-tag tag-b">Excel నుండి Import (పెద్ద product lists కు recommended)</div>
+    <ol class="steps">
+      <li><strong>Opening Stock Setup</strong> → ⋮ → <strong>Download Template</strong> తాకండి</li>
+      <li>Computer లో template లో stock quantities fill చేయండి</li>
+      <li>File ని phone కు transfer చేయండి</li>
+      <li><strong>⋮ → Import from Excel</strong> తాకి file ఎంచుకోండి</li>
+    </ol>
+  </div>
+
+  <h3>Product Master Data</h3>
+  <p>Reference కోసం మీ పూర్తి product list — product codes, పేర్లు మరియు size variants — చూపిస్తుంది.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📋</div>
+          <div class="ph-label">Product Master Data list — product code, name మరియు size code columns</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Product Master Data</div>
+    </div>
+  </div>
+
+  <h3>Standard Product List Download చేయడం</h3>
+  <p>Admin కొత్త products add చేసినప్పుడు లేదా prices update చేసినప్పుడు దీన్ని run చేయండి.</p>
+  <ol class="steps">
+    <li><strong>Download Standard Product List</strong> తాకండి</li>
+    <li>Download confirm చేయండి</li>
+    <li>Complete అయ్యే వరకు వేచి ఉండండి — కొత్త మరియు updated products add అవుతాయి; మీ display order preserve అవుతుంది</li>
+  </ol>
+  <div class="callout tip">Admin's standard list లో లేని మీ local products unchanged గా ఉంటాయి.</div>
+</div>
+
+
+<!-- SECTION 10 -->
+<div class="section-card" id="s10">
+  <h2><span class="sec-num">10</span> Settings</h2>
+
+  <p>Home screen నుండి <strong>Settings</strong> తాకండి.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">⚙️</div>
+          <div class="ph-label">Settings screen — Language, Business Info, Drive Backup, Sync Settings, Help &amp; Support cards</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Settings screen</div>
+    </div>
+  </div>
+
+  <h3>Language</h3>
+  <p><strong>English</strong> మరియు <strong>తెలుగు</strong> మధ్య switch చేయడానికి <strong>App Language</strong> తాకండి. మార్పు వెంటనే అన్ని screens కు apply అవుతుంది.</p>
+
+  <h3>Business Info</h3>
+  <p>మీ business name, owner name, address మరియు phone update చేయండి. Getting Started setup యొక్క Step 1 లో ఉన్న అన్ని fields ఇక్కడ కూడా ఉంటాయి.</p>
+  <ul>
+    <li>Changes ని admin's system కు sync చేయడానికి <strong>Save &amp; Update Registration</strong> తాకండి</li>
+  </ul>
+
+  <h4>Business Info overflow menu (⋮ కుడివైపు పైన)</h4>
+  <div class="table-wrap">
+    <table>
+      <tr><th>మీ Status</th><th>Menu Option</th><th>ఏమి చేస్తుంది</th></tr>
+      <tr><td>Registered</td><td>Delete Account &amp; Data</td><td>అన్ని cloud data, registration మరియు sign-in account permanently remove చేస్తుంది</td></tr>
+      <tr><td>Not registered</td><td>Clear Local Data</td><td>ఈ device నుండి అన్ని inventory data delete చేస్తుంది (exported Excel files affected కావు)</td></tr>
+      <tr><td>Deletion pending</td><td>Complete Account Deletion</td><td>Re-login తర్వాత sign-in account removing complete చేస్తుంది</td></tr>
+    </table>
+  </div>
+
+  <h3>Drive Backup</h3>
+  <p>Cloud backup యొక్క current state చూపిస్తుంది. పూర్తి workflow కోసం <a href="#s11">Section 11</a> చూడండి.</p>
+
+  <h3>Sync Settings</h3>
+  <p>Drive Backup active అయినప్పుడు మాత్రమే available. App automatically ప్రతి 6 గంటలకు sync చేయాలా లేదా Sync button తాకినప్పుడు మాత్రమే sync చేయాలా అని configure చేయండి.</p>
+
+  <h3>Help &amp; Support</h3>
+  <ul>
+    <li><strong>Report an Issue / Ask for Help</strong> — device మరియు app version pre-filled తో support email పంపుతుంది</li>
+    <li><strong>Request Feature</strong> — Simhadri Systems కు feature request పంపుతుంది</li>
+    <li><strong>Import Test Data</strong> — sample data reload చేస్తుంది (registration అవసరం)</li>
+    <li><strong>User Guide</strong> — ఈ guide ని browser లో తెరుస్తుంది</li>
+  </ul>
+
+  <h3>Error Log</h3>
+  <p>App errors encounter చేసినప్పుడు, device లో log save అవుతుంది. Errors ఉంటే Settings దిగువన <strong>Share Error Log</strong> button కనిపిస్తుంది. Support contact చేసేటప్పుడు log share చేయండి.</p>
+
+  <h3>App Version</h3>
+  <p>Settings దిగువన చూపిస్తుంది. Play Store లో newer version check చేయడానికి <strong>Check for Update</strong> తాకండి.</p>
+</div>
+
+
+<!-- SECTION 11 -->
+<div class="section-card" id="s11">
+  <h2><span class="sec-num">11</span> Cloud Drive Backup</h2>
+
+  <p>Cloud backup ఐచ్ఛికం. దాన్ని లేకుండా app పూర్తిగా offline పని చేస్తుంది. Enable చేసినప్పుడు, మీ daily stock, purchases మరియు day-end summaries admin's Drive workspace లో private Google Sheet లో store అవుతాయి — మీ personal Drive నుండి వేరుగా.</p>
+
+  <div class="callout note"><strong>మీ data, మీ నియంత్రణ.</strong> Google తో sign in చేయడం వల్ల sync start కాదు. Backup enable చేసి terms accept చేసిన తర్వాత మాత్రమే data phone వదలుతుంది.</div>
+
+  <h3>Enable చేయడం ఎలా</h3>
+  <ol class="steps">
+    <li><strong>Register</strong> చేయండి — <span class="path">Settings → Business Info</span> కి వెళ్ళి business name fill చేసి <strong>Save &amp; Register</strong> తాకండి</li>
+    <li><strong>Workspace request</strong> చేయండి — <span class="path">Settings</span> → <strong>Drive Backup</strong> card తాకి → <strong>Request Drive Backup</strong> తాకండి</li>
+    <li><strong>Consent terms చదవండి</strong> — ఏ data store అవుతుందో మరియు admin కు read access ఉంటుందని dialog వివరిస్తుంది</li>
+    <li><strong>I Agree — Enable Backup</strong> తాకండి</li>
+    <li>App admin's system ని contact చేస్తుంది:
+      <ul>
+        <li>Invited list లో ఉంటే → workspace వెంటనే create అవుతుంది → "Drive Backup Active" green లో చూపిస్తుంది</li>
+        <li>Invited list లో లేకపోతే → "Drive Backup Pending" చూపిస్తుంది — admin activate చేస్తారు</li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">☁️</div>
+          <div class="ph-label">Settings screen — green లో "Drive Backup Active" card చూపిస్తోంది</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Drive Backup Active state</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📋</div>
+          <div class="ph-label">Cloud backup consent dialog — terms మరియు "I Agree — Enable Backup" button</div>
+          <div class="ph-note">Admin: screenshot ఇక్కడ చేర్చండి</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Consent dialog</div>
+    </div>
+  </div>
+
+  <div class="callout tip">"Drive Backup Pending" ఒక రోజు కంటే ఎక్కువ కాలం ఉంటే, card తాకి → <strong>Send Reminder</strong> తో admin కు మళ్ళీ notify చేయండి.</div>
+
+  <h3>ఏమి Sync అవుతుంది</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Data</th><th>Sync అవుతుందా?</th></tr>
+      <tr><td>Daily stock entries</td><td>అవును</td></tr>
+      <tr><td>Purchase records</td><td>అవును</td></tr>
+      <tr><td>Day-end reconciliation</td><td>అవును</td></tr>
+      <tr><td>Opening stock</td><td>అవును</td></tr>
+      <tr><td>Product list</td><td>Admin నుండి read-only download మాత్రమే</td></tr>
+      <tr><td>Licence/Reg. number, పూర్తి address</td><td>కాదు — device లో మాత్రమే ఉంటుంది</td></tr>
+    </table>
+  </div>
+  <div class="callout info">Administrator మీ workspace లోని అన్ని records read చేయగలరు. ఇది free cloud backup అందించడానికి ఆధారం.</div>
+
+  <h3>Home Screen లో Sync Status Icons</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Icon రంగు</th><th>అర్థం</th></tr>
+      <tr><td>White</td><td>అన్ని records విజయవంతంగా sync అయ్యాయి</td></tr>
+      <tr><td>Red</td><td>ఒకటి లేదా అంతకు ఎక్కువ records fail అయ్యాయి — retry కు తాకండి</td></tr>
+      <tr><td>Amber / Yellow</td><td>Drive Backup setup కాలేదు</td></tr>
+    </table>
+  </div>
+
+  <h3>Viewer vs Editor Role</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Role</th><th>మీరు ఏమి చేయగలరు</th></tr>
+      <tr><td>Editor (default)</td><td>పూర్తి access — data enter చేయడం, up మరియు down sync, అన్ని buttons active</td></tr>
+      <tr><td>Viewer</td><td>Read-only — cloud నుండి మాత్రమే sync down; data entry మరియు save buttons hidden</td></tr>
+    </table>
+  </div>
+  <p>Role మార్పు అవసరమైతే admin ని contact చేయండి.</p>
+
+  <h3>Deactivate లేదా Delete చేయడం</h3>
+  <ul>
+    <li><strong>Deactivate</strong> — <span class="path">Settings → Drive Backup (active) → Deactivate</span>. Future auto-sync ఆగిపోతుంది. Local data affected కాదు.</li>
+    <li><strong>Delete Account &amp; Data</strong> — <span class="path">Settings → Business Info → ⋮ → Delete Account &amp; Data</span>. అన్ని cloud data, registration మరియు sign-in account permanently remove అవుతాయి.</li>
+  </ul>
+</div>
+
+
+<!-- SECTION 12 -->
+<div class="section-card" id="s12">
+  <h2><span class="sec-num">12</span> Data Management &amp; Excel Import/Export</h2>
+
+  <p>WinEntry records మరియు reports కోసం Excel కి data export చేయగలదు, మరియు manual typing నివారించడానికి Excel నుండి data import కూడా చేయగలదు. అన్ని operations standard <strong>.xlsx</strong> files వాడతాయి — Microsoft Excel, Google Sheets లేదా ఏ compatible spreadsheet app లోనైనా తెరుచుకుంటాయి.</p>
+
+  <h3>Excel Export — Quick Reference</h3>
+  <p>Exported files phone యొక్క <strong>Downloads</strong> folder కు save అవుతాయి. Export తర్వాత Share button ద్వారా WhatsApp, email లేదా ఏ app ద్వారానైనా directly share చేయవచ్చు.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Export చేయాల్సింది</th><th>ఎక్కడ దొరుకుతుంది</th><th>గమనికలు</th></tr>
+      <tr><td>Daily stock full sheet</td><td><span class="path">Daily Stock → ⋮ → Export Daily Stock</span></td><td>ఎంచుకున్న తేదీలో అన్ని products, అన్ని sizes</td></tr>
+      <tr><td>Closing balances (single date)</td><td><span class="path">Daily Stock → ⋮ → Export Current Date</span></td><td>End-of-day stock snapshot కు useful</td></tr>
+      <tr><td>Daily stock (date range)</td><td><span class="path">Daily Stock → ⋮ → Export Date Range</span></td><td>From మరియు To తేదీలు ఎంచుకోండి</td></tr>
+      <tr><td>All purchases</td><td><span class="path">Purchases → ⋮ → Export All</span></td><td>ఎప్పటికప్పుడు record చేసిన ప్రతి invoice</td></tr>
+      <tr><td>Purchases (date range)</td><td><span class="path">Purchases → ⋮ → Export Filtered</span></td><td>From మరియు To తేదీలు ఎంచుకోండి</td></tr>
+      <tr><td>Monthly summary</td><td><span class="path">Reports → Monthly Sale Data → ⋮ → Share</span></td><td>Colour-coded HTML లేదా Print ద్వారా PDF</td></tr>
+    </table>
+  </div>
+
+  <h3>Excel Import — ఎలా పని చేస్తుంది</h3>
+  <p>ప్రతి data type కు import system ఒకే three-step pattern follow చేస్తుంది:</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Step 1 — Template Download చేయండి</div>
+    <p>ఎప్పుడూ app లో నుండే template download చేయడం మొదలుపెట్టండి. Template లో మీ product codes మరియు app expect చేసే exact format లో column headings ముందే fill అయి ఉంటాయి. <strong>Import file scratch నుండి create చేయకండి — template మాత్రమే వాడండి.</strong></p>
+  </div>
+  <div class="option-box" style="border-color:#e0f2f1;">
+    <div class="option-tag tag-b">Step 2 — Template నింపండి</div>
+    <p>Computer లో లేదా phone లో (Google Sheets, Microsoft Excel) template తెరవండి. Quantity/value columns లో మీ data enter చేయండి. Product codes, column headings లేదా sheet structure మార్చకండి. <strong>.xlsx</strong> గా save చేయండి.</p>
+  </div>
+  <div class="option-box">
+    <div class="option-tag tag-a">Step 3 — Transfer చేసి Import చేయండి</div>
+    <p>Filled file ని phone కు transfer చేయండి (WhatsApp, Google Drive, email లేదా USB). App లో ⋮ → relevant Import option తాకి file ఎంచుకోండి. App commit చేయడానికి ముందు ప్రతి row validate చేస్తుంది.</p>
+  </div>
+
+  <h3>Excel Import — Quick Reference</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Import చేయాల్సింది</th><th>Template ఎక్కడ దొరుకుతుంది</th><th>Import ఎక్కడ చేయాలి</th></tr>
+      <tr>
+        <td>Opening stock</td>
+        <td><span class="path">Products → Opening Stock → ⋮ → Download Template</span></td>
+        <td><span class="path">Products → Opening Stock → ⋮ → Import from Excel</span></td>
+      </tr>
+      <tr>
+        <td>Closing balances</td>
+        <td><span class="path">Daily Stock → ⋮ → Download Closing Template</span></td>
+        <td><span class="path">Daily Stock → ⋮ → Import Closing</span></td>
+      </tr>
+      <tr>
+        <td>Purchases</td>
+        <td><span class="path">Purchases → ⋮ → Download Template</span></td>
+        <td><span class="path">Purchases → ⋮ → Import from Excel</span></td>
+      </tr>
+    </table>
+  </div>
+  <ul>
+    <li>Opening stock import — <a href="#s4">Section 4 (Step 4, Option B)</a> మరియు <a href="#s9">Section 9</a></li>
+    <li>Closing balance import — <a href="#s6">Section 6 (Excel నుండి Closing Balances Import)</a></li>
+    <li>Purchase import — <a href="#s7">Section 7 (Excel నుండి Purchases Import)</a></li>
+  </ul>
+
+  <h3>Import Result Summary</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Result</th><th>అర్థం</th></tr>
+      <tr><td><strong>New</strong></td><td>Records విజయవంతంగా import అయ్యాయి</td></tr>
+      <tr><td><strong>Skipped</strong></td><td>ఇప్పటికే exist చేస్తున్నాయి — same product + date, లేదా same invoice + date. మార్పు చేయబడలేదు.</td></tr>
+      <tr><td><strong>Failed</strong></td><td>Product code దొరకలేదు, లేదా data format error</td></tr>
+    </table>
+  </div>
+  <p>Skipped లేదా failed rows list ని clipboard కి copy చేయడానికి <strong>Copy List</strong> తాకండి. Review చేసి figures సరిచేసిన తర్వాత retry చేయండి.</p>
+  <div class="callout warn">"product code not found" తో చాలా rows fail అయితే: <span class="path">Items/Products → Download Standard Product List</span> ద్వారా product list update చేసి import retry చేయండి.</div>
+</div>
+
+
+<!-- SECTION 13 -->
+<div class="section-card" id="s13">
+  <h2><span class="sec-num">13</span> Help మరియు Support</h2>
+
+  <p><span class="path">Settings → Help &amp; Support</span> కి వెళ్ళండి.</p>
+  <p><strong>Support email:</strong> simhadrisystems@gmail.com</p>
+
+  <h3>Support Contact చేయడం</h3>
+  <p><strong>Ask for Help</strong> లేదా <strong>Report Issue</strong> తాకండి. App మీ app version, Android version మరియు device model తో message template pre-fill చేస్తుంది. Data automatically పంపబడదు.</p>
+
+  <h3>సాధారణ సమస్యలు</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>సమస్య</th><th>ఏమి చేయాలి</th></tr>
+      <tr><td>Onboarding లో "Download" బదులు "Request Access" కనిపిస్తోంది</td><td>Admin activate చేయాలి — "Request Access" తాకి request పంపండి</td></tr>
+      <tr><td>"Drive Backup Pending" ఒక రోజు కంటే ఎక్కువ కాలం ఉంది</td><td>Card తాకి → Send Reminder</td></tr>
+      <tr><td>Home screen లో sync icon red గా ఉంది</td><td>Internet connection check చేసి sync icon తాకి retry చేయండి</td></tr>
+      <tr><td>Opening balance తప్పుగా కనిపిస్తోంది</td><td>Previous రోజు committed అయిందో check చేయండి — Daily Stock లో ఆ తేదీ verify చేయండి</td></tr>
+      <tr><td>Daily stock list లో product లేదు</td><td><span class="path">Items/Products → Download Standard Product List</span> run చేయండి</td></tr>
+      <tr><td>"Account Not Activated" error వస్తోంది</td><td>Email లేదా WhatsApp ద్వారా admin ని contact చేయండి</td></tr>
+      <tr><td>Account deletion తర్వాత "Sign in again to complete" చూపిస్తోంది</td><td>Sign out చేసి same account తో sign in చేసి <span class="path">Business Info → ⋮ → Complete Account Deletion</span> కి వెళ్ళండి</td></tr>
+    </table>
+  </div>
+
+  <h3>Test Data Import చేయడం</h3>
+  <p><span class="path">Settings → Help &amp; Support → Import Test Data</span> కి వెళ్ళండి. Practice కోసం sample opening balances మరియు dummy stock data load అవుతుంది. App registration అవసరం.</p>
+  <p>Sample opening balance తేదీ confirm చేయండి. Live trading ప్రారంభించడానికి ready అయినప్పుడు sample data ని real figures తో replace చేయండి.</p>
+
+  <hr />
+
+  <div class="callout note">
+    Cloud Drive Backup explicitly enable చేసే వరకు మీ అన్ని data మీ phone లోనే ఉంటుంది. App పూర్తిగా offline పని చేస్తుంది — internet connection లేకుండా closing stock enter చేయవచ్చు, purchases record చేయవచ్చు, reports చూడవచ్చు మరియు Excel కి export చేయవచ్చు.
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<footer>
+  <p>WinEntry &nbsp;·&nbsp; వ్యాపార Inventory &amp; Stock Management Tool</p>
+  <p>Simhadri Systems &nbsp;·&nbsp; simhadrisystems@gmail.com</p>
+  <p>మే 2026 నవీకరణ &nbsp;·&nbsp; Version 1.1 (Build 4)</p>
+</footer>
+
+</body>
+</html>

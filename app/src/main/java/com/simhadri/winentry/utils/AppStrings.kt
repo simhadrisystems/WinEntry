@@ -80,6 +80,63 @@ object AppStrings {
     )
 
     // ─────────────────────────────────────────────────────────────────
+    // ONBOARDING DIALOG
+    // ─────────────────────────────────────────────────────────────────
+
+    val onboardingCardTitle = L(
+        en = "Getting Started",
+        te = "ప్రారంభం"
+    )
+    val onboardingCardDesc = L(
+        en = "Tap to complete setup before using the app",
+        te = "వాడేముందు  యాప్ ను  సిద్ధం చేయడానికి నొక్కండి"
+    )
+    val onboardingTitle = L(
+        en = "Getting Started with WinEntry",
+        te = "విన్‌ఎంట్రీ ప్రాంభించేందుకు"
+    )
+    val onboardingWelcome = L(
+        en = "Welcome to WinEntry App",
+        te = "విన్‌ఎంట్రీ యాప్‌కు స్వాగతం"
+    )
+    val onboardingDesc = L(
+        en = "Before you begin daily transactions, set up your Products and Opening Balance data.\n\n" +
+             "For a quick start, import the Product Master List from the cloud — you can customize it later to match your business needs.\n\n" +
+             "You may also import sample Opening Stock and Transaction data to explore app features and practice using the app.",
+        te = "రోజువారీ లావాదేవీలను ప్రారంభించే ముందు, ప్రోడక్ట్స్ మరియు ప్రారంభ నిల్వ డేటాను నింపాలి.\n\n" +
+             "త్వరగా ప్రారంభించేందుకు, క్లౌడ్ నుండి ప్రొడక్ట్ మాస్టర్ జాబితాను దిగుమతి చేసుకోవచ్చు — తర్వాత మీ వ్యాపార అవసరాలకు అనుగుణంగా మార్చుకోవచ్చు.\n\n" +
+             "యాప్ ఫీచర్లను తెలుసుకోవడానికి మరియు అభ్యాసం చేయడానికి నమూనా ఓపెనింగ్ స్టాక్ మరియు ట్రాన్సాక్షన్ డేటాను కూడా దిగుమతి చేసుకోవచ్చు."
+    )
+    val onboardingChecklist = L(
+        en = "Setup Checklist",
+        te = "సెటప్ చెక్‌లిస్ట్"
+    )
+    val onboardingStep1 = L(
+        en = "Set Up Business Information",
+        te = "వ్యాపార వివరాలు నమోదు"
+    )
+    val onboardingStep2 = L(
+        en = "Import Product List",
+        te = "ప్రొడక్ట్ జాబితా దిగుమతి"
+    )
+    val onboardingStep3 = L(
+        en = "Import Sample / Test Data (Optional)",
+        te = "నమూనా డేటా దిగుమతి (ఐచ్ఛికం)"
+    )
+    val onboardingStep4 = L(
+        en = "Setup Opening Stock (manual)",
+        te = "ఓపెనింగ్ స్టాక్ సెటప్ (స్వయంగా)"
+    )
+    val onboardingUserGuideNote = L(
+        en = "Read the User Guide for a better understanding of the app.",
+        te = "యాప్‌ను బాగా అర్థం చేసుకోవడానికి వినియోగదారు గైడ్ చదవండి."
+    )
+    val onboardingUserGuideBtn = L(
+        en = "Open Guide",
+        te = "గైడ్ తెరవు"
+    )
+
+    // ─────────────────────────────────────────────────────────────────
     // SETTINGS SCREEN
     // ─────────────────────────────────────────────────────────────────
 

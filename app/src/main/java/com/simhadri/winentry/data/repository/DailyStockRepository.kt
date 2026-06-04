@@ -27,6 +27,9 @@ class DailyStockRepository(
     suspend fun getAllProductsSync(): List<Product> =
         productDao.getAllProductsSync()
 
+    suspend fun getAllProductsByDailySortKeySync(): List<Product> =
+        productDao.getAllProductsByDailySortKeySync()
+
     // ── Opening balance ───────────────────────────────────────────────────────
 
     /**

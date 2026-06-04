@@ -57,16 +57,20 @@
 
         <activity
             android:name=".MainActivity"
-            android:windowSoftInputMode="adjustPan"
+            android:windowSoftInputMode="adjustNothing"
             android:exported="true">
             <!--
-                adjustPan  = keyboard slides UP over the layout.
-                             The bottom nav stays fixed at the bottom.
-                             Content pans up just enough to keep the
-                             focused field visible.
+                adjustNothing = window never translates or resizes for the keyboard.
+                                Each fragment handles IME insets manually via
+                                ViewCompat.setOnApplyWindowInsetsListener so its
+                                scrollable container adds bottom padding equal to the
+                                keyboard height, keeping content visible without ever
+                                shifting the toolbar behind the status bar.
 
-                DO NOT use adjustResize — that pushes the bottom nav
-                up above the keyboard, which is what we want to avoid.
+                adjustPan (old) caused the entire window to translate upward with
+                edge-to-edge, pushing the toolbar behind the status bar.
+                adjustResize pushes the system nav bar above the keyboard on
+                3-button-nav devices.
             -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

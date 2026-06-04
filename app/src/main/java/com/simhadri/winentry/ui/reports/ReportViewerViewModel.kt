@@ -113,14 +113,16 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun loadEntries(date: String): List<DailyEntry> {
         return try {
-            val products  = repository.getAllProductsSync()  // all products — inactive may have stock data
-            // Keyed by size code e.g. "W1039QQ" — stable across product re-syncs
-            val pqByCode  = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+            val products     = repository.getAllProductsByDailySortKeySync()
+            val productCodes = products.map { it.stockCode }
+            val pqByCode     = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+            val prevByCode   = repository.getBulkPreviousRows(productCodes, date)
+            val stockByCode  = repository.getAllDailyStockForDate(date).associateBy { it.productCode }
 
             products.mapNotNull { product ->
                 try {
-                    val prev  = repository.getPreviousRow(product.stockCode, date)
-                    val stock = repository.getDailyStockRaw(date, product.stockCode)
+                    val prev  = prevByCode[product.stockCode]
+                    val stock = stockByCode[product.stockCode]
 
                     val qqOb = if (stock?.isCommitted == true) stock.openQq else prev?.closeQq ?: 0
                     val ppOb = if (stock?.isCommitted == true) stock.openPp else prev?.closePp ?: 0
@@ -167,14 +169,16 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun loadEntriesAll(date: String): List<DailyEntry> {
         return try {
-            val products = repository.getAllProductsSync()  // all products — inactive may have stock data
-            // Keyed by size code e.g. "W1039QQ" — stable across product re-syncs
-            val pqByCode = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+            val products     = repository.getAllProductsByDailySortKeySync()
+            val productCodes = products.map { it.stockCode }
+            val pqByCode     = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+            val prevByCode   = repository.getBulkPreviousRows(productCodes, date)
+            val stockByCode  = repository.getAllDailyStockForDate(date).associateBy { it.productCode }
 
             products.mapNotNull { product ->
                 try {
-                    val prev  = repository.getPreviousRow(product.stockCode, date)
-                    val stock = repository.getDailyStockRaw(date, product.stockCode)
+                    val prev  = prevByCode[product.stockCode]
+                    val stock = stockByCode[product.stockCode]
 
                     val qqOb = if (stock?.isCommitted == true) stock.openQq else prev?.closeQq ?: 0
                     val ppOb = if (stock?.isCommitted == true) stock.openPp else prev?.closePp ?: 0
@@ -222,7 +226,7 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
         if (allPurchases.isEmpty()) return ""
 
         // Match by productCode (stable) not productId (volatile after re-sync)
-        val products       = repository.getAllProductsSync()  // all products — inactive may have purchases
+        val products       = repository.getAllProductsByDailySortKeySync()  // all products — inactive may have purchases
         val byCode         = allPurchases.groupBy { it.productCode }
         val activeProducts = products.filter { byCode.containsKey(it.stockCode) }
         if (activeProducts.isEmpty()) return ""
@@ -376,7 +380,9 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
         var totSqQQ = 0; var totSqPP = 0; var totSqNN = 0; var totSqDD = 0
         var totSale  = 0.0
 
+        var rowSerial = 0
         val rows = entries.joinToString("") { e ->
+            rowSerial++
             val p       = e.product
             val saleAmt = e.sale.qq * p.qqSalePrice + e.sale.pp * p.ppSalePrice +
                           e.sale.nn * p.nnSalePrice  + e.sale.dd * p.ddSalePrice
@@ -390,6 +396,7 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
             totSqNN += e.sale.nn;     totSqDD += e.sale.dd
             totSale += saleAmt
             """<tr>
+                <td class="n">$rowSerial</td>
                 <td>${p.displayName.take(18)}</td>
                 <td class="n">${qty(e.opening.qq)}</td><td class="n">${qty(e.opening.pp)}</td>
                 <td class="n">${qty(e.opening.nn)}</td><td class="n">${qty(e.opening.dd)}</td>
@@ -439,6 +446,7 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
 <table>
   <thead>
     <tr>
+      <th rowspan="2" style="text-align:center;vertical-align:middle">#</th>
       <th rowspan="2" style="text-align:left;vertical-align:middle">Product</th>
       <th colspan="4">Opening Balance</th>
       <th colspan="4">Purchase</th>
@@ -456,7 +464,7 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
   <tbody>
     $rows
     <tr class="totrow">
-      <td>TOTAL</td>
+      <td colspan="2">TOTAL</td>
       <td class="n">${qty(totObQQ)}</td><td class="n">${qty(totObPP)}</td>
       <td class="n">${qty(totObNN)}</td><td class="n">${qty(totObDD)}</td>
       <td class="n">${qty(totPqQQ)}</td><td class="n">${qty(totPqPP)}</td>
@@ -525,7 +533,9 @@ ${if (recon != null) """
         var totQQ = 0; var totPP = 0; var totNN = 0; var totDD = 0
         var totValue = 0.0
 
+        var rowSerial = 0
         val rows = entries.joinToString("") { e ->
+            rowSerial++
             val p     = e.product
             val value = e.closing.qq * p.qqSalePrice +
                         e.closing.pp * p.ppSalePrice +
@@ -535,6 +545,7 @@ ${if (recon != null) """
             totNN   += e.closing.nn;  totDD += e.closing.dd
             totValue += value
             """<tr>
+                <td class="n">$rowSerial</td>
                 <td>${p.displayName}</td>
                 <td class="n">${qty(e.closing.qq)}</td>
                 <td class="n">${qty(e.closing.pp)}</td>
@@ -578,13 +589,14 @@ ${if (recon != null) """
 </div>
 <table>
   <thead><tr>
+    <th>#</th>
     <th style="text-align:left">Product</th>
     <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
     <th>Value</th>
   </tr></thead>
   <tbody>$rows</tbody>
   <tfoot><tr>
-    <td>TOTAL</td>
+    <td colspan="2">TOTAL</td>
     <td class="n">${qty(totQQ)}</td>
     <td class="n">${qty(totPP)}</td>
     <td class="n">${qty(totNN)}</td>
@@ -625,6 +637,7 @@ ${if (recon != null) """
         var gndPqQQ = 0; var gndPqPP = 0; var gndPqNN = 0; var gndPqDD = 0
         var gndCbQQ = 0; var gndCbPP = 0; var gndCbNN = 0; var gndCbDD = 0
 
+        var serialNo = 0
         val bodyRows = StringBuilder()
         for (group in orderedKeys) {
             val groupEntries = byGroup[group] ?: continue
@@ -637,10 +650,11 @@ ${if (recon != null) """
             val groupLabel = TypeLabels.getType(group)
             val groupHeading = if (groupLabel != group) "$group — $groupLabel" else group
             bodyRows.append("""<tr class="grow">
-                <td colspan="13">$groupHeading</td>
+                <td colspan="14">$groupHeading</td>
             </tr>""")
 
             for (e in groupEntries) {
+                serialNo++
                 val p = e.product
                 grpObQQ += e.opening.qq; grpObPP += e.opening.pp
                 grpObNN += e.opening.nn; grpObDD += e.opening.dd
@@ -649,6 +663,7 @@ ${if (recon != null) """
                 grpCbQQ += e.closing.qq; grpCbPP += e.closing.pp
                 grpCbNN += e.closing.nn; grpCbDD += e.closing.dd
                 bodyRows.append("""<tr>
+                    <td class="n">$serialNo</td>
                     <td>${p.displayName.take(18)}</td>
                     <td class="n">${qty(e.opening.qq)}</td><td class="n">${qty(e.opening.pp)}</td>
                     <td class="n">${qty(e.opening.nn)}</td><td class="n">${qty(e.opening.dd)}</td>
@@ -661,7 +676,7 @@ ${if (recon != null) """
 
             // Group total
             bodyRows.append("""<tr class="srow">
-                <td style="font-weight:bold">$groupHeading &nbsp;Total</td>
+                <td colspan="2" style="font-weight:bold">$groupHeading &nbsp;Total</td>
                 <td class="n">${qty(grpObQQ)}</td><td class="n">${qty(grpObPP)}</td>
                 <td class="n">${qty(grpObNN)}</td><td class="n">${qty(grpObDD)}</td>
                 <td class="n">${qty(grpPqQQ)}</td><td class="n">${qty(grpPqPP)}</td>
@@ -714,6 +729,7 @@ ${if (recon != null) """
 <table>
   <thead>
     <tr>
+      <th rowspan="2" style="text-align:center;vertical-align:middle">#</th>
       <th rowspan="2" style="text-align:left;vertical-align:middle">Product</th>
       <th colspan="4">Opening Balance</th>
       <th colspan="4">Purchase</th>
@@ -728,7 +744,7 @@ ${if (recon != null) """
   <tbody>
     $bodyRows
     <tr class="totrow">
-      <td>GRAND TOTAL</td>
+      <td colspan="2">GRAND TOTAL</td>
       <td class="n">${qty(gndObQQ)}</td><td class="n">${qty(gndObPP)}</td>
       <td class="n">${qty(gndObNN)}</td><td class="n">${qty(gndObDD)}</td>
       <td class="n">${qty(gndPqQQ)}</td><td class="n">${qty(gndPqPP)}</td>

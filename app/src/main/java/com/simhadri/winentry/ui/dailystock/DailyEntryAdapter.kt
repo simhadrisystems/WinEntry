@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.simhadri.winentry.data.entity.DailyEntry
 import com.simhadri.winentry.databinding.ItemDailyEntryBinding
+import androidx.core.content.ContextCompat
 import com.simhadri.winentry.R
 import android.view.View
 
@@ -31,11 +32,12 @@ class DailyEntryAdapter(
     private val colorQQ             = Color.parseColor("#FF4CAF50")
     private val colorPP             = Color.parseColor("#FF2196F3")
     private val colorNN             = Color.parseColor("#FFFF9800")
-    private val colorDD             = Color.parseColor("#FF9C27B0")
+    private var colorDD             = Color.parseColor("#CE93D8") // overwritten in onCreateViewHolder from cb_text_dd
     private val colorDisabledBorder = Color.parseColor("#44888888")
     private val colorError          = Color.parseColor("#FFF44336")
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        colorDD = ContextCompat.getColor(parent.context, R.color.cb_text_dd)
         val binding = ItemDailyEntryBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
@@ -197,15 +199,22 @@ class DailyEntryAdapter(
                 }
 
                 // ── CB label area (btnEditClosing is a LinearLayout) ──────
-                // Always visible. In BALANCE mode: green background,
+                // Always visible. In BALANCE mode: green rounded-rect badge,
                 // "entry" sub-label shown, whole area clickable.
                 // In VIEW/PURCHASE: transparent background, not clickable.
                 if (closingEnabled) {
-                    binding.btnEditClosing.setBackgroundColor(android.graphics.Color.parseColor("#A5D6A7"))
+                    val r = (8 * binding.root.resources.displayMetrics.density + 0.5f)
+                    binding.btnEditClosing.background =
+                        android.graphics.drawable.GradientDrawable().apply {
+                            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                            cornerRadius = r
+                            setColor(android.graphics.Color.parseColor("#FF388E3C"))
+                        }
                     binding.btnEditClosing.isClickable = true
                     binding.btnEditClosing.isFocusable = true
                     binding.btnEditClosing.setOnClickListener { onEditClosing(entry) }
                     binding.textCbEntryLabel.visibility = View.VISIBLE
+                    binding.textCbEntryLabel.setTextColor(android.graphics.Color.WHITE)
                 } else {
                     binding.btnEditClosing.setBackgroundColor(android.graphics.Color.TRANSPARENT)
                     binding.btnEditClosing.isClickable = false

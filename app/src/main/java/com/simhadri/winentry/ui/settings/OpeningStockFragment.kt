@@ -35,8 +35,17 @@ import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.ui.dailystock.DailyStockDataViewModel
 import com.simhadri.winentry.sync.SyncCoordinator
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import java.io.File
+import java.io.FileOutputStream
+import androidx.core.content.FileProvider
+import org.apache.poi.ss.usermodel.FillPatternType
+import org.apache.poi.ss.usermodel.HorizontalAlignment
+import org.apache.poi.ss.usermodel.IndexedColors
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 /**
  * Opening Stock Setup — enter initial stock quantities for a new period.
@@ -183,10 +192,13 @@ class OpeningStockFragment : Fragment() {
         })
 
         // ── Overflow (3-dot) menu ─────────────────────────────────────────────
+        val MENU_TEMPLATE = 1000
         val MENU_IMPORT  = 1001
         val MENU_DELETE  = 1002
         val MENU_UPLOAD  = 1003
         val MENU_RESTORE = 1004
+        toolbar.menu.add(0, MENU_TEMPLATE, 0, "📋 Download Template")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.menu.add(0, MENU_IMPORT,  1, "📥 Import from Excel")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.menu.add(0, MENU_DELETE,  2, "🗑 Delete Opening Stock")
@@ -200,6 +212,7 @@ class OpeningStockFragment : Fragment() {
 
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                MENU_TEMPLATE -> { downloadTemplate(); true }
                 MENU_IMPORT  -> {
                     importLauncher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
                         type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -1004,6 +1017,90 @@ class OpeningStockFragment : Fragment() {
      * Runs a full sync (purchases + daily stock + day summary) — opening stock
      * rows are included because they are standard daily_stock rows with PENDING_UPSERT.
      */
+    private fun downloadTemplate() {
+        if (products.isEmpty()) {
+            Toast.makeText(requireContext(),
+                "No products found. Download the product list first.", Toast.LENGTH_LONG).show()
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                Toast.makeText(requireContext(), "Generating template…", Toast.LENGTH_SHORT).show()
+                val uri = withContext(Dispatchers.IO) {
+                    val workbook = XSSFWorkbook()
+                    val sheet = workbook.createSheet("Closing")
+
+                    val headerStyle = workbook.createCellStyle().apply {
+                        val font = workbook.createFont()
+                        font.bold = true
+                        setFont(font)
+                        alignment = HorizontalAlignment.CENTER
+                        fillForegroundColor = IndexedColors.LIGHT_BLUE.index
+                        fillPattern = FillPatternType.SOLID_FOREGROUND
+                    }
+
+                    val header = sheet.createRow(0)
+                    listOf("DATE_CLOSING","PRODUCT_TYPE","BRAND_CODE","PRODUCT_NAME",
+                           "QQ_CLOSING","PP_CLOSING","NN_CLOSING","DD_CLOSING")
+                        .forEachIndexed { i, name ->
+                            header.createCell(i).also { it.setCellValue(name); it.cellStyle = headerStyle }
+                        }
+
+                    products.forEachIndexed { idx, p ->
+                        val row = sheet.createRow(idx + 1)
+                        row.createCell(0).setCellValue(selectedDate)
+                        row.createCell(1).setCellValue(p.productType)
+                        row.createCell(2).setCellValue(p.brandCode)
+                        row.createCell(3).setCellValue(p.displayName)
+                        row.createCell(4).setCellValue(0.0)
+                        row.createCell(5).setCellValue(0.0)
+                        row.createCell(6).setCellValue(0.0)
+                        row.createCell(7).setCellValue(0.0)
+                    }
+
+                    sheet.setColumnWidth(0, 14 * 256)
+                    sheet.setColumnWidth(1, 10 * 256)
+                    sheet.setColumnWidth(2, 12 * 256)
+                    sheet.setColumnWidth(3, 30 * 256)
+                    for (i in 4..7) sheet.setColumnWidth(i, 12 * 256)
+
+                    val file = File(requireContext().getExternalFilesDir(null),
+                        "OpeningStock_Template.xlsx")
+                    FileOutputStream(file).use { workbook.write(it) }
+                    workbook.close()
+                    FileProvider.getUriForFile(requireContext(),
+                        "${requireContext().packageName}.fileprovider", file)
+                }
+
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Template Ready")
+                    .setMessage(
+                        "Opening Stock template created with ${products.size} products.\n\n" +
+                        "Date pre-filled: ${formatDisplay(selectedDate)}\n\n" +
+                        "Instructions:\n" +
+                        "1. Open in Google Sheets or Excel\n" +
+                        "2. Fill QQ / PP / NN / DD quantities\n" +
+                        "3. Do NOT change PRODUCT_TYPE or BRAND_CODE columns\n" +
+                        "4. Save as .xlsx and import using ⋮ → Import from Excel"
+                    )
+                    .setPositiveButton("Share") { _, _ ->
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "Share Template"))
+                    }
+                    .setNegativeButton("Done", null)
+                    .show()
+
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(),
+                    "Template generation failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun uploadOpeningStock() {
         val toast = Toast.makeText(requireContext(),
             "Uploading opening stock to cloud…", Toast.LENGTH_LONG)

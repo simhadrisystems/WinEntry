@@ -146,7 +146,7 @@ class BusinessInfoFragment : Fragment() {
     }
 
     private fun showCompleteAuthDeletion() {
-        AppDialogs.confirm(
+        AppDialogs.destructive(
             context     = requireContext(),
             title       = "Complete Account Deletion",
             message     = "Your cloud data and registration were already removed.\n\n" +

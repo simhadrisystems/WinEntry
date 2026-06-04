@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WinEntry — User Guide v1.1</title>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Base ── */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-size: 15px;
+      line-height: 1.75;
+      color: #1a2233;
+      background: #eef1f7;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Site Header ── */
+    .site-header {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1248a8 100%);
+      color: #fff;
+      padding: 52px 24px 44px;
+      margin-bottom: 32px;
+    }
+    .site-header .inner { max-width: 880px; margin: 0 auto; }
+    .app-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .site-header h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .site-header .tagline {
+      font-size: 14px;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 20px;
+    }
+    .header-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+    .header-meta span {
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75);
+      font-size: 12px;
+      padding: 3px 12px;
+      border-radius: 12px;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: #fff;
+      border: 1px solid #dde3f0;
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .toc-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #1248a8;
+      margin-bottom: 14px;
+    }
+    .toc ol { margin-left: 18px; column-count: 2; column-gap: 32px; }
+    .toc li { margin-bottom: 5px; break-inside: avoid; font-size: 14px; }
+    .toc a { color: #1248a8; text-decoration: none; }
+    .toc a:hover { text-decoration: underline; }
+    @media (max-width: 560px) { .toc ol { column-count: 1; } }
+
+    /* ── Section card ── */
+    .section-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+      border: 1px solid #e4e9f5;
+    }
+    @media (max-width: 560px) { .section-card { padding: 20px 18px; } }
+
+    /* ── Headings ── */
+    h2 {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0d1b2a;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e8f0fe;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sec-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px; height: 30px;
+      min-width: 30px;
+      background: #1248a8;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1248a8;
+      margin: 26px 0 8px;
+      padding-left: 12px;
+      border-left: 3px solid #1248a8;
+    }
+    h4 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin: 18px 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Prose ── */
+    p { margin-bottom: 12px; color: #2d3748; }
+    ul, ol { margin: 8px 0 14px 22px; }
+    li { margin-bottom: 6px; color: #2d3748; }
+    strong { color: #1a2233; }
+
+    /* ── Step list ── */
+    ol.steps { list-style: none; margin: 10px 0 16px 0; counter-reset: step; }
+    ol.steps > li {
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+    ol.steps > li::before {
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      min-width: 24px;
+      background: #1248a8;
+      color: #fff;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* ── Callout boxes ── */
+    .callout {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin: 14px 0;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .tip  { background: #e8f0fe; border-left: 4px solid #1248a8; color: #0d2460; }
+    .warn { background: #fff8e1; border-left: 4px solid #f9a825; color: #5a3e00; }
+    .note { background: #e8f5e9; border-left: 4px solid #43a047; color: #1b4d1e; }
+    .info { background: #f3e5f5; border-left: 4px solid #8e24aa; color: #480060; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 12px 0 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: #1248a8;
+      color: #fff;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    td { padding: 8px 14px; border: 1px solid #dde3f0; vertical-align: top; color: #2d3748; }
+    tr:nth-child(even) td { background: #f7f9ff; }
+    tr:nth-child(odd) td { background: #fff; }
+
+    /* ── Menu path ── */
+    .path {
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: 12px;
+      background: #f0f2f7;
+      color: #1248a8;
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid #dde3f0;
+      display: inline;
+      white-space: nowrap;
+    }
+
+    /* ── Formula highlight ── */
+    .formula {
+      display: inline-block;
+      background: #1248a8;
+      color: #fff;
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 6px;
+      margin: 6px 0;
+    }
+
+    /* ── Option A / B boxes ── */
+    .option-box {
+      border: 1px solid #dde3f0;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .option-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .tag-a { background: #1248a8; }
+    .tag-b { background: #00796b; }
+
+    /* ── Mobile screenshot placeholder ── */
+    .screenshots-row {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin: 24px 0;
+    }
+    .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .phone-caption {
+      font-size: 11px;
+      color: #8a97aa;
+      text-align: center;
+      max-width: 180px;
+      font-style: italic;
+    }
+    .phone-frame {
+      width: 200px;
+      background: #1a2233;
+      border-radius: 34px;
+      padding: 10px 6px 14px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.28), inset 0 0 0 1px rgba(255,255,255,0.07);
+      position: relative;
+    }
+    .phone-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 0 6px;
+    }
+    .phone-cam {
+      width: 10px; height: 10px;
+      background: #0d1118;
+      border-radius: 50%;
+      border: 1.5px solid #2a3348;
+    }
+    .phone-speaker {
+      width: 36px; height: 5px;
+      background: #0d1118;
+      border-radius: 3px;
+    }
+    .phone-screen {
+      background: #eef1f7;
+      border-radius: 22px;
+      min-height: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 14px;
+      text-align: center;
+      border: 1px solid #d5dae8;
+    }
+    .ph-icon { font-size: 28px; margin-bottom: 10px; }
+    .ph-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #1248a8;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .ph-note {
+      font-size: 10px;
+      color: #8a97aa;
+      font-style: italic;
+      margin-top: 4px;
+    }
+    .phone-bottom {
+      display: flex;
+      justify-content: center;
+      padding-top: 8px;
+    }
+    .phone-pill {
+      width: 48px; height: 5px;
+      background: #2d3748;
+      border-radius: 3px;
+    }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid #e8ecf5; margin: 24px 0; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 48px;
+      padding: 20px 0;
+      border-top: 1px solid #dde3f0;
+      font-size: 12px;
+      color: #8a97aa;
+      text-align: center;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="site-header">
+  <div class="inner">
+    <div class="app-badge">Official User Guide</div>
+    <h1>WinEntry</h1>
+    <p class="tagline">Specialized Retail Inventory &amp; Accountability &nbsp;·&nbsp; Daily Stock &nbsp;·&nbsp; Sales &nbsp;·&nbsp; Purchases</p>
+    <div class="header-meta">
+      <span>Version 1.1 (Build 4)</span>
+      <span>Android App</span>
+      <span>Updated May 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ═══ TABLE OF CONTENTS ═══ -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#s1">About WinEntry</a></li>
+    <li><a href="#s2">Installing the App</a></li>
+    <li><a href="#s3">Signing In</a></li>
+    <li><a href="#s4">Getting Started — First-Time Setup</a></li>
+    <li><a href="#s5">Home Screen</a></li>
+    <li><a href="#s6">Daily Stock Entry</a></li>
+    <li><a href="#s7">Purchases</a></li>
+    <li><a href="#s8">Reports</a></li>
+    <li><a href="#s9">Items / Products</a></li>
+    <li><a href="#s10">Settings</a></li>
+    <li><a href="#s11">Cloud Drive Backup</a></li>
+    <li><a href="#s12">Data Management &amp; Excel Import/Export</a></li>
+    <li><a href="#s13">Help and Support</a></li>
+  </ol>
+</div>
+
+
+<!-- ═══ SECTION 1 — ABOUT ═══ -->
+<div class="section-card" id="s1">
+  <h2><span class="sec-num">1</span> About WinEntry</h2>
+
+  <p>Originally designed and engineered by <strong>Simhadri Systems</strong> to meet the rigorous daily stock reconciliation requirements of licensed retail wine and liquor businesses in Telugu states, WinEntry is a robust, versatile inventory management tool suitable for any retail business that relies on precise, unit-based stock tracking.</p>
+
+  <h3>What the App Does</h3>
+  <p>WinEntry automates the essential daily reconciliation process — the "opening vs. closing" balance — that is critical for high-volume retail environments.</p>
+  <ul>
+    <li><strong>Unit-Level Tracking</strong> — Manage inventory across multiple brands, categories and varied sizes (bottles, cases, packets, bags, and so on)</li>
+    <li><strong>Daily Reconciliation</strong> — Log daily purchases, sales and expenses to generate instant, accurate daily stock balance sheets</li>
+    <li><strong>Calculated Sales</strong> — Opening Balance + Purchases − Closing Balance = Daily Sale, computed automatically for every product and size</li>
+    <li><strong>Multilingual Interface</strong> — Currently supports English and Telugu; can be localised to any other Indian language with minimal technical changes</li>
+    <li><strong>Privacy-First Design</strong> — Operates fully offline by default to keep your business data local, with optional secure cloud backup for multi-device syncing</li>
+    <li><strong>Excel Export</strong> — Every report and record can be exported to Excel for audits, accounting, regulatory submission or data backup</li>
+  </ul>
+
+  <h3>Why It's Valuable</h3>
+  <p><strong>Built by the industry, for the industry.</strong> Born from the unique needs of retail licensees, WinEntry is offered as a collaborative tool. Since licensees operate in exclusive geographic zones, the app serves as a professional-grade solution shared among peers to foster a community of feedback and continuous improvement.</p>
+  <p><strong>Eliminates human error.</strong> By replacing tedious manual paper entries with automated digital logging, the app significantly reduces the risk of mathematical errors and financial discrepancies.</p>
+  <p><strong>Highly customizable.</strong> While it excels in the licensed retail trade, the underlying logic is code-neutral. It can be adapted to any retail sector — such as Dairy, Hardware or Cosmetics — without requiring code changes.</p>
+
+  <h3>Business Use Cases</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Sector</th><th>Example Use</th></tr>
+      <tr><td>Licensed retailer (current deployment)</td><td>Bottles by brand and pack size — daily reconciliation and generation of daily account reports for regulatory compliance</td></tr>
+      <tr><td>Dairy &amp; Beverage</td><td>Crates and individual bottles with high daily turnover</td></tr>
+      <tr><td>Construction &amp; Hardware</td><td>Bags of cement, boxes of tiles, plumbing fixtures</td></tr>
+      <tr><td>Personal Care &amp; Cosmetics</td><td>Multiple brands across SKU sizes (ml / grams)</td></tr>
+      <tr><td>Pet Supply</td><td>Packaged food bags and accessories by unit</td></tr>
+    </table>
+  </div>
+
+  <h3>Size Codes (current retail deployment)</h3>
+  <p>The app supports up to five size variants per product. In the current licensed retail configuration these are:</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Size Code</th><th>Description</th><th>Typical Volume</th><th>Units per Case</th></tr>
+      <tr><td>QQ</td><td>Full / Big</td><td>551–900 ml (usually 750 ml or 650 ml Beer)</td><td>12 per case</td></tr>
+      <tr><td>QQ + "L"</td><td>Litre</td><td>1000 ml (by suffixing "L" to the brand code)</td><td>9 per case</td></tr>
+      <tr><td>PP</td><td>Half / Pint</td><td>201–550 ml (usually 375 ml or Can Beer)</td><td>24 per case</td></tr>
+      <tr><td>NN</td><td>Quarter / Nip</td><td>101–200 ml (usually 180 ml)</td><td>48 per case</td></tr>
+      <tr><td>DD</td><td>Dip / Miniature</td><td>≤ 100 ml (usually 90 ml or 60 ml)</td><td>96 per case</td></tr>
+    </table>
+  </div>
+  <p style="font-size:13px; color:#666;">For other business types, size codes and their descriptions are configured when the app is set up for that deployment.</p>
+</div>
+
+
+<!-- ═══ SECTION 2 — INSTALLING ═══ -->
+<div class="section-card" id="s2">
+  <h2><span class="sec-num">2</span> Installing the App</h2>
+
+  <ol class="steps">
+    <li>Open <strong>Google Play Store</strong> on your Android phone</li>
+    <li>Search for <strong>WinEntry</strong> or <strong>WinEntry Simple Inventory</strong></li>
+    <li>Tap the result published by <strong>Simhadri Systems</strong> → tap <strong>Install</strong></li>
+    <li>Once installed, tap <strong>Open</strong></li>
+  </ol>
+
+  <p><strong>Requirements:</strong> Android 8.0 (Oreo) or later &nbsp;·&nbsp; A Google account for sign-in</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_PlayStoreSearch.png" alt=“Play Store Listing” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Play Store Listing</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_PlayStoreInstall.png" alt=“Play Store Install” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Play Store Install</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <strong>Updates:</strong> The Play Store notifies you automatically when a new version is released. Tap <strong>Update</strong> on the WinEntry store page, or enable automatic updates in Play Store settings. You can also check from inside the app: <span class="path">Settings → Check for Update</span>.
+  </div>
+</div>
+
+
+<!-- ═══ SECTION 3 — SIGNING IN ═══ -->
+<div class="section-card" id="s3">
+  <h2><span class="sec-num">3</span> Signing In</h2>
+
+  <p>WinEntry uses your <strong>Google account</strong> to sign in — the same account you use for Gmail or YouTube.</p>
+
+  <ol class="steps">
+    <li>Open WinEntry — the Sign In screen appears</li>
+    <li>Tap <strong>Sign in with Google</strong></li>
+    <li>Select your Google account from the list (or add a new one if prompted)</li>
+    <li>Grant the permissions requested — the app needs Sheets access only for optional cloud backup</li>
+    <li>You will be taken to the Home screen</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_SignIn.png" alt=“Sign In screen” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Sign In screen</div>
+    </div>
+
+      <div class="phone-wrap">
+        <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_SignInIdSelect.png" alt=“Sign In screen” style="width:250px; border-radius:20px;" />
+        <div class="phone-caption">Sign In mail id</div>
+      </div>
+  </div>
+
+  <div class="callout warn">
+    Always use the same Google account. Signing in with a different account will not show your previous data.
+  </div>
+</div>
+
+
+<!-- ═══ SECTION 4 — GETTING STARTED ═══ -->
+<div class="section-card" id="s4">
+  <h2><span class="sec-num">4</span> Getting Started — First-Time Setup</h2>
+
+  <p>When you open the app after signing in for the first time, an amber <strong>Getting Started</strong> card appears at the top of the Home screen. <strong>Tap this card to open the setup checklist.</strong></p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_HomeGetStartEng.png" alt=“Getting Started” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Home — Getting Started card</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OnBoardEng1.png" alt=“Getting Started” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Setup checklist dialog</div>
+    </div>
+  </div>
+
+  <p>The checklist has 4 steps. Steps 1 and 2 are required. You must also complete either Step 3 or Step 4 before the card disappears and you can begin daily trading.</p>
+
+  <div class="callout tip">
+    <strong>Language toggle:</strong> The <strong>English / తెలుగు</strong> buttons at the top of this dialog switch the app language between English and Telugu. The change applies immediately to all screens. You can change language again at any time from Settings.
+  </div>
+
+  <hr />
+
+  <h3>Step 1 — Business Info</h3>
+  <p>Your business name and owner details appear as the header on all exported reports and on the Home screen.</p>
+
+  <ol class="steps">
+    <li>Tap <strong>Set Up</strong> next to "Set Up Business Information" — opens the Business Info screen</li>
+    <li>Fill in the fields:
+      <ul>
+        <li><strong>Owner Name</strong> — your full name</li>
+        <li><strong>Business Name</strong> (required) — name of your business or shop</li>
+        <li><strong>Licence / Reg. No</strong> — registration or licence number (stored locally, never shared with admin)</li>
+        <li><strong>Address Lines 1 &amp; 2, Location</strong> — shop address and area</li>
+        <li><strong>Phone</strong> — 10-digit mobile number</li>
+      </ul>
+    </li>
+    <li>Tap <strong>Save &amp; Register</strong></li>
+    <li>A confirmation dialog explains what fields are shared with the admin. Tap <strong>Save &amp; Register</strong> to confirm.</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_BusinessInfo.png" alt=“Business Info” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Business Info form</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OnBoardEngStep1.png" alt=“Step 1 Complete” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Step 1 Green Tick</div>
+    </div>
+
+
+  </div>
+
+  <p>After saving, a green tick appears on Step 1 in the checklist. Future edits use the button label "Save &amp; Update Registration".</p>
+  <div class="callout tip">The "Account: ..." line at the top of the form shows your Google sign-in email — it is read-only and links your data to your account.</div>
+
+  <hr />
+
+  <h3>Step 2 — Import Product List</h3>
+  <p>Downloads the admin's standard product master list (product codes, names, sizes and prices) to your phone.</p>
+
+  <ol class="steps">
+    <li>Tap <strong>Download</strong> next to "Import Product List"</li>
+    <li>A progress spinner appears — wait 5–30 seconds depending on connection speed</li>
+    <li>Once complete, a green tick appears</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OnBoardEng2.png" alt=“Step 2 Green Tick” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Product list download</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_ProductDisplayOrder.png" alt=“Product Display Order” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Product Display Order</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>If "Request Access" appears instead of "Download":</strong> Your account has not been activated by the admin yet. Tap "Request Access" to send an activation request by email or WhatsApp. Once the admin adds your account to the invited list, come back and tap Download.
+  </div>
+  <p>After downloading, go to <span class="path">Items/Products → Product Display Order</span> to arrange products in the order you count your stock. This makes daily closing entry faster.</p>
+  <p>The order you set here is reflected consistently throughout the app — Daily Stock Entry, Opening Stock, and all reports show products in exactly this sequence. To reorder: tap <span class="path">Product Display Order</span>, switch on <strong>Edit</strong>, then drag rows using the handle on the left, or tap the ↑ ↓ nudge arrows beside each product. Tap <strong>Renumber &amp; Save</strong> when done. Double-tap any product row (with Edit switched off) to deactivate it — deactivated products move to an Inactive section at the bottom and are hidden from daily stock entry.</p>
+
+  <hr />
+
+  <h3>Step 3 — Load Sample Data (Optional)</h3>
+  <p>Sample data lets you practise using the app before entering real figures. It loads dummy opening stock and a few days of transactions so you can see how every screen looks with actual data.</p>
+
+  <div class="callout info"><strong>Skip this step if you already have real opening stock to enter</strong> — go directly to Step 4.</div>
+
+  <ol class="steps">
+    <li>Tap <strong>Load</strong> next to "Import Sample / Test Data (Optional)"</li>
+    <li>A date picker opens — select the date you want as the opening balance date for the sample data. Default is 7 days ago.</li>
+    <li>Tap <strong>OK</strong> — sample data loads in the background (10–30 seconds)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_TestDataStartDate.png" alt=“Test Data Date” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Sample data date picker</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_TestDataLoaded.png" alt=“Test Data Loaded” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Sample data Loaded</div>
+    </div>
+  </div>
+
+  <p>Once loaded, a green tick appears and the card shows "Trial setup complete — you're all set!"</p>
+  <div class="callout tip">Sample data can be cleared later. Go to <span class="path">Settings → Help &amp; Support → Import Test Data</span> to reload fresh sample data. To wipe all local data: <span class="path">Settings → Business Info → (⋮ menu) → Clear Local Data</span>.</div>
+
+  <hr />
+
+  <h3>Step 4 — Setup Opening Stock</h3>
+  <p>If you are starting with real data (not sample data), you need to enter the actual unit count per product and size as your starting inventory. This is done once when you first go live. There are two ways to do it — choose whichever suits you.</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Option A — Manual Entry</div>
+    <p>Enter directly on screen — best for smaller product lists.</p>
+    <ol class="steps">
+      <li>Tap <strong>Enter</strong> next to "Setup Opening Stock (manual)"</li>
+      <li>The Opening Stock Setup screen opens</li>
+      <li>Select your first trading date at the top</li>
+      <li>For each product, tap the size fields and type the unit count you have on hand</li>
+      <li>Use the keyboard Next key to move between size fields and products quickly</li>
+      <li>Tap <strong>SAVE</strong> at the bottom — a confirmation shows the total unit count before you confirm</li>
+    </ol>
+    <div class="screenshots-row">
+      <div class="phone-wrap">
+        <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OpeningStockNewSetup.png" alt=“Opening First Day” style="width:250px; border-radius:20px;" />
+        <div class="phone-caption">Manual opening New Setup</div>
+      </div>
+      <div class="phone-wrap">
+        <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OpeningStockSaved.png" alt=“Opening Stock Page” style="width:250px; border-radius:20px;" />
+        <div class="phone-caption">Opening Sorck Entry Screen</div>
+      </div>
+    </div>
+    <div class="callout tip">Enter individual unit counts, not case counts. If you have 2 full cases (12 units per case) plus 3 loose units, enter 27.</div>
+  </div>
+
+  <div class="option-box">
+    <div class="option-tag tag-b">Option B — Import from Excel</div>
+    <p>Faster for large product lists — if you already have your opening stock figures in a spreadsheet.</p>
+    <ol class="steps">
+      <li>Tap <strong>Enter</strong> next to "Setup Opening Stock (manual)" to open the Opening Stock Setup screen</li>
+      <li>Tap <strong>⋮</strong> (top-right menu) → <strong>Download Template</strong></li>
+      <li>The app saves a pre-filled Excel file to your phone's Downloads folder. The template has one row per product with columns for each size (L, QQ, PP, NN, DD). Product codes are already filled in — do not change them.</li>
+      <li>Open the template on a computer or on your phone in Google Sheets / Microsoft Excel</li>
+      <li>Enter your opening stock counts in the quantity columns for each product and size. Leave a cell blank or enter 0 if you have none of that size.</li>
+      <li>Save the file and transfer it back to your phone (via WhatsApp, Google Drive, email or USB)</li>
+      <li>Back in the Opening Stock Setup screen, tap <strong>⋮ → Import from Excel</strong></li>
+      <li>Select the saved file from your phone's storage</li>
+      <li>The app imports the figures and shows an import result summary (see <a href="#s12">Section 12</a> for details)</li>
+    </ol>
+    <div class="screenshots-row">
+      <div class="phone-wrap">
+        <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OpeningExcelTemplate.png" alt=“OB Excel Import” style="width:250px; border-radius:20px;" />
+        <div class="phone-caption">⋮ menu with import/export options</div>
+      </div>
+      <div class="phone-wrap">
+        <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_OpeningStockTemplate.png" alt=“Opening Stock Template” style="width:400px; border-radius:20px;" />
+        <div class="phone-caption"> Excel Template</div>
+      </div>
+    </div>
+    <div class="callout tip">After import, review the figures on screen before tapping SAVE. The bottom bar shows sync status and buttons to <strong>Upload to Cloud</strong> or <strong>Restore from Cloud</strong> once you have saved.</div>
+  </div>
+
+  <p>Once saved (by either method), a green tick appears on Step 4 and the Getting Started card disappears automatically when all required steps are complete.</p>
+</div>
+
+
+<!-- ═══ SECTION 5 — HOME SCREEN ═══ -->
+<div class="section-card" id="s5">
+  <h2><span class="sec-num">5</span> Home Screen</h2>
+
+  <p>After setup, the Home screen shows five module cards.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_HomeAfterSetup.png" alt=“Opening Stock Template” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Home screen (after setup)</div>
+    </div>
+  </div>
+
+  <h3>Header (top bar)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Element</th><th>What it does</th></tr>
+      <tr><td>Business name + location</td><td>Displayed at top — from Business Info</td></tr>
+      <tr><td>Cloud/Sync icon 🔄 (top-right)</td><td>Tap to manually push data to cloud. <strong>White</strong> = all synced; <strong>Red</strong> = sync errors, tap to retry; <strong>Amber</strong> = Drive Backup not set up</td></tr>
+      <tr><td>Account icon</td><td>Shows your Google profile photo when signed in. Tap to see account email or sign out</td></tr>
+    </table>
+  </div>
+
+  <h3>Module Cards</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Card</th><th>What it does</th></tr>
+      <tr><td>Daily Closing Stock Entry</td><td>Enter today's closing unit count and commit day-end totals</td></tr>
+      <tr><td>Purchases</td><td>Record supplier delivery invoices with reference number, quantities and prices</td></tr>
+      <tr><td>Reports</td><td>View and export daily, period and monthly reports to Excel</td></tr>
+      <tr><td>Items / Products</td><td>Manage product list, display order and opening stock</td></tr>
+      <tr><td>Settings</td><td>Business info, language, cloud backup, sync settings and support</td></tr>
+    </table>
+  </div>
+
+  <p>Tap any card to open the module. Use the back arrow (top-left inside the module) or the phone's back button to return to Home.</p>
+</div>
+
+
+<!-- ═══ SECTION 6 — DAILY STOCK ═══ -->
+<div class="section-card" id="s6">
+  <h2><span class="sec-num">6</span> Daily Stock Entry</h2>
+
+  <p>This is the core daily workflow. At end of day, count the units on your shelves and enter the closing balance. The app calculates daily sales automatically.</p>
+
+  <p><span class="formula">Opening Balance + Purchases − Closing Balance = Daily Sale</span></p>
+
+  <h3>Opening the Screen</h3>
+  <p>Tap <strong>Daily Closing Stock Entry</strong> from the Home screen.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_DailyStockViewMode.png" alt=“Daily Stock View Mode” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Daily Stock View mode</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_DailyStockEntryMode.png" alt=“Daily Stock Entry Mode” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Daily Stock Entry mode</div>
+    </div>
+  </div>
+
+  <p><strong>Top controls:</strong></p>
+  <ul>
+    <li><strong>Date selector</strong> — defaults to today. Use the ‹ and › arrows or tap the date to pick a different date.</li>
+    <li><strong>CB Entry / View Only toggle</strong> — switches between edit mode and read-only view. Default is View Only.</li>
+  </ul>
+
+  <h3>Entering Closing Balances</h3>
+  <ol class="steps">
+    <li>Tap <strong>CB Entry</strong> in the top bar to enter edit mode</li>
+    <li>The product list appears with a column per configured size</li>
+    <li>Each row shows the Opening Balance (OB) and Purchases (PQ) already filled in</li>
+    <li>Tap a Closing Balance field and type the unit count you physically counted</li>
+    <li>Sale quantity (SQ) is shown instantly: SQ = OB + PQ − CB</li>
+    <li>Tap the <strong>Save</strong> button (green checkmark in toolbar) when all products are entered</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_CB EntryNos.png" alt=“CB Entry in Numbers” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">CB Entry Numbers mode</div>
+    </div>
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_CB EntryBoxes.png" alt=“CB Entry in Boxes” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">CB Entry Boxes mode</div>
+    </div>
+  </div>
+
+  <div class="callout tip">The keyboard Next key moves focus from one size field to the next product automatically. The list scrolls to keep the active field visible.</div>
+  <div class="callout warn"><strong>Negative sale warning:</strong> If your closing balance is higher than OB + PQ (more stock than physically possible), the app shows a warning. Check the figures before saving.</div>
+
+  <h3>Importing Closing Balances from Excel</h3>
+  <p>If you have a large number of products, or if your closing stock is already recorded in a spreadsheet, you can import it directly rather than typing each figure into the app.</p>
+
+  <ol class="steps">
+    <li>In the Daily Stock screen, tap <strong>⋮</strong> (top-right) → <strong>Download Closing Template</strong></li>
+    <li>The app saves a pre-filled Excel file to your Downloads folder. The template has one row per product with columns for each size (L, QQ, PP, NN, DD) and one column for the date. Product codes and names are already filled — do not change them.</li>
+    <li>Open the template on a computer or in Google Sheets / Microsoft Excel</li>
+    <li>Enter the closing balance counts for each product and size. Leave a cell blank or enter 0 if you have none of that size.</li>
+    <li>Set the date column to the trading date you are entering for.</li>
+    <li>Save the file and transfer it back to your phone (via WhatsApp, Google Drive, email or USB)</li>
+    <li>Back in the Daily Stock screen, tap <strong>⋮ → Import Closing</strong></li>
+    <li>Select the file from your phone's storage</li>
+    <li>The app imports the closing balances and shows an import result summary (see <a href="#s12">Section 12</a>)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_DailyStockImport.png" alt=“CB Stock Import” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Daily Stock import/export menu</div>
+    </div>
+    <div class="phone-wrap">
+    <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_DailyStockCloudRestore.png" alt=“CB Stock Cloud Restore” style="width:250px; border-radius:20px;" />
+    <div class="phone-caption">Daily Stock cloud Restore</div>
+  </div>
+  </div>
+
+  <div class="callout tip">You can import closing balances for multiple dates in one file — include a separate row for each product-date combination. The app processes each date independently.</div>
+
+  <h3>Day-End Reconciliation</h3>
+  <p>After entering closing balances, scroll to the bottom of the list to complete the day-end summary:</p>
+  <ul>
+    <li><strong>Total Day Sales</strong> — calculated automatically from all products and their prices</li>
+    <li><strong>UPI Receipts</strong> — total UPI and digital payment collections for the day (₹)</li>
+    <li><strong>Day Expenses</strong> — any petty cash expenses paid that day</li>
+    <li><strong>Cash for Deposit</strong> — calculated as Sales − UPI − Expenses (shown in red if negative)</li>
+    <li><strong>Cash Deposit</strong> — amount physically deposited in the bank</li>
+    <li><strong>Notes</strong> — any remarks for the day</li>
+  </ul>
+  <p>Tap <strong>Save</strong> at the bottom of the reconciliation section to lock the day-end summary.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <img src="/Users/msrao/Downloads/WinEntry Screen/WinEntry_DayEndReconciliation.png" alt=“Day end reconciliation” style="width:250px; border-radius:20px;" />
+      <div class="phone-caption">Day-end reconciliation</div>
+    </div>
+  </div>
+
+  <div class="callout tip">You can re-edit and re-save the same day at any time to correct mistakes. Re-saving overwrites the previous figures.</div>
+
+  <h3>Daily Stock Menu (⋮ top-right)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Menu item</th><th>What it does</th></tr>
+      <tr><td>Export Daily Stock</td><td>Export the full stock sheet as Excel</td></tr>
+      <tr><td>Export Current Date</td><td>Export only today's data as Excel</td></tr>
+      <tr><td>Export Date Range</td><td>Export a range of dates as Excel</td></tr>
+      <tr><td>Download Closing Template</td><td>Download a pre-filled Excel template for bulk CB entry</td></tr>
+      <tr><td>Import Closing</td><td>Import closing balances from an Excel file</td></tr>
+      <tr><td>Restore from Cloud</td><td>Pull daily stock data down from your cloud workspace</td></tr>
+      <tr><td>Clear Current Date</td><td>Delete all entries for the selected date only</td></tr>
+      <tr><td>Clear ALL Daily Stock</td><td>Delete all daily stock data (requires typing "DELETE ALL" to confirm)</td></tr>
+    </table>
+  </div>
+
+  <h3>Search</h3>
+  <p>Tap the search icon in the toolbar to filter products by name or product code while in the daily stock screen.</p>
+
+  <h3>Unsaved Changes</h3>
+  <p>If you navigate away or switch dates with unsaved changes, the app asks: <strong>Save Now / Discard / Keep Editing</strong>. Your data is safe until you explicitly discard it.</p>
+</div>
+
+
+<!-- ═══ SECTION 7 — PURCHASES ═══ -->
+<div class="section-card" id="s7">
+  <h2><span class="sec-num">7</span> Purchases</h2>
+
+  <p>Record every supplier delivery invoice here. Purchases are automatically included in the daily stock calculation for the purchase date.</p>
+
+  <h3>Purchases List</h3>
+  <p>Tap <strong>Purchases</strong> from the Home screen to see all recorded invoices.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🧾</div>
+          <div class="ph-label">Purchases list — invoice rows with date, reference number, supplier and total cost</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchases list</div>
+    </div>
+  </div>
+
+  <ul>
+    <li>Each row shows: date, invoice reference number, supplier name and total cost</li>
+    <li>Tap a row to view the full invoice details</li>
+    <li>Tap <strong>+</strong> (top-right toolbar) to add a new purchase</li>
+    <li>Use the search bar at the top to filter by product name, product code, date or invoice number</li>
+  </ul>
+
+  <h3>Recording a Purchase</h3>
+  <p>Tap <strong>+</strong> to open the Purchase Entry form.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📝</div>
+          <div class="ph-label">Purchase Entry form — top half showing Invoice No, Reference No, Supplier and Date fields</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchase Entry — header fields</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📦</div>
+          <div class="ph-label">Purchase Entry — product selected with Cases / Loose / Price fields and calculated total</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchase Entry — product detail</div>
+    </div>
+  </div>
+
+  <h4>Invoice details (top)</h4>
+  <ul>
+    <li><strong>Invoice No</strong> — the supplier's invoice number from the delivery document</li>
+    <li><strong>Reference No</strong> — a unique reference for this delivery (e.g. a permit or transport number) used to prevent duplicate imports</li>
+    <li><strong>Supplier</strong> — select from the dropdown or type manually</li>
+    <li><strong>Date</strong> — date goods were received (defaults to today)</li>
+    <li><strong>Notes</strong> — optional remarks</li>
+  </ul>
+
+  <h4>Product details (bottom)</h4>
+  <ol class="steps">
+    <li>Tap <strong>Select Product</strong> to choose the product from the list</li>
+    <li>For each size received, enter:
+      <ul>
+        <li><strong>Cases</strong> — number of full sealed cases</li>
+        <li><strong>Loose</strong> — individual loose units (partial case)</li>
+        <li><strong>Price</strong> — price per unit (auto-filled from product master if set)</li>
+      </ul>
+    </li>
+    <li>Total units = (Cases × units per case) + Loose, and Cost = Total × Price — calculated automatically</li>
+    <li>Tap <strong>Add Another Product</strong> to add more products to the same invoice</li>
+    <li>Tap <strong>Save</strong> when done</li>
+  </ol>
+  <div class="callout tip">If a size was not part of this delivery, leave its Cases and Loose fields at zero.</div>
+
+  <h3>Editing or Deleting a Purchase</h3>
+  <p>Double-tap any purchase in the list to open an action dialog with <strong>Edit</strong>, <strong>Delete</strong>, or <strong>Insert Here</strong> options. Deletions are permanent and immediately update the daily stock totals for that date.</p>
+
+  <h3>Adding Multiple Items from the Same Invoice</h3>
+  <p>In the purchases list, double-tap an existing purchase and select <strong>Insert Here</strong>. This opens a new purchase form pre-filled with the same invoice number, date and supplier — just change the product.</p>
+
+  <h3>Importing Purchases from Excel</h3>
+  <p>When you receive a delivery with many products, or when entering historical invoices in bulk, importing from Excel is far faster than tapping through each product one by one.</p>
+
+  <ol class="steps">
+    <li>In the Purchases screen, tap <strong>⋮</strong> (top-right) → <strong>Download Template</strong></li>
+    <li>The app saves a pre-filled Excel template to your Downloads folder. The template has one row per product line with columns for: Date, Invoice No, Reference No, Supplier, Product Code, and quantity/price columns per size (Cases, Loose, Price for each of L, QQ, PP, NN, DD).</li>
+    <li>Open the template on a computer or in Google Sheets / Microsoft Excel</li>
+    <li>Fill in one row per product line of each invoice:
+      <ul>
+        <li>Enter the delivery <strong>Date</strong> (format: DD-MM-YYYY or YYYY-MM-DD)</li>
+        <li>Enter the <strong>Invoice No</strong> and <strong>Reference No</strong> from the delivery document</li>
+        <li>Enter the <strong>Supplier</strong> name</li>
+        <li>The <strong>Product Code</strong> column already lists your products — find the right row</li>
+        <li>Enter <strong>Cases</strong> (full sealed cases) and <strong>Loose</strong> (individual loose units) for each size received</li>
+        <li>Enter the <strong>Price</strong> per unit for each size</li>
+      </ul>
+    </li>
+    <li>Repeat rows for each product. Multiple invoices can be entered in the same file — just use a different Invoice No per delivery.</li>
+    <li>Save the file and transfer it to your phone (via WhatsApp, Google Drive, email or USB)</li>
+    <li>Back in the Purchases screen, tap <strong>⋮ → Import from Excel</strong></li>
+    <li>Select the file from your phone's storage</li>
+    <li>The app imports all rows and shows an import result summary (see <a href="#s12">Section 12</a>)</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📥</div>
+          <div class="ph-label">Purchases ⋮ menu — "Download Template" and "Import from Excel" options visible</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Purchases import/export menu</div>
+    </div>
+  </div>
+
+  <div class="callout warn"><strong>Duplicate detection:</strong> If any row has the same product + invoice number + date as an existing record, the app flags it and asks whether to update the existing record or skip it. This prevents double-counting a delivery.</div>
+
+  <h3>Purchases Menu (⋮ top-right)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Menu item</th><th>What it does</th></tr>
+      <tr><td>Import from Excel</td><td>Bulk-import purchases from an Excel file (download template first)</td></tr>
+      <tr><td>Export All</td><td>Export all purchase records as Excel</td></tr>
+      <tr><td>Export Filtered</td><td>Export purchases within a date range</td></tr>
+      <tr><td>Download Template</td><td>Get an Excel template pre-filled with your product list</td></tr>
+      <tr><td>Delete by Date Range</td><td>Delete all purchases within a chosen date range</td></tr>
+      <tr><td>Multi-Select</td><td>Select multiple purchases to delete in one go</td></tr>
+      <tr><td>Download from Cloud</td><td>Pull purchase data from your cloud workspace</td></tr>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══ SECTION 8 — REPORTS ═══ -->
+<div class="section-card" id="s8">
+  <h2><span class="sec-num">8</span> Reports</h2>
+
+  <p>Tap <strong>Reports</strong> from the Home screen.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📈</div>
+          <div class="ph-label">Reports screen — report cards grouped by Daily Reports, Period Reports and Monthly Reports</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Reports menu</div>
+    </div>
+  </div>
+
+  <h3>Daily Stock Sheet</h3>
+  <p>Full table: opening balance, purchases, closing balance and calculated sales for all products and sizes on a selected date.</p>
+  <ol class="steps">
+    <li>Tap <strong>Daily Stock Sheet</strong></li>
+    <li>Select the date</li>
+    <li>Tap <strong>View Report</strong></li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📄</div>
+          <div class="ph-label">Daily Stock Sheet report viewer — OB / PQ / SQ / CB columns for each product and size</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Daily Stock Sheet report</div>
+    </div>
+  </div>
+
+  <ul>
+    <li>Business name, owner name and date appear as the report header (from Business Info)</li>
+    <li>Tap <strong>Export to Excel</strong> (top-right) to save the sheet to Downloads</li>
+  </ul>
+
+  <h3>Closing Balances</h3>
+  <p>End-of-day stock quantities per product across all sizes on a selected date. Useful for a quick physical stock verification.</p>
+
+  <h3>Daily Brand Wise Account</h3>
+  <p>A daily account summarising sales and stock per brand, grouped by product category. Useful for regulatory reporting where required by your business type.</p>
+  <ol class="steps">
+    <li>Tap <strong>Daily Brand Wise A/c</strong></li>
+    <li>Select the date</li>
+    <li>Tap <strong>View Report</strong></li>
+    <li>Export to Excel as needed</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📊</div>
+          <div class="ph-label">Brand Wise Account report — products grouped by category with sale totals</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Brand Wise Account</div>
+    </div>
+  </div>
+
+  <h3>Purchase Report (Period)</h3>
+  <p>All purchase records within a date range, grouped by invoice — useful for supplier-wise or invoice-wise reconciliation.</p>
+  <ol class="steps">
+    <li>Tap <strong>Purchase Report</strong></li>
+    <li>Select From and To dates</li>
+    <li>Tap <strong>View Report</strong></li>
+  </ol>
+
+  <h3>Monthly Sale Data</h3>
+  <p>Shows the day-end commit totals (sale amount, UPI receipts, expenses, cash deposit) for each day in a selected month — for monthly reconciliation and accounts.</p>
+  <ol class="steps">
+    <li>Tap <strong>Monthly Sale Data</strong></li>
+    <li>Navigate months using the ◀ and ▶ arrows, or tap the month name to jump to any month/year</li>
+  </ol>
+  <p>Days with no saved day-end reconciliation are highlighted in amber with a * marker. Days where closing balances were updated after reconciliation are marked with a refresh icon (stale — consider re-committing those days for accuracy). Column totals appear at the bottom; cash amounts shown in red if negative.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Monthly Summary Menu (⋮)</th><th>What it does</th></tr>
+      <tr><td>Share</td><td>Share the report as a colour-coded HTML file</td></tr>
+      <tr><td>Print / Save as PDF</td><td>Print or save using your phone's print service</td></tr>
+      <tr><td>Import Reconciliation from Cloud</td><td>Pull day-end data from your cloud workspace</td></tr>
+      <tr><td>Delete Reconciliation Range</td><td>Remove day-end records for a date range</td></tr>
+    </table>
+  </div>
+
+  <h3>Monthly Stock Purchases</h3>
+  <p>Total purchase quantities per product for a selected month, one row per product.</p>
+
+  <h3>Include Zero-Activity Products</h3>
+  <p>In the report filter, toggle <strong>"Include products with zero activity"</strong> to show products with no sales or purchases on the selected date. Off by default to keep reports compact.</p>
+
+  <div class="callout tip">Business name and owner details from <span class="path">Settings → Business Info</span> appear as the header on all reports. Set these up in Step 1 before generating reports.</div>
+</div>
+
+
+<!-- ═══ SECTION 9 — PRODUCTS ═══ -->
+<div class="section-card" id="s9">
+  <h2><span class="sec-num">9</span> Items / Products</h2>
+
+  <p>Tap <strong>Items / Products</strong> from the Home screen.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">🗂️</div>
+          <div class="ph-label">Products Menu screen — Display Order, Stock Setup, Master Data, Download Standard List</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Products menu</div>
+    </div>
+  </div>
+
+  <h3>Product Display Order</h3>
+  <p>Controls the order products appear in the Daily Stock Entry screen and in reports.</p>
+  <ol class="steps">
+    <li>Tap <strong>Product Display Order</strong></li>
+    <li>Toggle the <strong>Edit switch</strong> to enter edit mode</li>
+    <li><strong>Long-press and drag</strong> any product to move it up or down</li>
+    <li>Double-tap a product row (Edit switch off) for options to <strong>Deactivate</strong> (hides it from daily stock — moves it to an Inactive section at the bottom). Double-tap an inactive product to <strong>Re-activate</strong> it.</li>
+    <li>Tap <strong>Renumber &amp; Save</strong> when done, or <strong>Discard</strong> to cancel</li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">↕️</div>
+          <div class="ph-label">Product Order screen in edit mode — drag handles on the left of each row</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Product Display Order (edit mode)</div>
+    </div>
+  </div>
+
+  <div class="callout tip">Arrange products in the order you count your shelves. This makes daily closing entry much faster.</div>
+
+  <h3>Opening Stock Setup</h3>
+  <p>Used when starting a new period or correcting starting quantities. Opening stock can be entered manually or imported from Excel — see <a href="#s4">Section 4 — Step 4</a> for the full walkthrough of both methods.</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Manual Entry</div>
+    <ol class="steps">
+      <li>Tap <strong>Opening Stock Setup</strong></li>
+      <li>Select the date and tap <strong>Begin Entry</strong> (new) or <strong>Edit</strong> (to correct existing)</li>
+      <li>Enter unit counts per size for each product using the keyboard</li>
+      <li>Tap <strong>SAVE</strong> at the bottom</li>
+    </ol>
+  </div>
+  <div class="option-box">
+    <div class="option-tag tag-b">Import from Excel (recommended for large product lists)</div>
+    <ol class="steps">
+      <li>Tap <strong>Opening Stock Setup</strong> → ⋮ → <strong>Download Template</strong></li>
+      <li>Fill in your stock quantities in the template on a computer</li>
+      <li>Transfer the file back to your phone</li>
+      <li>Tap <strong>⋮ → Import from Excel</strong> and select the file</li>
+    </ol>
+  </div>
+  <p>See <a href="#s4">Section 4 — Step 4</a> for the complete step-by-step import walkthrough. The bottom bar shows sync status and buttons to <strong>Upload to Cloud</strong> or <strong>Restore from Cloud</strong>.</p>
+
+  <h3>Product Master Data</h3>
+  <p>Displays your full product list — product codes, names and size variants — for reference.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📋</div>
+          <div class="ph-label">Product Master Data list — product code, name and size code columns</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Product Master Data</div>
+    </div>
+  </div>
+
+  <h3>Download Standard Product List</h3>
+  <p>Downloads the latest product master from the admin's cloud workspace. Run this whenever the admin adds new products or updates prices.</p>
+  <ol class="steps">
+    <li>Tap <strong>Download Standard Product List</strong></li>
+    <li>Confirm the download</li>
+    <li>Wait for completion — new and updated products are added; your display order is preserved</li>
+  </ol>
+  <div class="callout tip">Products in your local list that are not in the admin's standard list are kept unchanged.</div>
+</div>
+
+
+<!-- ═══ SECTION 10 — SETTINGS ═══ -->
+<div class="section-card" id="s10">
+  <h2><span class="sec-num">10</span> Settings</h2>
+
+  <p>Tap <strong>Settings</strong> from the Home screen.</p>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">⚙️</div>
+          <div class="ph-label">Settings screen — Language, Business Info, Drive Backup, Sync Settings, Help &amp; Support cards</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Settings screen</div>
+    </div>
+  </div>
+
+  <h3>Language</h3>
+  <p>Tap <strong>App Language</strong> to switch between <strong>English</strong> and <strong>తెలుగు</strong>. The change applies immediately to all screens. You can also switch language from the Getting Started dialog's EN / తె toggle.</p>
+
+  <h3>Business Info</h3>
+  <p>Update your business name, owner name, address and phone. All fields are the same as in Step 1 of the Getting Started setup.</p>
+  <ul>
+    <li>Tap <strong>Save &amp; Update Registration</strong> to sync changes to the admin's system</li>
+  </ul>
+
+  <h4>Business Info overflow menu (⋮ top-right)</h4>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Your Status</th><th>Menu Option</th><th>What it does</th></tr>
+      <tr><td>Registered</td><td>Delete Account &amp; Data</td><td>Removes all cloud data, registration and sign-in account permanently</td></tr>
+      <tr><td>Not registered</td><td>Clear Local Data</td><td>Deletes all inventory data from this device (exported Excel files are not affected)</td></tr>
+      <tr><td>Deletion pending</td><td>Complete Account Deletion</td><td>Finishes removing the sign-in account after re-login</td></tr>
+    </table>
+  </div>
+
+  <h3>Drive Backup</h3>
+  <p>Shows the current state of cloud backup. See <a href="#s11">Section 11</a> for the full workflow.</p>
+
+  <h3>Sync Settings</h3>
+  <p>Available only when Drive Backup is active. Configure whether the app syncs automatically every 6 hours or only when you tap the Sync button on the Home screen.</p>
+
+  <h3>Help &amp; Support</h3>
+  <ul>
+    <li><strong>Report an Issue / Ask for Help</strong> — sends a support email with device and app version pre-filled</li>
+    <li><strong>Request Feature</strong> — sends a feature request to Simhadri Systems</li>
+    <li><strong>Import Test Data</strong> — reloads sample data (requires registration)</li>
+    <li><strong>User Guide</strong> — opens this guide in the browser</li>
+  </ul>
+
+  <h3>Error Log</h3>
+  <p>When the app encounters technical errors, a log is saved on the device. If errors exist, a <strong>Share Error Log</strong> button appears at the bottom of Settings. Share the log when contacting support, or tap <strong>Clear</strong> to remove it.</p>
+
+  <h3>App Version</h3>
+  <p>Shown at the bottom of Settings. Tap <strong>Check for Update</strong> to check for a newer version on the Play Store.</p>
+</div>
+
+
+<!-- ═══ SECTION 11 — CLOUD BACKUP ═══ -->
+<div class="section-card" id="s11">
+  <h2><span class="sec-num">11</span> Cloud Drive Backup</h2>
+
+  <p>Cloud backup is optional. The app works fully offline without it. When enabled, your daily stock, purchases and day-end summaries are stored in a private Google Sheet in the admin's Drive workspace — separate from your personal Drive.</p>
+
+  <div class="callout note"><strong>Your data, your control.</strong> Signing in with Google does not start any sync. You must explicitly enable backup and accept the terms before any data leaves your phone.</div>
+
+  <h3>How to Enable</h3>
+  <ol class="steps">
+    <li><strong>Register</strong> — Go to <span class="path">Settings → Business Info</span>, fill in your business name and tap <strong>Save &amp; Register</strong></li>
+    <li><strong>Request workspace</strong> — Go to <span class="path">Settings</span> → tap the <strong>Drive Backup</strong> card → tap <strong>Request Drive Backup</strong></li>
+    <li><strong>Read the consent terms</strong> — the dialog explains what data is stored and that the admin has read access to your records</li>
+    <li>Tap <strong>I Agree — Enable Backup</strong></li>
+    <li>The app contacts the admin's system:
+      <ul>
+        <li>If your account is in the invited list → workspace is created immediately → "Drive Backup Active" shows in green</li>
+        <li>If not yet in the invited list → "Drive Backup Pending" shows — the admin will activate your workspace</li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="screenshots-row">
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">☁️</div>
+          <div class="ph-label">Settings screen — "Drive Backup Active" card shown in green</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Drive Backup Active state</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone-frame">
+        <div class="phone-top-bar"><div class="phone-speaker"></div><div class="phone-cam"></div></div>
+        <div class="phone-screen">
+          <div class="ph-icon">📋</div>
+          <div class="ph-label">Cloud backup consent dialog — terms and "I Agree — Enable Backup" button</div>
+          <div class="ph-note">Admin: insert screenshot here</div>
+        </div>
+        <div class="phone-bottom"><div class="phone-pill"></div></div>
+      </div>
+      <div class="phone-caption">Consent dialog</div>
+    </div>
+  </div>
+
+  <div class="callout tip">If "Drive Backup Pending" persists more than a day, tap the card → <strong>Send Reminder</strong> to notify the admin again.</div>
+
+  <h3>What Is Synced</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Data</th><th>Synced?</th></tr>
+      <tr><td>Daily stock entries</td><td>Yes</td></tr>
+      <tr><td>Purchase records</td><td>Yes</td></tr>
+      <tr><td>Day-end reconciliation</td><td>Yes</td></tr>
+      <tr><td>Opening stock</td><td>Yes</td></tr>
+      <tr><td>Product list</td><td>Read-only download from admin</td></tr>
+      <tr><td>Licence/Reg. number, full address</td><td>Never — stays on device only</td></tr>
+    </table>
+  </div>
+  <div class="callout info">The administrator has read access to all records in your workspace. This is the basis on which free cloud backup is provided.</div>
+
+  <h3>Sync Status Icons on Home Screen</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Icon Colour</th><th>Meaning</th></tr>
+      <tr><td>White</td><td>All records synced successfully</td></tr>
+      <tr><td>Red</td><td>One or more records failed — tap to retry</td></tr>
+      <tr><td>Amber / Yellow</td><td>Drive Backup not set up</td></tr>
+    </table>
+  </div>
+  <p>Tap the sync icon on the Home screen at any time to trigger an immediate manual sync.</p>
+
+  <h3>Viewer vs Editor Role</h3>
+  <p>The administrator assigns each account a role. Most users are Editors.</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Role</th><th>What you can do</th></tr>
+      <tr><td>Editor (default)</td><td>Full access — enter data, sync up and down, all buttons active</td></tr>
+      <tr><td>Viewer</td><td>Read-only — sync down from cloud only; data entry and save buttons are hidden</td></tr>
+    </table>
+  </div>
+  <p>Contact the admin if you need your role changed.</p>
+
+  <h3>Deactivating or Deleting</h3>
+  <ul>
+    <li><strong>Deactivate</strong> — Go to <span class="path">Settings → Drive Backup (active) → Deactivate</span>. Stops future auto-sync. Local data and Excel exports are not affected.</li>
+    <li><strong>Delete Account &amp; Data</strong> — Go to <span class="path">Settings → Business Info → ⋮ → Delete Account &amp; Data</span>. Permanently removes all cloud data, your registration and your sign-in account.</li>
+  </ul>
+</div>
+
+
+<!-- ═══ SECTION 12 — DATA MANAGEMENT ═══ -->
+<div class="section-card" id="s12">
+  <h2><span class="sec-num">12</span> Data Management &amp; Excel Import/Export</h2>
+
+  <p>WinEntry can both export data to Excel for records and reports, and import data from Excel to avoid manual typing. All import and export operations use standard <strong>.xlsx</strong> files that open in Microsoft Excel, Google Sheets or any compatible spreadsheet app.</p>
+
+  <h3>Excel Export — Quick Reference</h3>
+  <p>Exported files are saved to the phone's <strong>Downloads</strong> folder. After export, a Share button lets you send the file directly via WhatsApp, email or any other app.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>What to export</th><th>Where to find it</th><th>Notes</th></tr>
+      <tr><td>Daily stock full sheet</td><td><span class="path">Daily Stock → ⋮ → Export Daily Stock</span></td><td>All products, all sizes, for a selected date</td></tr>
+      <tr><td>Closing balances (single date)</td><td><span class="path">Daily Stock → ⋮ → Export Current Date</span></td><td>Useful for a snapshot of end-of-day stock</td></tr>
+      <tr><td>Daily stock (date range)</td><td><span class="path">Daily Stock → ⋮ → Export Date Range</span></td><td>Select From and To dates</td></tr>
+      <tr><td>All purchases</td><td><span class="path">Purchases → ⋮ → Export All</span></td><td>Every invoice ever recorded</td></tr>
+      <tr><td>Purchases (date range)</td><td><span class="path">Purchases → ⋮ → Export Filtered</span></td><td>Select From and To dates</td></tr>
+      <tr><td>Monthly summary</td><td><span class="path">Reports → Monthly Sale Data → ⋮ → Share</span></td><td>Colour-coded HTML or PDF via Print</td></tr>
+    </table>
+  </div>
+
+  <h3>Excel Import — How It Works</h3>
+  <p>The import system follows the same three-step pattern for every data type:</p>
+
+  <div class="option-box">
+    <div class="option-tag tag-a">Step 1 — Download the template</div>
+    <p>Always start by downloading the template from within the app. The template is pre-filled with your product codes and column headings in the exact format the app expects. <strong>Never create an import file from scratch — use the template.</strong></p>
+  </div>
+  <div class="option-box" style="border-color:#e0f2f1;">
+    <div class="option-tag tag-b">Step 2 — Fill in the template</div>
+    <p>Open the template on a computer or phone (Google Sheets, Microsoft Excel). Enter your data in the quantity/value columns. Do not change product codes, column headings or sheet structure. Save as <strong>.xlsx</strong>.</p>
+  </div>
+  <div class="option-box">
+    <div class="option-tag tag-a">Step 3 — Transfer and import</div>
+    <p>Transfer the filled file back to your phone (WhatsApp, Google Drive, email attachment or USB cable). In the app, tap ⋮ → the relevant Import option, then select the file. The app validates each row before committing.</p>
+  </div>
+
+  <h3>Excel Import — Quick Reference</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>What to import</th><th>Template location</th><th>Import location</th></tr>
+      <tr>
+        <td>Opening stock</td>
+        <td><span class="path">Products → Opening Stock → ⋮ → Download Template</span></td>
+        <td><span class="path">Products → Opening Stock → ⋮ → Import from Excel</span></td>
+      </tr>
+      <tr>
+        <td>Closing balances</td>
+        <td><span class="path">Daily Stock → ⋮ → Download Closing Template</span></td>
+        <td><span class="path">Daily Stock → ⋮ → Import Closing</span></td>
+      </tr>
+      <tr>
+        <td>Purchases</td>
+        <td><span class="path">Purchases → ⋮ → Download Template</span></td>
+        <td><span class="path">Purchases → ⋮ → Import from Excel</span></td>
+      </tr>
+    </table>
+  </div>
+  <ul>
+    <li>Opening stock import — <a href="#s4">Section 4 (Step 4, Option B)</a> and <a href="#s9">Section 9</a></li>
+    <li>Closing balance import — <a href="#s6">Section 6 (Importing Closing Balances from Excel)</a></li>
+    <li>Purchase import — <a href="#s7">Section 7 (Importing Purchases from Excel)</a></li>
+  </ul>
+
+  <h3>Import Result Summary</h3>
+  <p>After any import, the app shows a result dialog with a count for each outcome:</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Result</th><th>Meaning</th></tr>
+      <tr><td><strong>New</strong></td><td>Records imported successfully</td></tr>
+      <tr><td><strong>Skipped</strong></td><td>Already exist — same product + date, or same invoice + date. No change made.</td></tr>
+      <tr><td><strong>Failed</strong></td><td>Product code not found in your product list, or data format error</td></tr>
+    </table>
+  </div>
+  <p>Tap <strong>Copy List</strong> to copy the full list of skipped or failed rows to clipboard. Paste into a notes app or email to review and correct the figures before retrying.</p>
+  <div class="callout warn">If many rows fail with "product code not found", check that your product list is up to date: <span class="path">Items/Products → Download Standard Product List</span>. Then retry the import.</div>
+</div>
+
+
+<!-- ═══ SECTION 13 — HELP ═══ -->
+<div class="section-card" id="s13">
+  <h2><span class="sec-num">13</span> Help and Support</h2>
+
+  <p>Go to <span class="path">Settings → Help &amp; Support</span></p>
+  <p><strong>Support email:</strong> simhadrisystems@gmail.com</p>
+
+  <h3>Contact Support</h3>
+  <p>Tap <strong>Ask for Help</strong> or <strong>Report Issue</strong>. The app pre-fills a message template with your app version, Android version and device model — you choose what additional details to add. No data is sent automatically.</p>
+
+  <h3>Common Issues</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Problem</th><th>What to do</th></tr>
+      <tr><td>"Request Access" appears instead of "Download" in onboarding</td><td>Your account needs to be activated by the admin — tap "Request Access" to send the request</td></tr>
+      <tr><td>"Drive Backup Pending" for more than a day</td><td>Tap the card → Send Reminder</td></tr>
+      <tr><td>Sync icon is red on Home screen</td><td>Check internet connection, then tap the sync icon to retry</td></tr>
+      <tr><td>Opening balance looks wrong</td><td>Check if the previous day was committed — open that date in Daily Stock and verify the closing balance was saved</td></tr>
+      <tr><td>Product missing from the daily stock list</td><td><span class="path">Items/Products → Download Standard Product List</span> to get the latest list from admin</td></tr>
+      <tr><td>"Account Not Activated" when downloading products</td><td>Admin needs to add your account — contact admin by email or WhatsApp</td></tr>
+      <tr><td>App shows "Sign in again to complete" after account deletion</td><td>Sign out, sign back in with the same account, then go to <span class="path">Business Info → ⋮ → Complete Account Deletion</span></td></tr>
+    </table>
+  </div>
+
+  <h3>Import Test Data</h3>
+  <p>Go to <span class="path">Settings → Help &amp; Support → Import Test Data</span>. Loads a sample set of opening balances and dummy stock data for practice. Requires app registration (Step 1 in onboarding).</p>
+  <p>Select the date you want as the sample opening balance day, then confirm the import. Replace sample data with your real figures when you are ready to begin live trading.</p>
+
+  <hr />
+
+  <div class="callout note">
+    All your data stays on your phone unless you explicitly enable Cloud Drive Backup. The app works fully offline — enter closing stock, record purchases, view reports and export to Excel without any internet connection.
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<footer>
+  <p>WinEntry &nbsp;·&nbsp; Specialized Retail Inventory &amp; Accountability Tool</p>
+  <p>Simhadri Systems &nbsp;·&nbsp; simhadrisystems@gmail.com</p>
+  <p>Guide updated May 2026 &nbsp;·&nbsp; Version 1.1 (Build 4)</p>
+</footer>
+
+</body>
+</html>

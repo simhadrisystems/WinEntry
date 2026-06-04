@@ -1009,7 +1009,7 @@ class DailyStockFragment : Fragment() {
             if (cash < 0) {
                 val tv = android.util.TypedValue()
                 requireContext().theme.resolveAttribute(
-                    com.google.android.material.R.attr.colorError, tv, true
+                    androidx.appcompat.R.attr.colorError, tv, true
                 )
                 textCash.setTextColor(tv.data)
             } else {

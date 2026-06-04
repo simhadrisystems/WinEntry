@@ -28,6 +28,9 @@ import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 class PurchasesListFragment : Fragment() {
 
@@ -59,6 +62,11 @@ class PurchasesListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val initialBottom = binding.recyclerView.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.recyclerView) { v, insets ->
+            v.updatePadding(bottom = initialBottom + insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
+            insets
+        }
 
         excelHelper = PurchaseExcelHelper(requireContext().applicationContext)
         

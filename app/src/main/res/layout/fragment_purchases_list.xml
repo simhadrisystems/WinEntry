@@ -165,6 +165,7 @@
         android:fastScrollEnabled="true"
         android:fastScrollAlwaysVisible="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:clipToPadding="false"
         android:padding="8dp" />
 
     <TextView

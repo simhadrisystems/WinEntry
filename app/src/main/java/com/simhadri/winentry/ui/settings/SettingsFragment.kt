@@ -33,6 +33,9 @@ import com.simhadri.winentry.utils.SupportHelper
 import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 class SettingsFragment : Fragment() {
 
@@ -53,6 +56,10 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
+            v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
+            insets
+        }
 
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
 

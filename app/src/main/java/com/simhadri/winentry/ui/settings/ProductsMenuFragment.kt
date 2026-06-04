@@ -14,6 +14,9 @@ import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
 import com.simhadri.winentry.utils.UserRegistrationManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 class ProductsMenuFragment : Fragment() {
 
@@ -32,6 +35,10 @@ class ProductsMenuFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
+            v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
+            insets
+        }
 
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
 

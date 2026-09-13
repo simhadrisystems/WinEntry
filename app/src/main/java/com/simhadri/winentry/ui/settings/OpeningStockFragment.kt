@@ -75,6 +75,7 @@ class OpeningStockFragment : Fragment() {
     private lateinit var fabTop: com.google.android.material.floatingactionbutton.FloatingActionButton
     private lateinit var fabBottom: com.google.android.material.floatingactionbutton.FloatingActionButton
     private lateinit var bottomBar: LinearLayout
+    private lateinit var headerPanel: LinearLayout
 
     private var selectedDate: String = defaultDate()
 
@@ -231,7 +232,7 @@ class OpeningStockFragment : Fragment() {
         root.addView(toolbar)
 
         // ── Fixed header panel — 3 equal-weight coloured info rows ──────────────
-        val headerPanel = LinearLayout(requireContext()).apply {
+        headerPanel = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             elevation = dp(2).toFloat()
             layoutParams = LinearLayout.LayoutParams(
@@ -396,6 +397,16 @@ class OpeningStockFragment : Fragment() {
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(view) { _, windowInsets ->
             val bars = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             toolbar.setPadding(bars.left, bars.top, bars.right, 0)
+            // headerPanel and recyclerView are full-width siblings of the toolbar/bottomBar,
+            // not inside either, so they need their own side padding or their content extends
+            // under a side nav bar in landscape.
+            headerPanel.setPadding(bars.left, 0, bars.right, 0)
+            recyclerView.setPadding(bars.left, 0, bars.right, 0)
+            recyclerView.clipToPadding = false
+            (fabTop.layoutParams as android.widget.FrameLayout.LayoutParams).marginEnd = dp(8) + bars.right
+            (fabBottom.layoutParams as android.widget.FrameLayout.LayoutParams).marginEnd = dp(8) + bars.right
+            fabTop.requestLayout()
+            fabBottom.requestLayout()
             bottomBar.setPadding(bars.left, 0, bars.right, bars.bottom)
             (bottomBar.layoutParams as LinearLayout.LayoutParams).height = dp(52) + bars.bottom
             bottomBar.requestLayout()

@@ -52,6 +52,12 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
 
     suspend fun deleteAll() = purchaseDao.deleteAll()
 
+    suspend fun updateReceivedDateForInvoice(
+        invoiceNumber: String,
+        purchaseDate:  String,
+        receivedDate:  String
+    ) = purchaseDao.updateReceivedDateForInvoice(invoiceNumber, purchaseDate, receivedDate)
+
     // ── Read ──────────────────────────────────────────────────────────────────
 
     fun getPurchasesByDate(date: String): LiveData<List<Purchase>> =
@@ -81,7 +87,7 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
         date: String,
         productId: Long
     ): PurchaseQuantities =
-        purchaseDao.getPurchasesByDateAndProduct(date, productId).toQuantities()
+        purchaseDao.getPurchasesByEffectiveDateAndProduct(date, productId).toQuantities()
 
     suspend fun getAllPurchaseQuantitiesForDate(date: String): Map<Long, PurchaseQuantities> =
         purchaseDao.getPurchasesByDateSync(date)
@@ -114,7 +120,7 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
         date:     String,
         products: List<Product>
     ): Map<String, Int> {
-        val purchases = purchaseDao.getPurchasesByDateSync(date)
+        val purchases = purchaseDao.getPurchasesByEffectiveDateSync(date)
         val result    = mutableMapOf<String, Int>()
         for (p in purchases) {
             // Resolve alias → primary code

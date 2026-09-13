@@ -28,8 +28,13 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_clear_product_data"
+        android:title="Clear Product Entry (Current Date)"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_clear_date_data"
-        android:title="Clear Current Date Data"
+        android:title="Clear All Products (Current Date)"
         app:showAsAction="never" />
 
     <item

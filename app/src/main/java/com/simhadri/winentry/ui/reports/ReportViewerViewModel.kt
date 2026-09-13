@@ -72,6 +72,8 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
                 val html = when (reportType) {
                     ReportViewerFragment.TYPE_PURCHASE_REPORT ->
                         buildPurchaseReportHtml(date, dateTo, title)
+                    ReportViewerFragment.TYPE_SALES_MARGIN_REPORT ->
+                        buildSalesMarginHtml(date, dateTo, title)
                     ReportViewerFragment.TYPE_BRAND_WISE_REPORT -> {
                         val entries = loadEntriesAll(date)
                         buildBrandWiseHtml(date, entries, title, includeZero)
@@ -324,12 +326,17 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
   tr.totrow td { background:#1a237e; color:white; font-weight:bold; padding:4px 5px;
                  border-right:1px solid #3949ab; white-space:nowrap }
   tr.totrow td:last-child { border-right:none }
+  .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
+  .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
+  .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
+  .wmt       { font-size:8px; color:#bbb; margin-top:3px; letter-spacing:0.3px }
 </style></head><body>
 <div class="hdr">
   <div class="biz">$businessName</div>
   $locationLine
   <div class="rep">$title</div>
   <div class="gen">Generated on $generatedOn</div>
+  <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
 </div>
 <table>
   <thead><tr>
@@ -350,6 +357,205 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
     </tr>
   </tbody>
 </table>
+<div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
+</body></html>"""
+    }
+
+    // ── Sales & Profit Margin Report ──────────────────────────────────────────
+
+    private suspend fun buildSalesMarginHtml(
+        fromDate: String, toDate: String, title: String
+    ): String {
+        val stockRows = try {
+            repository.getAllDailyStockInRange(fromDate, toDate)
+                .filter { it.isCommitted }
+        } catch (e: Exception) { return "" }
+
+        if (stockRows.isEmpty()) return ""
+
+        val products = repository.getAllProductsByDailySortKeySync()
+        val productMap = products.associateBy { it.stockCode }
+
+        // Aggregate sale quantities and amounts per product code
+        data class ProductSales(
+            var saleQq: Int = 0, var salePp: Int = 0,
+            var saleNn: Int = 0, var saleDd: Int = 0,
+            var amtQq: Double = 0.0, var amtPp: Double = 0.0,
+            var amtNn: Double = 0.0, var amtDd: Double = 0.0
+        )
+        val salesByCode = mutableMapOf<String, ProductSales>()
+        for (row in stockRows) {
+            val s = salesByCode.getOrPut(row.productCode) { ProductSales() }
+            s.saleQq += maxOf(row.saleQq, 0); s.salePp += maxOf(row.salePp, 0)
+            s.saleNn += maxOf(row.saleNn, 0); s.saleDd += maxOf(row.saleDd, 0)
+            s.amtQq += maxOf(row.amountQq, 0.0); s.amtPp += maxOf(row.amountPp, 0.0)
+            s.amtNn += maxOf(row.amountNn, 0.0); s.amtDd += maxOf(row.amountDd, 0.0)
+        }
+
+        // Keep only products that actually had sales
+        val activeCodes = salesByCode.keys
+        val activeProducts = products.filter { it.stockCode in activeCodes }
+        if (activeProducts.isEmpty()) return ""
+
+        val prefs        = getApp().getSharedPreferences("business_info",
+            android.content.Context.MODE_PRIVATE)
+        val businessName = prefs.getString("business_name", "") ?: ""
+        val location     = prefs.getString("location",      "") ?: ""
+        val generatedOn  = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+
+        val inFmt  = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val outFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        fun fmtDay(d: String) = try { inFmt.parse(d)?.let { outFmt.format(it) } ?: d } catch (_: Exception) { d }
+
+        val inLocale = Locale("en", "IN")
+        fun qty(n: Int): String = if (n == 0) "-"
+            else java.text.NumberFormat.getIntegerInstance(inLocale).format(n.toLong())
+        fun cur(v: Double): String = if (v == 0.0) "-"
+            else "₹" + java.text.NumberFormat.getNumberInstance(inLocale)
+                .apply { minimumFractionDigits = 2; maximumFractionDigits = 2 }.format(v)
+        fun pct(v: Double): String = String.format(Locale.US, "%.1f%%", v)
+
+        var serialNo = 0
+        var grandSale = 0.0; var grandCost = 0.0; var grandMargin = 0.0
+        var grandQQ = 0; var grandPP = 0; var grandNN = 0; var grandDD = 0
+        val bodyRows = StringBuilder()
+
+        for (product in activeProducts) {
+            val s = salesByCode[product.stockCode] ?: continue
+            if (s.saleQq + s.salePp + s.saleNn + s.saleDd == 0) continue
+            serialNo++
+
+            val costQq = s.saleQq * product.qqPurchasePrice
+            val costPp = s.salePp * product.ppPurchasePrice
+            val costNn = s.saleNn * product.nnPurchasePrice
+            val costDd = s.saleDd * product.ddPurchasePrice
+            val totalCost   = costQq + costPp + costNn + costDd
+            val totalSale   = s.amtQq + s.amtPp + s.amtNn + s.amtDd
+            val totalMargin = totalSale - totalCost
+            val marginPct   = if (totalSale > 0) totalMargin / totalSale * 100 else 0.0
+
+            grandSale   += totalSale;   grandCost   += totalCost
+            grandMargin += totalMargin; grandQQ += s.saleQq; grandPP += s.salePp
+            grandNN += s.saleNn; grandDD += s.saleDd
+
+            // Product header
+            bodyRows.append("""<tr class="prow">
+                <td class="n">$serialNo</td>
+                <td colspan="5" style="font-weight:bold">${product.displayName}</td>
+                <td class="r" style="font-weight:bold">${cur(totalSale)}</td>
+                <td class="r" style="font-weight:bold">${cur(totalCost)}</td>
+                <td class="r" style="font-weight:bold;color:#16a34a">${cur(totalMargin)}</td>
+                <td class="n" style="font-weight:bold;color:#16a34a">${pct(marginPct)}</td>
+            </tr>""")
+
+            // Per-size detail rows — only for sizes with sales
+            data class SizeRow(val label: String, val qty: Int, val saleAmt: Double,
+                               val buyP: Double, val sellP: Double)
+            listOf(
+                SizeRow("QQ", s.saleQq, s.amtQq, product.qqPurchasePrice, product.qqSalePrice),
+                SizeRow("PP", s.salePp, s.amtPp, product.ppPurchasePrice, product.ppSalePrice),
+                SizeRow("NN", s.saleNn, s.amtNn, product.nnPurchasePrice, product.nnSalePrice),
+                SizeRow("DD", s.saleDd, s.amtDd, product.ddPurchasePrice, product.ddSalePrice)
+            ).filter { it.qty > 0 }.forEach { sz ->
+                val szCost   = sz.qty * sz.buyP
+                val szMargin = sz.saleAmt - szCost
+                val szMgnPct = if (sz.saleAmt > 0) szMargin / sz.saleAmt * 100 else 0.0
+                val mgnPerUnit = if (sz.qty > 0) szMargin / sz.qty else sz.sellP - sz.buyP
+                bodyRows.append("""<tr class="drow">
+                    <td></td>
+                    <td class="sl">${sz.label}</td>
+                    <td class="n">${qty(sz.qty)}</td>
+                    <td class="r">${cur(sz.buyP)}</td>
+                    <td class="r">${cur(sz.sellP)}</td>
+                    <td class="r" style="color:#6b7280">${cur(mgnPerUnit)}</td>
+                    <td class="r">${cur(sz.saleAmt)}</td>
+                    <td class="r">${cur(szCost)}</td>
+                    <td class="r" style="color:#16a34a">${cur(szMargin)}</td>
+                    <td class="n" style="color:#16a34a">${pct(szMgnPct)}</td>
+                </tr>""")
+            }
+        }
+
+        if (serialNo == 0) return ""
+
+        val grandMgnPct = if (grandSale > 0) grandMargin / grandSale * 100 else 0.0
+        val dateRange   = if (fromDate == toDate) fmtDay(fromDate)
+                          else "${fmtDay(fromDate)} – ${fmtDay(toDate)}"
+        val locationLine = if (location.isNotEmpty()) "<div class='loc'>$location</div>" else ""
+
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  @page  { margin:15mm 17mm 15mm 22mm }
+  body   { font-family:Arial,sans-serif; font-size:12px; margin:0 }
+  .hdr   { text-align:center; margin-bottom:10px }
+  .biz   { font-size:15px; font-weight:bold; color:#1a237e }
+  .loc   { font-size:12px; color:#444; margin-top:2px }
+  .rep   { font-size:12px; font-weight:bold; color:#ea580c; margin-top:4px }
+  .gen   { font-size:9px;  color:#888; margin-top:3px }
+  table  { border-collapse:collapse; width:100%; border:1px solid #fed7aa }
+  th     { background:#ea580c; color:white; padding:4px 5px; font-size:10px;
+           border-right:1px solid #fb923c; white-space:nowrap }
+  th:last-child { border-right:none }
+  td     { padding:3px 5px; border-bottom:1px solid #e0e0e0;
+           border-right:1px solid #fed7aa }
+  td:last-child { border-right:none }
+  .n     { text-align:center; white-space:nowrap }
+  .r     { text-align:right;  white-space:nowrap }
+  .sl    { color:#9a3412; font-weight:bold; font-size:11px; padding-left:18px }
+  tr     { page-break-inside:avoid; break-inside:avoid }
+  tr.prow td { background:#fff7ed; font-size:12px; border-top:2px solid #fdba74 }
+  tr.drow td { background:#fefcfa; font-size:11px }
+  tr.totrow td { background:#ea580c; color:white; font-weight:bold; padding:5px;
+                 border-right:1px solid #fb923c; white-space:nowrap }
+  tr.totrow td:last-child { border-right:none }
+  .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
+  .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
+  .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
+  .wmt       { font-size:8px; color:#bbb; margin-top:3px; letter-spacing:0.3px }
+</style></head><body>
+<div class="hdr">
+  <div class="biz">$businessName</div>
+  $locationLine
+  <div class="rep">Sales &amp; Profit Margin Report</div>
+  <div style="font-size:11px;color:#ea580c;margin-top:2px">$dateRange</div>
+  <div class="gen">Generated on $generatedOn</div>
+  <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">#</th>
+      <th rowspan="2" style="text-align:left;vertical-align:middle">Product / Size</th>
+      <th rowspan="2" style="vertical-align:middle">Sale Qty</th>
+      <th rowspan="2" style="vertical-align:middle">Buy Price</th>
+      <th rowspan="2" style="vertical-align:middle">Sell Price</th>
+      <th rowspan="2" style="vertical-align:middle">Margin/Unit</th>
+      <th colspan="4">Totals</th>
+    </tr>
+    <tr>
+      <th>Sale Amt</th>
+      <th>Cost</th>
+      <th>Margin</th>
+      <th>Margin%</th>
+    </tr>
+  </thead>
+  <tbody>
+    $bodyRows
+    <tr class="totrow">
+      <td colspan="2">GRAND TOTAL</td>
+      <td class="n">${qty(grandQQ + grandPP + grandNN + grandDD)}</td>
+      <td colspan="3"></td>
+      <td class="r">${cur(grandSale)}</td>
+      <td class="r">${cur(grandCost)}</td>
+      <td class="r">${cur(grandMargin)}</td>
+      <td class="n">${pct(grandMgnPct)}</td>
+    </tr>
+  </tbody>
+</table>
+<div style="font-size:9px;color:#9ca3af;margin-top:6px;text-align:right">
+  * Buy &amp; Sell prices from current product master. Sale amounts from committed daily stock entries. Margin/Unit is actual average for the period.
+</div>
+<div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
 </body></html>"""
     }
 
@@ -436,12 +642,17 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
   tr.totrow td { background:#1a237e; color:white; font-weight:bold; padding:4px 5px;
                  border-right:1px solid #3949ab; white-space:nowrap }
   tr.totrow td:last-child { border-right:none }
+  .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
+  .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
+  .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
+  .wmt       { font-size:8px; color:#bbb; margin-top:3px; letter-spacing:0.3px }
 </style></head><body>
 <div class="hdr">
   <div class="biz">$businessName</div>
   $locationLine
   <div class="rep">Daily Stock Sheet &mdash; $displayDate</div>
   <div class="gen">Generated on $generatedOn</div>
+  <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
 </div>
 <table>
   <thead>
@@ -513,6 +724,7 @@ ${if (recon != null) """
     </tbody>
   </table>
 </div>""" else ""}
+<div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
 </body></html>"""
     }
 
@@ -580,12 +792,17 @@ ${if (recon != null) """
   tfoot td { background:#1a237e; color:white; font-weight:bold; padding:5px 8px;
              border-right:1px solid #3949ab }
   tfoot td:last-child { border-right:none }
+  .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
+  .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
+  .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
+  .wmt       { font-size:8px; color:#bbb; margin-top:3px; letter-spacing:0.3px }
 </style></head><body>
 <div class="hdr">
   <div class="biz">$businessName</div>
   $locationLine
   <div class="rep">Closing Balances as on $displayDate</div>
   <div class="gen">Generated on $generatedOn</div>
+  <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
 </div>
 <table>
   <thead><tr>
@@ -604,6 +821,7 @@ ${if (recon != null) """
     <td class="r">${cur(totValue)}</td>
   </tr></tfoot>
 </table>
+<div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
 </body></html>"""
     }
 
@@ -719,12 +937,17 @@ ${if (recon != null) """
   tr.totrow td { background:#1a237e; color:white; font-weight:bold; padding:4px 5px;
                  border-right:1px solid #3949ab; white-space:nowrap }
   tr.totrow td:last-child { border-right:none }
+  .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
+  .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
+  .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
+  .wmt       { font-size:8px; color:#bbb; margin-top:3px; letter-spacing:0.3px }
 </style></head><body>
 <div class="hdr">
   <div class="biz">$businessName</div>
   $locationLine
   <div class="rep">$title &mdash; $displayDate</div>
   <div class="gen">Generated on $generatedOn</div>
+  <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
 </div>
 <table>
   <thead>
@@ -754,6 +977,7 @@ ${if (recon != null) """
     </tr>
   </tbody>
 </table>
+<div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
 </body></html>"""
     }
 

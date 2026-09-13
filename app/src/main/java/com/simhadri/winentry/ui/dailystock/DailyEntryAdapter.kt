@@ -118,10 +118,13 @@ class DailyEntryAdapter(
                     }
                 }
 
-                // Sale amount — zero with red colour when any size has negative sale
+                // Sale amount — red if negative sale; amber+asterisk if price changed since commit
                 if (hasNegativeSale) {
                     textSaleAmount.text = "₹0.00 ⚠"
                     textSaleAmount.setTextColor(android.graphics.Color.parseColor("#C62828"))
+                } else if (entry.hasPriceMismatch) {
+                    textSaleAmount.text = String.format("₹%.2f *", entry.saleAmount)
+                    textSaleAmount.setTextColor(android.graphics.Color.parseColor("#E65100"))
                 } else {
                     textSaleAmount.text = String.format("₹%.2f", entry.saleAmount)
                     textSaleAmount.setTextColor(android.graphics.Color.parseColor("#1B5E20"))
@@ -438,12 +441,15 @@ class DailyEntryAdapter(
                 textSaleDD.text = if (entry.sale.dd == 0) "–" else entry.sale.dd.toString()
                 textSaleDD.setTextColor(if (entry.sale.dd < 0) negativeColor else sqDD)
 
-                // Sale amount
+                // Sale amount — red if negative sale; amber+asterisk if price changed since commit
                 val hasNeg = entry.sale.qq < 0 || entry.sale.pp < 0 ||
                              entry.sale.nn < 0 || entry.sale.dd < 0
                 if (hasNeg) {
                     textSaleAmount.text = "₹0.00 ⚠"
                     textSaleAmount.setTextColor(android.graphics.Color.parseColor("#C62828"))
+                } else if (entry.hasPriceMismatch) {
+                    textSaleAmount.text = String.format("₹%.2f *", entry.saleAmount)
+                    textSaleAmount.setTextColor(android.graphics.Color.parseColor("#E65100"))
                 } else {
                     textSaleAmount.text = String.format("₹%.2f", entry.saleAmount)
                     textSaleAmount.setTextColor(android.graphics.Color.parseColor("#1B5E20"))

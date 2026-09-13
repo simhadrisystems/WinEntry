@@ -70,6 +70,7 @@ class PurchaseEntryFragment : Fragment() {
         // Setup UI components first
         setupToolbar()
         setupDatePicker()
+        setupReceivedDatePicker()
         setupProductSelector()
         setupSizeInputs()
         setupSelectAllOnFocus()
@@ -129,6 +130,8 @@ class PurchaseEntryFragment : Fragment() {
                     binding.textPurchaseDate.alpha = 0.6f
                     binding.editInvoiceNumber.isEnabled = false
                     binding.editInvoiceNumber.alpha = 0.6f
+                    binding.textReceivedDate.isEnabled = false
+                    binding.textReceivedDate.alpha = 0.6f
                     // Force ViewModel to the locked values — overrides anything setupDatePicker set
                     viewModel.updateMetadata(
                         date     = lockedDate,
@@ -193,7 +196,16 @@ class PurchaseEntryFragment : Fragment() {
         } catch (e: Exception) {
             binding.textPurchaseDate.setText(purchase.purchaseDate)
         }
-        
+
+        // Set received date
+        val received = purchase.receivedDate.ifBlank { purchase.purchaseDate }
+        try {
+            val rd = dateFormat.parse(received)
+            if (rd != null) binding.textReceivedDate.setText(displayDateFormat.format(rd))
+        } catch (_: Exception) {
+            binding.textReceivedDate.setText(received)
+        }
+
         // Set product name (read-only in edit mode - shows historical product name)
         binding.autoCompleteProduct.setText("${purchase.productName} (${purchase.productCode})", false)
         // Disable product selector in edit mode - can't change product of existing purchase
@@ -337,11 +349,59 @@ class PurchaseEntryFragment : Fragment() {
                         invoice  = if (isInsertMode) lockedInvoice else binding.editInvoiceNumber.text.toString(),
                         notes    = binding.editNotes.text.toString()
                     )
+                    // Keep received date in sync with invoice date unless user has explicitly changed it
+                    val currentReceived = viewModel.currentPurchase.value?.receivedDate ?: ""
+                    val currentInvoice  = viewModel.currentPurchase.value?.purchaseDate ?: ""
+                    if (currentReceived.isBlank() || currentReceived == currentInvoice) {
+                        binding.textReceivedDate.setText(displayDateFormat.format(selectedCalendar.time))
+                        viewModel.updateReceivedDate(selectedDate)
+                    }
                 },
                 currentCalendar.get(Calendar.YEAR),
                 currentCalendar.get(Calendar.MONTH),
                 currentCalendar.get(Calendar.DAY_OF_MONTH)
             ).show()
+        }
+    }
+
+    private fun setupReceivedDatePicker() {
+        // Default to today (same as invoice date)
+        val today = Calendar.getInstance()
+        binding.textReceivedDate.setText(displayDateFormat.format(today.time))
+        viewModel.updateReceivedDate(dateFormat.format(today.time))
+
+        binding.textReceivedDate.setOnClickListener {
+            val currentCalendar = Calendar.getInstance()
+            val currentReceived = viewModel.currentPurchase.value?.receivedDate
+            if (!currentReceived.isNullOrEmpty()) {
+                try { dateFormat.parse(currentReceived)?.let { currentCalendar.time = it } }
+                catch (_: Exception) {}
+            }
+
+            // min = invoice date; max = today + 1
+            val invoiceDateStr = viewModel.currentPurchase.value?.purchaseDate ?: ""
+            val minCal = Calendar.getInstance()
+            if (invoiceDateStr.isNotEmpty()) {
+                try { dateFormat.parse(invoiceDateStr)?.let { minCal.time = it } }
+                catch (_: Exception) {}
+            }
+            val maxCal = Calendar.getInstance().also { it.add(Calendar.DAY_OF_MONTH, 1) }
+
+            DatePickerDialog(
+                requireContext(),
+                { _, year, month, day ->
+                    val selectedCalendar = Calendar.getInstance().also { it.set(year, month, day) }
+                    val selectedDate = dateFormat.format(selectedCalendar.time)
+                    binding.textReceivedDate.setText(displayDateFormat.format(selectedCalendar.time))
+                    viewModel.updateReceivedDate(selectedDate)
+                },
+                currentCalendar.get(Calendar.YEAR),
+                currentCalendar.get(Calendar.MONTH),
+                currentCalendar.get(Calendar.DAY_OF_MONTH)
+            ).also { dlg ->
+                dlg.datePicker.minDate = minCal.timeInMillis
+                dlg.datePicker.maxDate = maxCal.timeInMillis
+            }.show()
         }
     }
 
@@ -850,11 +910,19 @@ class PurchaseEntryFragment : Fragment() {
                                 } catch (e: Exception) { dateFormat.format(Calendar.getInstance().time) }
                                 lockedInvoice = keepInvoice
                                 isDateInvoiceFrozen = true
+                                val keepReceivedDisplay = binding.textReceivedDate.text.toString()
+                                val lockedReceived = try {
+                                    displayDateFormat.parse(keepReceivedDisplay)
+                                        ?.let { dateFormat.format(it) } ?: lockedDate
+                                } catch (_: Exception) { lockedDate }
+                                viewModel.updateReceivedDate(lockedReceived)
                                 resetForm()
                                 binding.editInvoiceNumber.isEnabled = false
                                 binding.editInvoiceNumber.alpha = 0.6f
                                 binding.textPurchaseDate.isEnabled = false
                                 binding.textPurchaseDate.alpha = 0.6f
+                                binding.textReceivedDate.isEnabled = false
+                                binding.textReceivedDate.alpha = 0.6f
                             }
                             .setNegativeButton("Go Back") { _, _ ->
                                 findNavController().navigateUp()

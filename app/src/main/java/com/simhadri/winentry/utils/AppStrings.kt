@@ -359,6 +359,18 @@ object AppStrings {
         en = "View Report",
         te = "రిపోర్టు చూడండి"
     )
+    val reportsBrowseMonthsButton = L(
+        en = "Browse Months",
+        te = "నెలలు చూడండి"
+    )
+    val reportsSalesMarginTitle = L(
+        en = "Sales & Profit Margin",
+        te = "అమ్మకాలు & లాభం వివరము"
+    )
+    val reportsSalesMarginDesc = L(
+        en = "Sale qty · Sale price · Buy price · Margin % for a period",
+        te = "కాల వ్యవధిలో అమ్మకాలు · అమ్మకపు ధర · కొనుగోలు ధర · లాభం శాతం"
+    )
     val reportsIncludeZero = L(
         en = "Include products with zero activity",
         te = "అమ్మకాలు లేని సరకులను కూడా చేర్చు"

@@ -482,6 +482,15 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     /** Suspend version — caller awaits DB completion before reloading UI. */
     suspend fun clearAllDataAwait() = repository.clearAllData()
 
+    suspend fun clearProductDataAwait(date: String, productCode: String) =
+        repository.deleteDailyStock(date, productCode)
+
+    suspend fun clearProductDataWithCascadeAwait(
+        date:        String,
+        productCode: String,
+        products:    List<com.simhadri.winentry.data.entity.Product>
+    ) = repository.clearEntryWithCascade(date, productCode, products)
+
     /** Force all committed rows to re-sync to Google Sheets. */
     fun forceFullResync() {
         viewModelScope.launch { repository.forceFullResync() }

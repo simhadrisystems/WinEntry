@@ -34,6 +34,50 @@ The release build generates separate APKs per ABI (`arm64-v8a`, `armeabi-v7a`, `
 | 1.0.1 | 2 | 2 | — |
 | 1.0.2 | 3 | 4 | Day reconciliation crash fix (Android 9), deposits field (Migration 3→4), invite system, OAuth fix |
 | 1.1.0 | 4 | 4 | In-app update detection, Getting Started onboarding flow, edge-to-edge (Android 15), delete dialog fixes |
+| 1.2.0 | 5 | 5 | Profit Reports & Date Received — Sales & Profit Margin report, Date Received on purchases, committed price lock, cascade-clear, deactivation guard, auto-activate on import, report watermark, Downloads save |
+
+### v1.2.0 — V5 Changes (2026-06-09)
+
+#### Daily Stock
+
+| # | Change | Files |
+|---|--------|-------|
+| 1 | **Cascade dialog 3-way** — "Update OB" / "Clear Next Day" (deletes next committed row for affected products) / "Skip" | `DailyStockViewModel.kt`, `DailyStockFragment.kt` |
+| 2 | **Clear Product Entry (Current Date)** — 3-dot menu item; picks committed product from list, deletes row, cascades OB to next day | `DailyStockFragment.kt`, `DailyStockDataViewModel.kt`, `DailyStockRepository.kt` |
+| 3 | **Clear Entry from CB dialog** — "Clear Entry" button (red, left-aligned) in `ClosingEntryDialog`; confirm → delete today's row → cascade-update next day's OB | `ClosingEntryDialog.kt`, `DailyStockFragment.kt`, `DailyStockDataViewModel.kt`, `DailyStockRepository.kt` |
+| 4 | **Auto-activate product on purchase** — Excel import and cloud down-sync now activate inactive products just like manual entry | `ProductDao.kt`, `PurchaseViewModel.kt`, `SyncCoordinator.kt` |
+| 5 | **Deactivation guard** — cannot deactivate a product that has any committed non-zero closing balance in `daily_stock` | `DailyStockDao.kt`, `DailyStockRepository.kt`, `ProductOrderViewModel.kt`, `ProductOrderFragment.kt` |
+
+#### Purchases
+
+| # | Change | Files |
+|---|--------|-------|
+| 6 | **`receivedDate` field** — new nullable-blank field on `Purchase`; DB migration 4→5; daily stock PQ lookup uses effective date (`COALESCE(NULLIF(receivedDate,''), purchaseDate)`) | `Purchase.kt`, `AppDatabase.kt`, `PurchaseDao.kt`, `PurchaseRepository.kt`, `DailyStockViewModel.kt` |
+| 7 | **Date Received picker at entry** — in `PurchaseEntryFragment`; defaults to invoice date, auto-syncs when invoice date changes; validation: min = invoice date, max = today+1; locked in insert/add-another mode | `PurchaseEntryFragment.kt`, `PurchaseViewModel.kt`, `fragment_purchase_entry.xml` |
+| 8 | **Date Received editable in purchase list** — double-tap the received-date footer row to open date picker; updates all rows of that invoice atomically via batch SQL | `GroupedPurchasesAdapter.kt`, `PurchasesListFragment.kt`, `PurchaseDao.kt`, `PurchaseRepository.kt`, `PurchaseViewModel.kt` |
+| 9 | **Purchase list display enhancements** — invoice stats row (total boxes/loose/units) below invoice header; received date footer at end of each invoice group | `GroupedPurchasesAdapter.kt`, `item_purchase_grouped.xml` |
+| 10 | **Date Received in Excel** — export writes `RECEIVED DATE \| [value]` at col 2-3 of DATE row; import reads col 3 with date-pattern guard (plain numbers silently ignored for backward compat) | `PurchaseExcelHelper.kt` |
+| 11 | **Date Received in cloud sync** — column AC (index 28) in Purchases sheet; `toSheetRow()` and `parsePurchasesTabRows()` updated | `CloudSyncManager.kt` |
+
+#### Reports
+
+| # | Change | Files |
+|---|--------|-------|
+| 12 | **Sales & Profit Margin Report** — date-range report; per-product: sale qty by size, buy price, sell price, margin/unit, sale amount, purchase cost, gross margin, margin%; grand total row | `ReportViewerViewModel.kt`, `ReportViewerFragment.kt`, `ReportsFragment.kt`, `fragment_reports.xml`, `colors.xml` |
+
+#### File Export
+
+| # | Change | Files |
+|---|--------|-------|
+| 13 | **Save to Downloads** — all 11 Excel export points now automatically save to public Downloads folder (MediaStore API on Android 10+; direct file on Android 8-9) and show "Saved to Downloads: filename" toast, then still open share chooser | `FileDownloadHelper.kt` (new), `DailyStockFragment.kt`, `PurchasesListFragment.kt`, `OpeningStockFragment.kt`, `ProductListFragment.kt` |
+
+#### Key DB / Schema Notes
+
+- `MIGRATION_4_5`: `ALTER TABLE purchases ADD COLUMN receivedDate TEXT NOT NULL DEFAULT ''`
+- `DailyStockDao.hasNonZeroClosingBalance(productCode)` — new query for deactivation guard
+- `ProductDao.activateByIds(ids)` — new batch-activation query
+- `PurchaseDao.updateReceivedDateForInvoice(...)` — new batch UPDATE by invoice group
+- Effective-date queries: `getPurchasesByEffectiveDateSync`, `getPurchasesByEffectiveDateAndProduct`, `markPurchasesAsProcessedByEffectiveDate`
 
 ---
 
@@ -75,6 +119,20 @@ All cloud sync flows through:
 - All tables: `SYNC_ERROR` on failure (retried next sync)
 
 Purchases use a stable `txnId` (format: `yyyyMMdd-HHmmss-XXXX`) as the cloud lookup key — never change this after creation.
+
+### Cloud Infrastructure & Billing (GCP project `winentry-a87f2`, `functions/`)
+
+Cloud Functions (`functions/index.js`, region `asia-south1`) back the invite/sheet-provisioning flow: `createUserSheet`, `registerUserOnly`, `syncUserSheet`, `deleteUserRegistration`, `getMasterProducts` (HTTPS), plus `onAdminRequestCreated` / `onInvitedUserAdded` (Firestore triggers). `CloudFunctionClient.kt` calls these for every sync — this means Cloud Functions/Firestore usage genuinely scales with active users, unlike Secret Manager (below).
+
+**Secret Manager gotcha** (cost WinEntry ~₹18–34/year until fixed 2026-07-24): secret versions are immutable — every `firebase functions:secrets:set NAME` (or console edit) creates a **new version** rather than overwriting, and old versions keep counting against the free 6-version-replica/month quota (and get billed past it) even while **disabled** — only **destroying** a version removes it from the billable count. `ADMIN_OAUTH_REFRESH_TOKEN` had accumulated 8 versions (7 stale, from OAuth setup/debugging in April 2026) before cleanup. Since `defineSecret("NAME")` in `functions/index.js` has no version pin, it always reads the latest version, so old versions are always safe to destroy. **After rotating any of `ADMIN_OAUTH_CLIENT_ID` / `ADMIN_OAUTH_CLIENT_SECRET` / `ADMIN_OAUTH_REFRESH_TOKEN`, go destroy the superseded version in Secret Manager** — don't just leave it disabled.
+
+**IAM**: keep project IAM (Console → IAM & Admin → IAM) limited to the Owner account and the 3 auto-created service accounts (`...compute@developer`, `...appspot@`, `firebase-adminsdk-fbsvc@...`). Do **not** add app testers here — that was done once (6 accounts, added pre-Play-Store-testing) and had to be cleaned up. Use **Play Console → Testing → Internal/Closed testing** for testers instead; it grants zero GCP/Firestore access.
+
+**Billing account** (`01B24F-417A5A-AB2FB5`, ID visible under Billing → Account management) also covers two other projects, both with billing intentionally **disabled** (confirmed zero GCP-billable usage — no Cloud Functions/SQL/Storage/Secret Manager, only Play Games Services + Play Billing which don't need Cloud Billing):
+- `esudoku` (~/Downloads/eSudoku)
+- `simple-inventory-e5ed9` — legacy project from before the Simple Inventory → WinEntry rebrand
+
+A budget alert (₹50/year, 50/90/100% thresholds) is configured on the billing account as a tripwire for future surprises.
 
 ### Auth & Roles
 
@@ -157,7 +215,7 @@ Products have a `brandCode` (primary, e.g. `"W1249"`) and optional `aliases` (co
 
 ### Google Sheets Column Layouts
 
-**Purchases tab** (A–AB): `TxnId | Date | ProductCode | ProductName | InvoiceNo | Supplier | QQ_Boxes | QQ_Loose | QQ_Total | QQ_Price | QQ_Cost | PP_... | NN_... | DD_... | TotalCost | Notes`
+**Purchases tab** (A–AC): `TxnId | Date | ProductCode | ProductName | InvoiceNo | Supplier | QQ_Boxes | QQ_Loose | QQ_Total | QQ_Price | QQ_Cost | PP_... | NN_... | DD_... | TotalCost | Notes | ReceivedDate`
 
 **DailyStock tab** (A–X): `date | productCode | openQq..openDd | closeQq..closeDd | saleQq..saleDd | priceQq..priceDd | amountQq..amountDd | saleAmount | isCommitted`
 

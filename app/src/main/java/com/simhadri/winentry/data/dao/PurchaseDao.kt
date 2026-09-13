@@ -56,8 +56,49 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchases WHERE purchaseDate = :date AND isDeleted = 0 ORDER BY productId ASC, id ASC")
     suspend fun getPurchasesByDateSync(date: String): List<Purchase>
 
+    // Used by daily stock — matches by effective received date
+    @Query("""
+        SELECT * FROM purchases
+        WHERE COALESCE(NULLIF(receivedDate,''), purchaseDate) = :date
+          AND isDeleted = 0
+        ORDER BY productId ASC, id ASC
+    """)
+    suspend fun getPurchasesByEffectiveDateSync(date: String): List<Purchase>
+
+    @Query("""
+        SELECT * FROM purchases
+        WHERE COALESCE(NULLIF(receivedDate,''), purchaseDate) = :date
+          AND productId = :productId
+          AND isDeleted = 0
+        ORDER BY id ASC
+    """)
+    suspend fun getPurchasesByEffectiveDateAndProduct(date: String, productId: Long): List<Purchase>
+
+    @Query("""
+        UPDATE purchases SET isProcessed = 1
+        WHERE COALESCE(NULLIF(receivedDate,''), purchaseDate) = :date
+          AND productId = :productId
+    """)
+    suspend fun markPurchasesAsProcessedByEffectiveDate(date: String, productId: Long)
+
     @Query("SELECT * FROM purchases WHERE invoiceNumber = :invoiceNumber AND purchaseDate = :date AND isDeleted = 0")
     suspend fun getPurchasesByInvoiceAndDate(invoiceNumber: String, date: String): List<Purchase>
+
+    @Query("""
+        UPDATE purchases
+        SET receivedDate = :receivedDate,
+            syncStatus   = 'PENDING_UPDATE',
+            updatedAt    = :now
+        WHERE invoiceNumber = :invoiceNumber
+          AND purchaseDate  = :purchaseDate
+          AND isDeleted     = 0
+    """)
+    suspend fun updateReceivedDateForInvoice(
+        invoiceNumber: String,
+        purchaseDate:  String,
+        receivedDate:  String,
+        now:           Long = System.currentTimeMillis()
+    )
 
     @Query("SELECT * FROM purchases ORDER BY purchaseDate DESC")
     suspend fun getAllPurchasesSync(): List<Purchase>

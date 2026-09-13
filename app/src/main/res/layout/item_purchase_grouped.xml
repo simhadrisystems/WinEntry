@@ -88,6 +88,81 @@
 
     </LinearLayout>
 
+    <!-- Invoice Stats Row — Boxes / Loose / Units totals for the invoice -->
+    <LinearLayout
+        android:id="@+id/layoutInvoiceStats"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="4dp"
+        android:paddingVertical="4dp"
+        android:paddingHorizontal="10dp"
+        android:background="#F3E5F5"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Invoice: "
+            android:textSize="11sp"
+            android:textColor="#6A1B9A"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textInvoiceBoxes"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="0 Boxes"
+            android:textSize="11sp"
+            android:textColor="#6A1B9A"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/textInvoiceLoose"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="0 Loose"
+            android:textSize="11sp"
+            android:textColor="#6A1B9A"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/textInvoiceUnits"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="0 Units"
+            android:textSize="11sp"
+            android:textColor="#6A1B9A"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- Invoice Footer — Date Received, shown below stats on the first product of each invoice -->
+    <LinearLayout
+        android:id="@+id/layoutInvoiceFooter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="4dp"
+        android:paddingVertical="5dp"
+        android:paddingHorizontal="10dp"
+        android:background="#EDE7F6"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/textInvoiceReceivedDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Received: 10 Jun 2026"
+            android:textSize="12sp"
+            android:textColor="#4527A0"
+            android:textStyle="italic" />
+
+    </LinearLayout>
+
     <!-- Day Totals Row -->
     <LinearLayout
         android:id="@+id/layoutDayTotals"
@@ -215,5 +290,7 @@
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
+
+
 
 </LinearLayout>

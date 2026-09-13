@@ -32,10 +32,11 @@ class ReportViewerFragment : Fragment() {
         const val ARG_TITLE               = "title"
         const val ARG_DATE_TO             = "dateTo"
         const val ARG_INCLUDE_ZERO        = "includeZero"
-        const val TYPE_DAILY_SHEET        = "DAILY_SHEET"
-        const val TYPE_CLOSING_BALANCES   = "CLOSING_BALANCES"
-        const val TYPE_PURCHASE_REPORT    = "PURCHASE_REPORT"
-        const val TYPE_BRAND_WISE_REPORT  = "BRAND_WISE"
+        const val TYPE_DAILY_SHEET          = "DAILY_SHEET"
+        const val TYPE_CLOSING_BALANCES     = "CLOSING_BALANCES"
+        const val TYPE_PURCHASE_REPORT      = "PURCHASE_REPORT"
+        const val TYPE_BRAND_WISE_REPORT    = "BRAND_WISE"
+        const val TYPE_SALES_MARGIN_REPORT  = "SALES_MARGIN"
     }
 
     override fun onCreateView(

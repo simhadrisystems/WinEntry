@@ -16,8 +16,8 @@ import java.util.*
 
 class DailyStockExcelHelper(private val context: Context) {
 
-    private val dateFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
-    private val dateFormatDb = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat("dd-MMM-yyyy", Locale.US)
+    private val dateFormatDb = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     /**
      * Export daily stock with custom title and enhanced formatting

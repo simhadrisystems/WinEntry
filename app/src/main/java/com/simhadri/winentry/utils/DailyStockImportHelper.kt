@@ -441,7 +441,7 @@ class DailyStockImportHelper(private val context: Context) {
                     set(java.util.Calendar.MILLISECOND, 0)
                 }
                 cal.add(java.util.Calendar.DATE, num.toInt())
-                return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                     .format(cal.time)
             }
         } catch (_: Exception) {}

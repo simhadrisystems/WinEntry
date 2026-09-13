@@ -96,4 +96,7 @@ interface ProductDao {
 
     @Query("DELETE FROM products")
     suspend fun deleteAll()
+
+    @Query("UPDATE products SET isActive = 1 WHERE id IN (:ids)")
+    suspend fun activateByIds(ids: List<Long>)
 }

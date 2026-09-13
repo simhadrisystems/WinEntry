@@ -53,17 +53,15 @@ class PurchaseExcelHelper(private val context: Context) {
         const val COL_QTY_UNITS = 8
         const val COL_PURCHASE_PRICE = 9
         
-        // Date formats
+        // Date formats — Indian (DD/MM) and ISO only. Never MM/DD (US format).
         val DATE_FORMATS = listOf(
-            SimpleDateFormat("dd/MM/yy", Locale.getDefault()),
-            SimpleDateFormat("d/M/yy", Locale.getDefault()),
-            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
-            SimpleDateFormat("d/M/yyyy", Locale.getDefault()),
-            SimpleDateFormat("MM/dd/yy", Locale.getDefault()),
-            SimpleDateFormat("M/d/yy", Locale.getDefault()),
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            SimpleDateFormat("d/M/yyyy", Locale.US),
+            SimpleDateFormat("dd/MM/yyyy", Locale.US),
+            SimpleDateFormat("d/M/yy", Locale.US),
+            SimpleDateFormat("dd/MM/yy", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd", Locale.US)
         )
-        val DB_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val DB_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         
         // Valid size codes
         val VALID_SIZE_CODES = setOf("QQ", "PP", "NN", "DD")
@@ -152,6 +150,11 @@ class PurchaseExcelHelper(private val context: Context) {
      */
     private fun detectShipments(sheet: Sheet): List<ShipmentInfo> {
         val shipments = mutableListOf<ShipmentInfo>()
+        val maxDate = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+        }
         var rowNum = 0
         
         while (rowNum <= sheet.lastRowNum) {
@@ -173,17 +176,27 @@ class PurchaseExcelHelper(private val context: Context) {
                 val dateCell = dateRow?.getCell(1)
                 val dateStr = getCellValueAsDateString(dateCell)
                 val parsedDate = parseDateWithFormats(dateStr)
-                
+
+                // Col 3 on the DATE row = received date (col 2 is the label "RECEIVED DATE").
+                // Guard: only parse if the raw string looks like a date (contains '/' or '-').
+                // Old files have the invoice amount (e.g. "12345") at col 3 — without this
+                // guard parseDateWithFormats would fall back to today's date for those numbers.
+                val receivedDateStr = getCellValueAsDateString(dateRow?.getCell(3))
+                val looksLikeDate = receivedDateStr.contains('/') || receivedDateStr.contains('-')
+                val parsedReceivedDate = if (looksLikeDate)
+                    parseDateWithFormats(receivedDateStr) else ""
+
                 // Headers should be at rowNum + 2
                 // Data starts at rowNum + 3
                 val dataStartRow = rowNum + 3
-                
+
                 shipments.add(ShipmentInfo(
-                    startRow = rowNum,
+                    startRow      = rowNum,
                     invoiceNumber = invoiceNumber,
-                    date = parsedDate,
-                    dateStr = dateStr,
-                    dataStartRow = dataStartRow
+                    date          = parsedDate,
+                    dateStr       = dateStr,
+                    receivedDate  = if (parsedReceivedDate.isBlank() || parsedReceivedDate <= parsedDate || parsedReceivedDate > maxDate) "" else parsedReceivedDate,
+                    dataStartRow  = dataStartRow
                 ))
                 
                 android.util.Log.d("PurchaseExcelHelper", "Found shipment at row $rowNum: Invoice=$invoiceNumber, Date=$dateStr->$parsedDate")
@@ -318,7 +331,8 @@ class PurchaseExcelHelper(private val context: Context) {
             
             // Create Purchase object with shipment date
             val purchase = Purchase(
-                purchaseDate = shipment.date,  // Uses shipment's date!
+                purchaseDate = shipment.date,
+                receivedDate = shipment.receivedDate,
                 productId = product.id,
                 productCode = ProductCodeResolver.primaryCode(product),  // always primary
                 productName = product.displayName,
@@ -380,10 +394,12 @@ class PurchaseExcelHelper(private val context: Context) {
         
         for (format in DATE_FORMATS) {
             try {
-                val parsed = format.parse(dateStr)
-                if (parsed != null) {
-                    return DB_DATE_FORMAT.format(parsed)
-                }
+                val parsed = format.parse(dateStr) ?: continue
+                val cal = java.util.Calendar.getInstance()
+                cal.time = parsed
+                val year = cal.get(java.util.Calendar.YEAR)
+                if (year < 2000 || year > 2100) continue
+                return DB_DATE_FORMAT.format(parsed)
             } catch (e: Exception) { }
         }
         
@@ -424,10 +440,10 @@ class PurchaseExcelHelper(private val context: Context) {
             // Calculate total invoice amount
             val invoiceAmount = shipmentPurchases.sumOf { it.totalCost }
             
-            // Format date for display (convert from yyyy-MM-dd to d/M/yy)
+            // Format date for display (convert from yyyy-MM-dd to dd/MM/yyyy)
             val displayDate = try {
-                val dbFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val displayFormat = SimpleDateFormat("d/M/yy", Locale.getDefault())
+                val dbFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val displayFormat = SimpleDateFormat("dd/MM/yyyy", Locale.US)
                 val parsedDate = dbFormat.parse(shipmentDate)
                 if (parsedDate != null) displayFormat.format(parsedDate) else shipmentDate
             } catch (e: Exception) {
@@ -442,18 +458,22 @@ class PurchaseExcelHelper(private val context: Context) {
             }
             invoiceRow.createCell(1).setCellValue(shipmentInvoice)
             
-            // Shipment header - Row 2: DATE and Invoice Amount
+            // Shipment header - Row 2: DATE, RECEIVED DATE, Invoice Amount
             val dateRow = sheet.createRow(currentRow++)
-            dateRow.createCell(0).apply {
-                setCellValue("DATE")
-                cellStyle = headerStyle
-            }
+            dateRow.createCell(0).apply { setCellValue("DATE"); cellStyle = headerStyle }
             dateRow.createCell(1).setCellValue(displayDate)
-            dateRow.createCell(2).apply {
-                setCellValue("Invoice Amount")
-                cellStyle = headerStyle
-            }
-            dateRow.createCell(3).setCellValue(invoiceAmount)
+            dateRow.createCell(2).apply { setCellValue("RECEIVED DATE"); cellStyle = headerStyle }
+            // Received date value — show invoice date when blank (same day)
+            val effectiveReceived = shipmentPurchases.firstOrNull()
+                ?.receivedDate?.ifBlank { shipmentDate } ?: shipmentDate
+            val displayReceived = try {
+                val dbFmt   = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val dispFmt = SimpleDateFormat("dd/MM/yyyy", Locale.US)
+                dbFmt.parse(effectiveReceived)?.let { dispFmt.format(it) } ?: effectiveReceived
+            } catch (_: Exception) { effectiveReceived }
+            dateRow.createCell(3).setCellValue(displayReceived)
+            dateRow.createCell(4).apply { setCellValue("Invoice Amount"); cellStyle = headerStyle }
+            dateRow.createCell(5).setCellValue(invoiceAmount)
             
             // Column Headers - Row 3
             val headerRow = sheet.createRow(currentRow++)
@@ -552,13 +572,13 @@ class PurchaseExcelHelper(private val context: Context) {
             }
         }
         
-        // Set column widths
+        // Set column widths (data cols 0-11; header DATE row also uses cols 4-5 for Invoice Amount)
         sheet.setColumnWidth(0, 2000)   // S.NO
-        sheet.setColumnWidth(1, 3500)   // Brand Code
-        sheet.setColumnWidth(2, 8000)   // Product Name
-        sheet.setColumnWidth(3, 2500)   // Product Type
-        sheet.setColumnWidth(4, 3000)   // Product Category
-        sheet.setColumnWidth(5, 3000)   // Size Code
+        sheet.setColumnWidth(1, 3500)   // Brand Code / invoice date
+        sheet.setColumnWidth(2, 4000)   // Product Name / RECEIVED DATE label
+        sheet.setColumnWidth(3, 3500)   // Product Type / received date value
+        sheet.setColumnWidth(4, 3000)   // Product Category / Invoice Amount label
+        sheet.setColumnWidth(5, 4000)   // Size Code / invoice amount value
         sheet.setColumnWidth(6, 2500)   // Size
         sheet.setColumnWidth(7, 3000)   // Qty Boxes
         sheet.setColumnWidth(8, 3000)   // Qty Loose
@@ -608,6 +628,8 @@ class PurchaseExcelHelper(private val context: Context) {
         sheet.createRow(currentRow++).apply {
             createCell(0).apply { setCellValue("DATE"); cellStyle = headerStyle }
             createCell(1).setCellValue("5/2/26")
+            createCell(2).apply { setCellValue("RECEIVED DATE"); cellStyle = headerStyle }
+            createCell(3).setCellValue("7/2/26")   // example: received 2 days later
         }
         
         val headers = arrayOf("S. NO", "Brand Code", "Product Name", "Product Type", 
@@ -646,8 +668,10 @@ class PurchaseExcelHelper(private val context: Context) {
         sheet.createRow(currentRow++).apply {
             createCell(0).apply { setCellValue("DATE"); cellStyle = headerStyle }
             createCell(1).setCellValue("7/2/26")
+            createCell(2).apply { setCellValue("RECEIVED DATE"); cellStyle = headerStyle }
+            createCell(3).setCellValue("7/2/26")   // same day in this example
         }
-        
+
         sheet.createRow(currentRow++).apply {
             headers.forEachIndexed { index, header ->
                 createCell(index).apply { setCellValue(header); cellStyle = headerStyle }
@@ -721,7 +745,7 @@ class PurchaseExcelHelper(private val context: Context) {
                 if (DateUtil.isCellDateFormatted(cell)) {
                     try {
                         val date = cell.dateCellValue
-                        SimpleDateFormat("d/M/yy", Locale.getDefault()).format(date)
+                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
                     } catch (e: Exception) {
                         cell.numericCellValue.toInt().toString()
                     }
@@ -786,6 +810,7 @@ class PurchaseExcelHelper(private val context: Context) {
         val invoiceNumber: String,
         val date: String,
         val dateStr: String,
+        val receivedDate: String = "",  // blank = same as date
         val dataStartRow: Int,
         val dataEndRow: Int = Int.MAX_VALUE
     )

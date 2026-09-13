@@ -23,6 +23,7 @@ import com.simhadri.winentry.databinding.FragmentProductListBinding
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.ExcelHelper
 import com.simhadri.winentry.utils.LangPrefs
+import com.simhadri.winentry.utils.exportToDownloadsAndShare
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -202,7 +203,7 @@ class ProductListFragment : Fragment() {
                 val fileName = "Active_Products_${dateFormat.format(Date())}.xlsx"
                 val uri = excelHelper.exportProducts(activeProducts, fileName)
 
-                shareFile(uri, "Active products exported successfully")
+                shareFile(uri, fileName, "Share Active Products")
 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -345,7 +346,7 @@ class ProductListFragment : Fragment() {
                 val fileName = "Products_${dateFormat.format(Date())}.xlsx"
                 val uri = excelHelper.exportProducts(products, fileName)
 
-                shareFile(uri, "Products exported successfully")
+                shareFile(uri, fileName, "Share Products")
 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -362,7 +363,7 @@ class ProductListFragment : Fragment() {
             try {
                 val fileName = "Product_Template.xlsx"
                 val uri = excelHelper.createTemplate(fileName)
-                shareFile(uri, "Template downloaded successfully")
+                shareFile(uri, fileName, "Share Product Template")
             } catch (e: Exception) {
                 Toast.makeText(
                     requireContext(),
@@ -373,15 +374,8 @@ class ProductListFragment : Fragment() {
         }
     }
 
-    private fun shareFile(uri: android.net.Uri, successMessage: String) {
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        startActivity(Intent.createChooser(shareIntent, "Share Excel File"))
-        Toast.makeText(requireContext(), successMessage, Toast.LENGTH_SHORT).show()
+    private fun shareFile(uri: android.net.Uri, fileName: String, title: String = "Share Excel File") {
+        exportToDownloadsAndShare(uri, fileName, title)
     }
 
     private fun confirmDelete(product: Product) {

@@ -15,6 +15,8 @@ import android.webkit.WebViewClient
 import android.widget.*
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -58,6 +60,9 @@ class MonthlySummaryFragment : Fragment() {
     private lateinit var tvTotUpi:   TextView
     private lateinit var tvTotExp:   TextView
     private lateinit var tvTotCash:  TextView
+    private lateinit var headerHScroll: HorizontalScrollView
+    private lateinit var dataHScroll:   HorizontalScrollView
+    private lateinit var nestedScroll:  androidx.core.widget.NestedScrollView
 
     // ── Build view programmatically ───────────────────────────────────────────
 
@@ -186,12 +191,35 @@ class MonthlySummaryFragment : Fragment() {
         }
         root.addView(progress)
 
-        // ── Scrollable table ──────────────────────────────────────────────────
-        val nestedScroll = androidx.core.widget.NestedScrollView(ctx).apply {
+        // ── Frozen header row (horizontal-scrolls with data, never scrolls vertically) ──
+        val headerInner = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        headerInner.addView(buildHeaderRow(dp))
+        headerInner.addView(dividerH(dp, Color.parseColor("#334155")))
+
+        headerHScroll = HorizontalScrollView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            isFillViewport = false
+            isHorizontalScrollBarEnabled = false
+            // Header follows data scroll — block direct touch so user can't drag header independently
+            setOnTouchListener { _, _ -> true }
+        }
+        headerHScroll.addView(headerInner)
+        root.addView(headerHScroll)
+
+        // ── Scrollable data rows ──────────────────────────────────────────────
+        nestedScroll = androidx.core.widget.NestedScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             )
             isFillViewport = true
+            clipToPadding = false
         }
 
         val tableOuter = LinearLayout(ctx).apply {
@@ -201,8 +229,7 @@ class MonthlySummaryFragment : Fragment() {
             )
         }
 
-        // HorizontalScrollView — table scrolls horizontally so no column wraps
-        val hScroll = HorizontalScrollView(ctx).apply {
+        dataHScroll = HorizontalScrollView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
@@ -215,10 +242,6 @@ class MonthlySummaryFragment : Fragment() {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-
-        // Header row
-        tableInner.addView(buildHeaderRow(dp))
-        tableInner.addView(dividerH(dp, Color.parseColor("#334155")))
 
         // Data rows container
         tableRows = LinearLayout(ctx).apply {
@@ -233,8 +256,8 @@ class MonthlySummaryFragment : Fragment() {
         // Totals row
         totalsRow = buildTotalsRowShell(dp).also { tableInner.addView(it) }
 
-        hScroll.addView(tableInner)
-        tableOuter.addView(hScroll)
+        dataHScroll.addView(tableInner)
+        tableOuter.addView(dataHScroll)
 
         // Empty state
         emptyText = TextView(ctx).apply {
@@ -266,6 +289,23 @@ class MonthlySummaryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // Sync header horizontal scroll position to data scroll
+        dataHScroll.setOnScrollChangeListener { _, scrollX, _, _, _ ->
+            headerHScroll.scrollTo(scrollX, 0)
+        }
+
+        // Push toolbar below status bar; pad scroll content above nav bar
+        val toolbarHeightPx = (56 * requireContext().resources.displayMetrics.density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val navBarHeight    = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            toolbar.setPadding(0, statusBarHeight, 0, 0)
+            (toolbar.layoutParams as? LinearLayout.LayoutParams)?.height =
+                toolbarHeightPx + statusBarHeight
+            nestedScroll.setPadding(0, 0, 0, navBarHeight)
+            insets
+        }
 
         // Load business info from SharedPreferences
         val prefs   = requireContext().getSharedPreferences("business_info", android.content.Context.MODE_PRIVATE)
@@ -678,6 +718,7 @@ class MonthlySummaryFragment : Fragment() {
                 append("<div style='font-size:12px;color:#555'>$bizLoc3</div>")
             append("<div style='font-size:14px;font-weight:bold;margin-top:6px'>Monthly Sale Data</div>")
             append("<div style='font-size:12px;color:#555'>$label</div>")
+            append("<div style='font-size:8px;color:#bbb;margin-top:3px;letter-spacing:0.3px'><b>WinEntry</b> &middot; Simhadri Systems</div>")
             append("</div>")
         }
 
@@ -696,6 +737,9 @@ class MonthlySummaryFragment : Fragment() {
             "<style>" +
             "@page{margin:1.5cm}" +
             "body{font-family:sans-serif;font-size:11px;margin:0}" +
+            ".wmark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-40deg);text-align:center;color:rgba(26,35,126,0.07);white-space:nowrap;pointer-events:none;z-index:999}" +
+            ".wmark-app{display:block;font-family:Arial,sans-serif;font-size:68px;font-weight:900;line-height:1}" +
+            ".wmark-co{display:block;font-family:Arial,sans-serif;font-size:26px;font-weight:600;letter-spacing:3px;margin-top:4px}" +
             "table{border-collapse:collapse;width:100%}" +
             "th{background:#1565C0;color:white;padding:6px 8px;text-align:right}" +
             "th:first-child,th:last-child{text-align:left}" +
@@ -712,7 +756,7 @@ class MonthlySummaryFragment : Fragment() {
             "<td class=n>${fmt(s.totalSales)}</td><td class=n>${fmt(s.totalUpi)}</td>" +
             "<td class=n>${fmt(s.totalExpenses)}</td><td class=n>${fmt(s.totalCash)}</td>" +
             "<td class=n>${fmt(s.totalDeposits)}</td><td></td>" +
-            "</tr></tbody></table></body></html>"
+            "</tr></tbody></table><div class=\"wmark\"><span class=\"wmark-app\">WinEntry</span><span class=\"wmark-co\">Simhadri Systems</span></div></body></html>"
     }
 
     // ── Format helper ─────────────────────────────────────────────────────────

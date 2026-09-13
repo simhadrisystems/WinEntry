@@ -344,6 +344,35 @@ class DailyStockRepository(
     suspend fun deleteDailyStock(date: String, productCode: String) =
         dailyStockDao.deleteDailyStock(date, productCode)
 
+    suspend fun hasNonZeroClosingBalance(productCode: String): Boolean =
+        dailyStockDao.hasNonZeroClosingBalance(productCode) > 0
+
+    /**
+     * Delete today's committed entry for [productCode] on [date], then cascade-update
+     * the next committed day's opening balance so it reflects the new effective CB
+     * (= previous committed row's CB, or zero if no prior history).
+     *
+     * Clearing can never create negative sales on the next day — the new OB will be
+     * >= the old OB, so the next day's sale can only stay the same or increase.
+     */
+    suspend fun clearEntryWithCascade(date: String, productCode: String, products: List<Product>) {
+        val prevRow = dailyStockDao.getLastCommittedBeforeDate(productCode, date)
+        dailyStockDao.deleteDailyStock(date, productCode)
+
+        // Virtual "from" row: today's new effective CB = previous committed CB (or zeros)
+        val virtualRow = DailyStock(
+            date        = date,
+            productCode = productCode,
+            openQq  = 0, openPp  = 0, openNn  = 0, openDd  = 0,
+            closeQq = prevRow?.closeQq ?: 0,
+            closePp = prevRow?.closePp ?: 0,
+            closeNn = prevRow?.closeNn ?: 0,
+            closeDd = prevRow?.closeDd ?: 0,
+            isCommitted = true
+        )
+        cascadeRecalculate(listOf(virtualRow), products)
+    }
+
     suspend fun clearDateData(date: String) =
         dailyStockDao.deleteAllForDate(date)
 

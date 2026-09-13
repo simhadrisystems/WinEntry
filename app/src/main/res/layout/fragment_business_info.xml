@@ -26,8 +26,14 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!--
+        NestedScrollView fills from toolbar to screen bottom.
+        scrollContent paddingBottom is expanded to keyboard height via IME insets in the fragment,
+        so the Save button always scrolls into view above the keyboard.
+    -->
     <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
+        android:id="@+id/nestedScrollView"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toBottomOf="@id/appBarLayout"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -35,10 +41,13 @@
         app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
+            android:id="@+id/scrollContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
 
             <!-- Guidance note -->
             <TextView
@@ -50,8 +59,8 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:background="?attr/colorSurfaceVariant"
                 android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp"
-                android:layout_marginBottom="16dp" />
+                android:paddingVertical="7dp"
+                android:layout_marginBottom="12dp" />
 
             <!-- Section: Owner -->
             <TextView
@@ -62,14 +71,14 @@
                 android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="6dp"
                 android:layout_marginStart="4dp" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Owner / Contact Name (optional)"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -77,15 +86,18 @@
                     android:id="@+id/editOwnerName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
-                    android:inputType="textCapWords" />
+                    android:inputType="textCapWords"
+                    android:imeOptions="actionNext" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Phone (optional, 10 digits)"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -93,8 +105,11 @@
                     android:id="@+id/editPhone"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
-                    android:inputType="phone" />
+                    android:inputType="phone"
+                    android:imeOptions="actionNext" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Account email — auto-populated from Firebase Auth, read-only -->
@@ -105,7 +120,7 @@
                 android:text=""
                 android:textSize="12sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 android:layout_marginStart="4dp" />
 
             <!-- Section: Business -->
@@ -117,15 +132,15 @@
                 android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
-                android:layout_marginBottom="8dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp"
+                android:layout_marginTop="4dp"
                 android:layout_marginStart="4dp" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Business Name"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -133,16 +148,19 @@
                     android:id="@+id/editBusinessName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
                     android:fontFamily="@font/ramabhadra_regular"
-                    android:inputType="textCapWords" />
+                    android:inputType="textCapWords"
+                    android:imeOptions="actionNext" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Licence / GST No. (optional)"
-                android:layout_marginBottom="12dp"
+                android:layout_marginBottom="8dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -150,8 +168,11 @@
                     android:id="@+id/editLicenceNo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
-                    android:inputType="textCapCharacters" />
+                    android:inputType="textCapCharacters"
+                    android:imeOptions="actionNext" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Section: Address -->
@@ -163,15 +184,20 @@
                 android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="#78909C"
                 android:letterSpacing="0.12"
-                android:layout_marginBottom="8dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginBottom="6dp"
+                android:layout_marginTop="4dp"
                 android:layout_marginStart="4dp" />
 
+            <!--
+                Fixed 2-line address field.
+                First Enter: moves cursor to line 2.
+                Second Enter: intercepted in fragment to move focus to City/Location.
+            -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Address Line 1 (optional)"
-                android:layout_marginBottom="12dp"
+                android:hint="Address (optional)"
+                android:layout_marginBottom="8dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -179,31 +205,21 @@
                     android:id="@+id/editAddress1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
-                    android:inputType="textCapSentences" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Address Line 2 (optional)"
-                android:layout_marginBottom="12dp"
-                app:boxBackgroundColor="@android:color/white"
-                app:hintTextColor="#37474F"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editAddress2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#212121"
-                    android:inputType="textCapSentences" />
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:lines="2"
+                    android:maxLines="2"
+                    android:gravity="top|start"
+                    android:scrollbars="vertical" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="City / Location (optional)"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="12dp"
                 app:boxBackgroundColor="@android:color/white"
                 app:hintTextColor="#37474F"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
@@ -211,11 +227,14 @@
                     android:id="@+id/editLocation"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
                     android:textColor="#212121"
-                    android:inputType="textCapWords" />
+                    android:inputType="textCapWords"
+                    android:imeOptions="actionDone" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Registration Status -->
+            <!-- Registration status -->
             <TextView
                 android:id="@+id/tvRegistrationStatus"
                 android:layout_width="match_parent"
@@ -224,20 +243,18 @@
                 android:textSize="12sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:gravity="center"
-                android:paddingBottom="8dp" />
+                android:paddingBottom="6dp" />
 
-            <!-- Save Button (label set dynamically) -->
+            <!-- Save button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonSave"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Save &amp; Register"
-                android:textSize="16sp"
-                android:backgroundTint="#FF1976D2"
-                android:layout_marginBottom="16dp" />
+                android:textSize="15sp"
+                android:backgroundTint="#FF1976D2" />
 
         </LinearLayout>
-
     </androidx.core.widget.NestedScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

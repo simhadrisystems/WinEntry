@@ -34,6 +34,7 @@ import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.ui.dailystock.DailyStockDataViewModel
 import com.simhadri.winentry.sync.SyncCoordinator
+import com.simhadri.winentry.utils.exportToDownloadsAndShare
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -73,6 +74,7 @@ class OpeningStockFragment : Fragment() {
     private lateinit var adapter: OpeningStockAdapter
     private lateinit var fabTop: com.google.android.material.floatingactionbutton.FloatingActionButton
     private lateinit var fabBottom: com.google.android.material.floatingactionbutton.FloatingActionButton
+    private lateinit var bottomBar: LinearLayout
 
     private var selectedDate: String = defaultDate()
 
@@ -340,7 +342,7 @@ class OpeningStockFragment : Fragment() {
         root.addView(rvFrame)
 
         // ── Fixed bottom bar: SyncStatus | Edit | Save (equal weights) ──────────
-        val bottomBar = LinearLayout(requireContext()).apply {
+        bottomBar = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(52)
@@ -392,8 +394,12 @@ class OpeningStockFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.hide()
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(view) { _, windowInsets ->
-            val topPx = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars()).top
-            toolbar.setPadding(0, topPx, 0, 0)
+            val statusInsets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            val navInsets    = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            toolbar.setPadding(0, statusInsets.top, 0, 0)
+            bottomBar.setPadding(0, 0, 0, navInsets.bottom)
+            (bottomBar.layoutParams as LinearLayout.LayoutParams).height = dp(52) + navInsets.bottom
+            bottomBar.requestLayout()
             windowInsets
         }
 
@@ -1072,27 +1078,7 @@ class OpeningStockFragment : Fragment() {
                         "${requireContext().packageName}.fileprovider", file)
                 }
 
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Template Ready")
-                    .setMessage(
-                        "Opening Stock template created with ${products.size} products.\n\n" +
-                        "Date pre-filled: ${formatDisplay(selectedDate)}\n\n" +
-                        "Instructions:\n" +
-                        "1. Open in Google Sheets or Excel\n" +
-                        "2. Fill QQ / PP / NN / DD quantities\n" +
-                        "3. Do NOT change PRODUCT_TYPE or BRAND_CODE columns\n" +
-                        "4. Save as .xlsx and import using ⋮ → Import from Excel"
-                    )
-                    .setPositiveButton("Share") { _, _ ->
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        startActivity(Intent.createChooser(shareIntent, "Share Template"))
-                    }
-                    .setNegativeButton("Done", null)
-                    .show()
+                exportToDownloadsAndShare(uri, "OpeningStock_Template.xlsx", "Share Opening Stock Template")
 
             } catch (e: Exception) {
                 Toast.makeText(requireContext(),

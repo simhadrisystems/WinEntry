@@ -8,6 +8,7 @@ import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.sync.TestDataImportManager
+import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,13 +18,12 @@ import java.time.LocalDate
 
 data class OnboardingState(
     val isDismissed: Boolean = false,
-    val step1Done: Boolean = false,           // business_name non-empty
+    val step1Done: Boolean = false,           // user registered (registerUserOnly CF succeeded)
     val step2Done: Boolean = false,           // productCount > 0
     val step3Done: Boolean = false,           // test data imported (pref flag set on success)
     val step4Done: Boolean = false,           // earliestCommittedDate != null (test data OR manual OB)
     val downloadInProgress: Boolean = false,
     val downloadError: String? = null,
-    val notInvited: Boolean = false,          // account not activated — show "Request Access"
     val testImportInProgress: Boolean = false,
     val testImportError: String? = null
 ) {
@@ -58,23 +58,18 @@ class OnboardingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startProductDownload() {
         if (_state.value.downloadInProgress) return
-        _state.value = _state.value.copy(downloadInProgress = true, downloadError = null, notInvited = false)
+        _state.value = _state.value.copy(downloadInProgress = true, downloadError = null)
         viewModelScope.launch {
             val attempt = withContext(Dispatchers.IO) {
                 runCatching { SyncCoordinator(getApplication()).syncProductsOnly() }
             }
             val syncResult = attempt.getOrNull()
             val error: String? = when {
-                attempt.isFailure                              -> attempt.exceptionOrNull()?.message ?: "Unknown error"
-                syncResult is SyncCoordinator.SyncResult.Error -> syncResult.message
-                else                                           -> null
+                attempt.isFailure                               -> attempt.exceptionOrNull()?.message ?: "Unknown error"
+                syncResult is SyncCoordinator.SyncResult.Error  -> syncResult.message
+                else                                            -> null
             }
-            val blocked = error?.contains("not been activated") == true
-            _state.value = buildState().copy(
-                downloadInProgress = false,
-                downloadError      = if (blocked) null else error,
-                notInvited         = blocked
-            )
+            _state.value = buildState().copy(downloadInProgress = false, downloadError = error)
         }
     }
 
@@ -115,12 +110,8 @@ class OnboardingViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun buildState(): OnboardingState = withContext(Dispatchers.IO) {
         val app = getApplication<Application>()
         val prefs = app.getSharedPreferences("inventory_prefs", Context.MODE_PRIVATE)
-        val dismissed         = prefs.getBoolean("onboarding_card_dismissed", false)
-        val testDataImported  = prefs.getBoolean("test_data_imported", false)
-
-        val businessName = app
-            .getSharedPreferences("business_info", Context.MODE_PRIVATE)
-            .getString("business_name", null)
+        val dismissed        = prefs.getBoolean("onboarding_card_dismissed", false)
+        val testDataImported = prefs.getBoolean("test_data_imported", false)
 
         val db = AppDatabase.getInstance(app)
         val productCount = db.productDao().getCount()
@@ -128,7 +119,7 @@ class OnboardingViewModel(app: Application) : AndroidViewModel(app) {
 
         OnboardingState(
             isDismissed = dismissed,
-            step1Done   = !businessName.isNullOrBlank(),
+            step1Done   = UserRegistrationManager.isRegistered(app),
             step2Done   = productCount > 0,
             step3Done   = testDataImported,
             step4Done   = earliestDate != null

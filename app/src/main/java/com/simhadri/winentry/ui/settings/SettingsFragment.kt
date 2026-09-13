@@ -268,23 +268,36 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    /** When request is pending — offer to send a reminder. */
+    /** When request is pending — offer to email the admin directly with pre-filled details. */
     private fun showReminderDialog() {
         val bizPrefs = requireContext().getSharedPreferences(
             BusinessInfoFragment.PREFS_NAME, Context.MODE_PRIVATE
         )
+        val ownerName    = bizPrefs.getString(BusinessInfoFragment.KEY_OWNER_NAME, "").orEmpty()
+        val businessName = bizPrefs.getString(BusinessInfoFragment.KEY_BUSINESS, "").orEmpty()
+        val phone        = bizPrefs.getString(BusinessInfoFragment.KEY_PHONE, "").orEmpty()
+        val location     = bizPrefs.getString(BusinessInfoFragment.KEY_LOCATION, "").orEmpty()
+        val userEmail    = requireContext()
+            .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(AuthViewModel.KEY_USER_EMAIL, "").orEmpty()
+
         AppDialogs.toggle(
             context     = requireContext(),
-            title       = "Backup Request Pending",
-            message     = "Your request is with the admin.\n\n" +
-                "Tap 'Send Reminder' to resend your details and nudge the admin.",
-            actionLabel = "Send Reminder"
+            title       = "Drive Backup Pending",
+            message     = "Your workspace request has been received by the system.\n\n" +
+                "Cloud sync activates only after the admin links your account to a Google Sheet. " +
+                "The admin needs to add your email to the approved list.\n\n" +
+                "Tap 'Email Admin' to send your registration details directly and request activation.",
+            actionLabel = "Email Admin"
         ) {
-            val ownerName    = bizPrefs.getString(BusinessInfoFragment.KEY_OWNER_NAME, "").orEmpty()
-            val businessName = bizPrefs.getString(BusinessInfoFragment.KEY_BUSINESS, "").orEmpty()
-            val phone        = bizPrefs.getString(BusinessInfoFragment.KEY_PHONE, "").orEmpty()
-            val location     = bizPrefs.getString(BusinessInfoFragment.KEY_LOCATION, "").orEmpty()
-            submitWorkspaceRequest(ownerName, businessName, phone, location)
+            SupportHelper.sendWorkspaceReminderEmail(
+                context      = requireContext(),
+                ownerName    = ownerName,
+                businessName = businessName,
+                phone        = phone,
+                location     = location,
+                userEmail    = userEmail
+            )
         }
     }
 

@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.Product
+import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import kotlinx.coroutines.launch
 
@@ -58,6 +59,9 @@ class ProductOrderViewModel(application: Application) : AndroidViewModel(applica
 
     private val _scrollToTop = MutableLiveData(false)
     val scrollToTop: LiveData<Boolean> = _scrollToTop
+
+    private val _deactivateBlocked = MutableLiveData<String?>()
+    val deactivateBlocked: LiveData<String?> = _deactivateBlocked
 
     init {
         val db = AppDatabase.getInstance(application)
@@ -142,10 +146,16 @@ class ProductOrderViewModel(application: Application) : AndroidViewModel(applica
 
     fun deactivateProduct(product: Product) {
         viewModelScope.launch {
+            if (repository.hasNonZeroClosingBalance(product.stockCode)) {
+                _deactivateBlocked.value = product.displayName
+                return@launch
+            }
             repository.deactivateProduct(product)
             loadFromDb()
         }
     }
+
+    fun clearDeactivateBlocked() { _deactivateBlocked.value = null }
 
     fun activateProduct(product: Product) {
         viewModelScope.launch {

@@ -840,27 +840,6 @@ exports.registerUserOnly = functions
     const { email, displayName, ownerName, businessName, phone, location, androidVersion, appVersion } = req.body;
     const forceUpdate = req.body.forceUpdate === true;
 
-    // Gate: only invited users may register.
-    const registrantEmail = decodedToken.email || email;
-    const inviteCheck = await isUserInvited(registrantEmail);
-    if (!inviteCheck.invited) {
-      await db.collection("admin_requests").doc(uid).set({
-        uid,
-        email:        registrantEmail,
-        displayName:  displayName || ownerName || registrantEmail,
-        ownerName:    ownerName    || "",
-        businessName: businessName || "",
-        phone:        phone        || "",
-        location:     location     || "",
-        androidVersion: androidVersion || "",
-        appVersion:     appVersion     || "",
-        status:      "awaiting_approval",
-        requestedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      console.log(`registerUserOnly — uid=${uid} (${registrantEmail}) not in invited_users — recorded as awaiting_approval`);
-      return res.status(403).json({ error: "not_invited", message: "App registration requires an invitation. Contact the admin." });
-    }
-
     try {
       const userDoc = await db.collection("users").doc(uid).get();
 
@@ -896,6 +875,31 @@ exports.registerUserOnly = functions
         email, displayName: safeDisplayName, ownerName, businessName, phone, location,
         androidVersion, appVersion, registeredAt: null
       }, existingSheetId, existingSheetUrl, writeStatus, forceUpdate);
+
+      // Ensure admin_requests doc exists so onInvitedUserAdded trigger can
+      // provision a sheet when admin adds this user to invited_users.
+      try {
+        const reqDocRef = db.collection("admin_requests").doc(uid);
+        const reqDoc = await reqDocRef.get();
+        if (!reqDoc.exists) {
+          await reqDocRef.set({
+            uid,
+            email:          email          || "",
+            displayName:    safeDisplayName,
+            ownerName:      ownerName      || "",
+            businessName:   businessName   || "",
+            phone:          phone          || "",
+            location:       location       || "",
+            androidVersion: androidVersion || "",
+            appVersion:     appVersion     || "",
+            status:         writeStatus,
+            requestedAt:    admin.firestore.FieldValue.serverTimestamp()
+          });
+          console.log(`registerUserOnly — admin_requests/${uid} created (status=${writeStatus})`);
+        }
+      } catch (err) {
+        console.warn("admin_requests write failed (non-fatal):", err.message);
+      }
 
       console.log(`registerUserOnly — uid=${uid} ${forceUpdate ? "updated" : "registered"} (status=${writeStatus})`);
       return res.status(200).json({ registered: true, forceUpdate });
@@ -1303,19 +1307,11 @@ exports.getMasterProducts = functions
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    // Gate: only invited users may access master products and test data.
-    const callerInvited = await isUserInvited(masterProductsToken.email);
-    if (!callerInvited.invited) {
-      console.log(`getMasterProducts — uid=${masterProductsToken.uid} (${masterProductsToken.email}) not in invited_users — blocked`);
-      // Record in admin_requests so the Firestore trigger alerts admin exactly once per new user.
-      db.collection("admin_requests").doc(masterProductsToken.uid).set({
-        uid:         masterProductsToken.uid,
-        email:       masterProductsToken.email,
-        displayName: masterProductsToken.name || masterProductsToken.email,
-        source:      "getMasterProducts",
-        requestedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).catch((e) => console.warn("admin_requests write failed:", e.message));
-      return res.status(403).json({ error: "not_invited", message: "Access denied. Your account is not activated." });
+    // Gate: user must have completed registration (Step 1 of onboarding).
+    const userDoc = await db.collection("users").doc(masterProductsToken.uid).get();
+    if (!userDoc.exists) {
+      console.log(`getMasterProducts — uid=${masterProductsToken.uid} not registered — blocked`);
+      return res.status(403).json({ error: "not_registered", message: "Complete app registration first." });
     }
 
     const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });

@@ -216,6 +216,20 @@ class ProductOrderFragment : Fragment() {
                 viewModel.clearScrollToTop()
             }
         }
+
+        viewModel.deactivateBlocked.observe(viewLifecycleOwner) { name ->
+            if (name == null) return@observe
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Cannot Deactivate")
+                .setMessage(
+                    "\"$name\" has a non-zero closing balance in Daily Stock.\n\n" +
+                    "Reduce the closing balance to zero on the most recent committed date " +
+                    "before deactivating this product."
+                )
+                .setPositiveButton("OK", null)
+                .show()
+            viewModel.clearDeactivateBlocked()
+        }
     }
 
     // ── Activate / Deactivate dialogs ─────────────────────────────

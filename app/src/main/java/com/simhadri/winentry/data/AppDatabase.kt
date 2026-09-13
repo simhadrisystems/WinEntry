@@ -23,6 +23,7 @@ import com.simhadri.winentry.data.entity.Purchase
  *   v2 — daily_stock redesigned: one row per PRODUCT per date (was one per size-code).
  *        All prior incremental migrations collapsed into this baseline.
  *   v3 — products table: removed unused columns quantity, reorderLevel, createdAt.
+ *   v4 → v5: add receivedDate column to purchases.
  *
  * Any future structural change must:
  *   1. Increment version (e.g. version = 3)
@@ -47,7 +48,7 @@ import com.simhadri.winentry.data.entity.Purchase
         DailyStock::class,
         DayReconciliation::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -75,10 +76,19 @@ abstract class AppDatabase : RoomDatabase() {
                 // since all real data lives in Google Sheets.
                 // v2 → future versions must use explicit addMigrations().
                 .fallbackToDestructiveMigrationFrom(1)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 .also { INSTANCE = it }
             }
+
+        /**
+         * v4 → v5: add receivedDate column to purchases.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE purchases ADD COLUMN receivedDate TEXT NOT NULL DEFAULT ''")
+            }
+        }
 
         /**
          * v3 → v4: add deposits column to day_reconciliation.

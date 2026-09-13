@@ -163,6 +163,18 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    fun updateReceivedDate(date: String) {
+        val current = _currentPurchase.value ?: return
+        _currentPurchase.value = current.copy(receivedDate = date)
+    }
+
+    /** Update receivedDate for every purchase row in an invoice group (list screen). */
+    fun updateInvoiceReceivedDate(invoiceNumber: String, purchaseDate: String, receivedDate: String) {
+        viewModelScope.launch {
+            repository.updateReceivedDateForInvoice(invoiceNumber, purchaseDate, receivedDate)
+        }
+    }
+
     /**
      * Save purchase to database
      */
@@ -250,39 +262,40 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                     productId = calc.productId,
                     productCode = calc.productCode,
                     productName = calc.productName,
-                    
+
                     qqBoxes = calc.qqBoxes,
                     qqLoose = calc.qqLoose,
                     qqUnitsPerBox = calc.qqUnitsPerBox,
                     qqTotalUnits = calc.qqTotalUnits,
                     qqUnitPrice = calc.qqUnitPrice,
                     qqTotalCost = calc.qqTotalCost,
-                    
+
                     ppBoxes = calc.ppBoxes,
                     ppLoose = calc.ppLoose,
                     ppUnitsPerBox = calc.ppUnitsPerBox,
                     ppTotalUnits = calc.ppTotalUnits,
                     ppUnitPrice = calc.ppUnitPrice,
                     ppTotalCost = calc.ppTotalCost,
-                    
+
                     nnBoxes = calc.nnBoxes,
                     nnLoose = calc.nnLoose,
                     nnUnitsPerBox = calc.nnUnitsPerBox,
                     nnTotalUnits = calc.nnTotalUnits,
                     nnUnitPrice = calc.nnUnitPrice,
                     nnTotalCost = calc.nnTotalCost,
-                    
+
                     ddBoxes = calc.ddBoxes,
                     ddLoose = calc.ddLoose,
                     ddUnitsPerBox = calc.ddUnitsPerBox,
                     ddTotalUnits = calc.ddTotalUnits,
                     ddUnitPrice = calc.ddUnitPrice,
                     ddTotalCost = calc.ddTotalCost,
-                    
+
                     totalCost = calc.grandTotal,
                     supplierName = calc.supplierName,
                     invoiceNumber = calc.invoiceNumber,
-                    notes = calc.notes
+                    notes = calc.notes,
+                    receivedDate = calc.receivedDate
                 )
 
                 android.util.Log.d("PurchaseViewModel", "Purchase object created with date: ${purchase.purchaseDate}")
@@ -368,9 +381,10 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
             grandTotal = purchase.totalCost,
             supplierName = purchase.supplierName,
             invoiceNumber = purchase.invoiceNumber,
-            notes = purchase.notes
+            notes = purchase.notes,
+            receivedDate = purchase.receivedDate
         )
-        
+
         android.util.Log.d("PurchaseViewModel", "Loaded purchase DIRECTLY for edit (no product dependency): ${purchase.productName}")
     }
     
@@ -480,39 +494,40 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                     productId = calc.productId,
                     productCode = calc.productCode,
                     productName = calc.productName,
-                    
+
                     qqBoxes = calc.qqBoxes,
                     qqLoose = calc.qqLoose,
                     qqUnitsPerBox = calc.qqUnitsPerBox,
                     qqTotalUnits = calc.qqTotalUnits,
                     qqUnitPrice = calc.qqUnitPrice,
                     qqTotalCost = calc.qqTotalCost,
-                    
+
                     ppBoxes = calc.ppBoxes,
                     ppLoose = calc.ppLoose,
                     ppUnitsPerBox = calc.ppUnitsPerBox,
                     ppTotalUnits = calc.ppTotalUnits,
                     ppUnitPrice = calc.ppUnitPrice,
                     ppTotalCost = calc.ppTotalCost,
-                    
+
                     nnBoxes = calc.nnBoxes,
                     nnLoose = calc.nnLoose,
                     nnUnitsPerBox = calc.nnUnitsPerBox,
                     nnTotalUnits = calc.nnTotalUnits,
                     nnUnitPrice = calc.nnUnitPrice,
                     nnTotalCost = calc.nnTotalCost,
-                    
+
                     ddBoxes = calc.ddBoxes,
                     ddLoose = calc.ddLoose,
                     ddUnitsPerBox = calc.ddUnitsPerBox,
                     ddTotalUnits = calc.ddTotalUnits,
                     ddUnitPrice = calc.ddUnitPrice,
                     ddTotalCost = calc.ddTotalCost,
-                    
+
                     totalCost = calc.grandTotal,
                     supplierName = calc.supplierName,
                     invoiceNumber = calc.invoiceNumber,
-                    notes = calc.notes
+                    notes = calc.notes,
+                    receivedDate = calc.receivedDate
                 )
 
                 repository.update(purchase)
@@ -528,12 +543,13 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun resetForm() {
-        val currentDate = _currentPurchase.value?.purchaseDate 
+        val currentDate     = _currentPurchase.value?.purchaseDate
             ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        
+        val currentReceived = _currentPurchase.value?.receivedDate ?: ""
         _selectedProduct.value = null
         _currentPurchase.value = PurchaseCalculation(
-            purchaseDate = currentDate  // Preserve the selected date
+            purchaseDate = currentDate,
+            receivedDate = currentReceived
         )
     }
 
@@ -586,6 +602,12 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 // savePurchaseSuspend() here to keep the import sequential and atomic.
                 for (purchase in result.purchases) {
                     savePurchaseSuspend(purchase)
+                }
+                // Auto-activate any inactive products that appear in the imported purchases
+                val importedProductIds = result.purchases
+                    .map { it.productId }.filter { it > 0 }.toSet()
+                if (importedProductIds.isNotEmpty()) {
+                    productDao.activateByIds(importedProductIds.toList())
                 }
                 _importStatus.postValue(ImportStatus.Success(
                     newCount     = result.successCount,
@@ -757,7 +779,8 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
         val supplierName: String = "",
         val invoiceNumber: String = "",
         val notes: String = "",
-        
+        val receivedDate: String = "",  // blank = same as purchaseDate
+
         val grandTotal: Double = 0.0
     ) {
         fun recalculateGrandTotal(): PurchaseCalculation {

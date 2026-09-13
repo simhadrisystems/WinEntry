@@ -7,14 +7,13 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.simhadri.winentry.R
 import com.simhadri.winentry.databinding.FragmentReportsBinding
+import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
-import com.simhadri.winentry.utils.UserRegistrationManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,11 +25,13 @@ class ReportsFragment : Fragment() {
     private val sdf        = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val displayFmt = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
-    private var dailySheetDate: String   = sdf.format(Date())
-    private var closingDate: String      = sdf.format(Date())
-    private var purchaseFromDate: String = sdf.format(Date())
-    private var purchaseToDate: String   = sdf.format(Date())
-    private var brandWiseDate: String    = sdf.format(Date())
+    private var dailySheetDate: String    = sdf.format(Date())
+    private var closingDate: String       = sdf.format(Date())
+    private var purchaseFromDate: String  = sdf.format(Date())
+    private var purchaseToDate: String    = sdf.format(Date())
+    private var brandWiseDate: String     = sdf.format(Date())
+    private var salesMarginFrom: String   = sdf.format(Date())
+    private var salesMarginTo: String     = sdf.format(Date())
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -52,6 +53,8 @@ class ReportsFragment : Fragment() {
         updateDateButton(binding.btnPurchaseFrom, purchaseFromDate)
         updateDateButton(binding.btnPurchaseTo, purchaseToDate)
         updateDateButton(binding.btnBrandWiseDate, brandWiseDate)
+        updateDateButton(binding.btnSalesMarginFrom, salesMarginFrom)
+        updateDateButton(binding.btnSalesMarginTo, salesMarginTo)
 
         // ── Daily Stock Sheet ────────────────────────────────────
         binding.btnDailySheetDate.setOnClickListener {
@@ -76,11 +79,13 @@ class ReportsFragment : Fragment() {
             }
         }
         binding.btnClosingView.setOnClickListener {
-            navigateToViewer(
-                reportType = ReportViewerFragment.TYPE_CLOSING_BALANCES,
-                date       = closingDate,
-                title      = "Closing Balances  ·  ${displayFmt.format(sdf.parse(closingDate)!!)}"
-            )
+            requireInvitation {
+                navigateToViewer(
+                    reportType = ReportViewerFragment.TYPE_CLOSING_BALANCES,
+                    date       = closingDate,
+                    title      = "Closing Balances  ·  ${displayFmt.format(sdf.parse(closingDate)!!)}"
+                )
+            }
         }
 
         // ── Purchase Report ──────────────────────────────────────
@@ -128,39 +133,85 @@ class ReportsFragment : Fragment() {
             }
         }
         binding.btnBrandWiseView.setOnClickListener {
-            val includeZero = binding.checkIncludeZero.isChecked
-            navigateToViewer(
-                reportType  = ReportViewerFragment.TYPE_BRAND_WISE_REPORT,
-                date        = brandWiseDate,
-                title       = "Brand Wise A/c - ${displayFmt.format(sdf.parse(brandWiseDate)!!)}",
-                includeZero = includeZero
-            )
+            requireInvitation {
+                val includeZero = binding.checkIncludeZero.isChecked
+                navigateToViewer(
+                    reportType  = ReportViewerFragment.TYPE_BRAND_WISE_REPORT,
+                    date        = brandWiseDate,
+                    title       = "Brand Wise A/c - ${displayFmt.format(sdf.parse(brandWiseDate)!!)}",
+                    includeZero = includeZero
+                )
+            }
+        }
+
+        // ── Sales & Profit Margin Report ─────────────────────────
+        binding.btnSalesMarginFrom.setOnClickListener {
+            showDatePicker(salesMarginFrom) { picked ->
+                salesMarginFrom = picked
+                updateDateButton(binding.btnSalesMarginFrom, picked)
+                if (picked > salesMarginTo) {
+                    salesMarginTo = picked
+                    updateDateButton(binding.btnSalesMarginTo, picked)
+                }
+            }
+        }
+        binding.btnSalesMarginTo.setOnClickListener {
+            showDatePicker(salesMarginTo) { picked ->
+                salesMarginTo = picked
+                updateDateButton(binding.btnSalesMarginTo, picked)
+                if (picked < salesMarginFrom) {
+                    salesMarginFrom = picked
+                    updateDateButton(binding.btnSalesMarginFrom, picked)
+                }
+            }
+        }
+        binding.btnSalesMarginView.setOnClickListener {
+            requireInvitation {
+                val fromDisp = displayFmt.format(sdf.parse(salesMarginFrom)!!)
+                val toDisp   = displayFmt.format(sdf.parse(salesMarginTo)!!)
+                val title = if (salesMarginFrom == salesMarginTo)
+                    "Sales & Profit Margin  ·  $fromDisp"
+                else
+                    "Sales & Profit Margin  ·  $fromDisp → $toDisp"
+                navigateToPurchaseViewer(
+                    fromDate   = salesMarginFrom,
+                    toDate     = salesMarginTo,
+                    title      = title,
+                    reportType = ReportViewerFragment.TYPE_SALES_MARGIN_REPORT
+                )
+            }
         }
 
         // ── Monthly Sale Data ─────────────────────────────────────
+        binding.btnMonthlySaleView.setOnClickListener {
+            requireInvitation {
+                findNavController().navigate(R.id.action_reports_to_monthlySummary)
+            }
+        }
         binding.cardMonthlySaleData.setOnClickListener {
-            UserRegistrationManager.ensureRegistered(
-                context = requireContext(),
-                scope   = viewLifecycleOwner.lifecycleScope,
-                onNotRegistered = {
-                    AppDialogs.confirm(
-                        context     = requireContext(),
-                        title       = "Registration Required",
-                        message     = "This feature requires app registration.\n\n" +
-                            "Go to Business Info to register.",
-                        actionLabel = "Go to Business Info"
-                    ) { findNavController().navigate(R.id.businessInfoFragment) }
-                },
-                onReady = {
-                    findNavController().navigate(R.id.action_reports_to_monthlySummary)
-                }
-            )
+            requireInvitation {
+                findNavController().navigate(R.id.action_reports_to_monthlySummary)
+            }
         }
     }
 
     override fun onDestroyView() {
         _binding = null
         super.onDestroyView()
+    }
+
+    private fun requireInvitation(onReady: () -> Unit) {
+        if (SyncCoordinator(requireContext()).isUserSheetReady()) {
+            onReady()
+        } else {
+            AppDialogs.confirm(
+                context     = requireContext(),
+                title       = "Drive Backup Required",
+                message     = "This feature is available only after your cloud workspace is set up.\n\n" +
+                    "Go to Settings → Drive Backup and request activation from the admin.",
+                actionLabel = "Go to Settings"
+            ) { findNavController().navigate(R.id.settingsFragment) }
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────
@@ -204,28 +255,30 @@ class ReportsFragment : Fragment() {
         binding.textClosingBalancesDesc.text        = AppStrings.reportsClosingBalancesDesc.get(lang)
         binding.textBrandWiseTitle.text             = AppStrings.reportsBrandWiseTitle.get(lang)
         binding.textBrandWiseDesc.text              = AppStrings.reportsBrandWiseDesc.get(lang)
-        binding.textSectionMonthlyReports.text      = AppStrings.reportsSectionMonthly.get(lang)
         binding.textSectionPeriodReports.text       = AppStrings.reportsSectionPeriod.get(lang)
         binding.textPurchaseReportTitle.text        = AppStrings.reportsPurchaseReportTitle.get(lang)
         binding.textPurchaseReportDesc.text         = AppStrings.reportsPurchaseReportDesc.get(lang)
+        binding.textSalesMarginTitle.text           = AppStrings.reportsSalesMarginTitle.get(lang)
+        binding.textSalesMarginDesc.text            = AppStrings.reportsSalesMarginDesc.get(lang)
         val viewLabel = AppStrings.reportsViewButton.get(lang)
         binding.btnDailySheetView.text              = viewLabel
         binding.btnClosingView.text                 = viewLabel
         binding.btnPurchaseView.text                = viewLabel
         binding.btnBrandWiseView.text               = viewLabel
+        binding.btnSalesMarginView.text             = viewLabel
+        binding.btnMonthlySaleView.text             = AppStrings.reportsBrowseMonthsButton.get(lang)
         binding.checkIncludeZero.text               = AppStrings.reportsIncludeZero.get(lang)
         binding.tvReportsBusinessInfoNote.text      = AppStrings.reportsBusinessInfoNote.get(lang)
 
-        for (v in listOf(binding.textSectionDailyReports, binding.textSectionPeriodReports,
-                         binding.textSectionMonthlyReports))
+        for (v in listOf(binding.textSectionDailyReports, binding.textSectionPeriodReports))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11f)
         for (v in listOf(binding.textDailySheetTitle, binding.textMonthlySaleTitle,
                          binding.textClosingBalancesTitle, binding.textBrandWiseTitle,
-                         binding.textPurchaseReportTitle))
+                         binding.textPurchaseReportTitle, binding.textSalesMarginTitle))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
         for (v in listOf(binding.textDailySheetDesc, binding.textMonthlySaleDesc,
                          binding.textClosingBalancesDesc, binding.textBrandWiseDesc,
-                         binding.textPurchaseReportDesc))
+                         binding.textPurchaseReportDesc, binding.textSalesMarginDesc))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 
@@ -239,9 +292,14 @@ class ReportsFragment : Fragment() {
         findNavController().navigate(R.id.reportViewerFragment, bundle)
     }
 
-    private fun navigateToPurchaseViewer(fromDate: String, toDate: String, title: String) {
+    private fun navigateToPurchaseViewer(
+        fromDate:   String,
+        toDate:     String,
+        title:      String,
+        reportType: String = ReportViewerFragment.TYPE_PURCHASE_REPORT
+    ) {
         val bundle = Bundle().apply {
-            putString(ReportViewerFragment.ARG_REPORT_TYPE, ReportViewerFragment.TYPE_PURCHASE_REPORT)
+            putString(ReportViewerFragment.ARG_REPORT_TYPE, reportType)
             putString(ReportViewerFragment.ARG_DATE,    fromDate)
             putString(ReportViewerFragment.ARG_DATE_TO, toDate)
             putString(ReportViewerFragment.ARG_TITLE,   title)

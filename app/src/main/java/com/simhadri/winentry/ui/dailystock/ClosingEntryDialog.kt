@@ -47,21 +47,24 @@ class ClosingEntryDialog : DialogFragment() {
     )
 
     companion object {
-        const val TAG            = "ClosingEntryDialog"
-        const val REQUEST_KEY    = "closingEntry"
-        const val KEY_PRODUCT_ID = "productId"
-        const val KEY_QQ         = "qq"
-        const val KEY_PP         = "pp"
-        const val KEY_NN         = "nn"
-        const val KEY_DD         = "dd"
+        const val TAG              = "ClosingEntryDialog"
+        const val REQUEST_KEY      = "closingEntry"
+        const val REQUEST_KEY_CLEAR = "closingEntryClear"
+        const val KEY_PRODUCT_ID   = "productId"
+        const val KEY_DATE         = "date"
+        const val KEY_QQ           = "qq"
+        const val KEY_PP           = "pp"
+        const val KEY_NN           = "nn"
+        const val KEY_DD           = "dd"
 
-        fun newInstance(entry: DailyEntry): ClosingEntryDialog {
+        fun newInstance(entry: DailyEntry, date: String): ClosingEntryDialog {
             val p = entry.product
             return ClosingEntryDialog().apply {
                 arguments = bundleOf(
                     "productId"   to p.id,
                     "productName" to p.displayName,
                     "brandCode"   to p.brandCode,
+                    "date"        to date,
                     // Current CB
                     "qqCB" to entry.closing.qq,
                     "ppCB" to entry.closing.pp,
@@ -140,6 +143,23 @@ class ClosingEntryDialog : DialogFragment() {
         bindSizeRow(root, "PP", sizes[1])
         bindSizeRow(root, "NN", sizes[2])
         bindSizeRow(root, "DD", sizes[3])
+
+        // Clear Entry — confirm then fire clear result
+        root.findViewById<MaterialButton>(R.id.btnClearEntry).setOnClickListener {
+            val productName = args.getString("productName", "this product")
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Clear Entry")
+                .setMessage("Delete the committed entry for $productName on this date?\n\nThis cannot be undone.")
+                .setPositiveButton("Clear") { _, _ ->
+                    setFragmentResult(REQUEST_KEY_CLEAR, bundleOf(
+                        KEY_PRODUCT_ID to args.getLong("productId"),
+                        KEY_DATE       to args.getString("date", "")
+                    ))
+                    dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
 
         // Cancel — dismiss with no changes
         root.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {

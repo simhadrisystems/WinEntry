@@ -36,12 +36,13 @@ import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.databinding.FooterDayReconciliationBinding
 import com.simhadri.winentry.databinding.FragmentDailyStockBinding
+import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockExcelHelper
 import com.simhadri.winentry.utils.DailyStockImportHelper
-import com.simhadri.winentry.utils.UserRegistrationManager
+import com.simhadri.winentry.utils.exportToDownloadsAndShare
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.poi.ss.usermodel.FillPatternType
@@ -61,11 +62,13 @@ class DailyStockFragment : Fragment() {
     private lateinit var adapter: DailyEntryAdapter
     private lateinit var reconciliationFooterAdapter: StaticFooterAdapter
     private var currentTotalSale: Double = 0.0
+    private var currentPriceTotalSale: Double = 0.0
     // Direct reference to footer views — set in wireFooter, used to push
     // live total immediately without waiting for LiveData re-emission.
     private var footerTextTotal:           android.widget.TextView? = null
     private var footerTextCash:            android.widget.TextView? = null
     private var footerFormatRupee:         ((Double) -> String)?    = null
+    private var footerSetTotalSale:        ((Double, Double) -> Unit)? = null
     private var footerTextPurchaseSummary: android.widget.TextView? = null
     private var footerTextSoldUnits:       android.widget.TextView? = null
     private lateinit var excelHelper: DailyStockExcelHelper
@@ -133,6 +136,34 @@ class DailyStockFragment : Fragment() {
         super.onDestroyView()
     }
 
+    /**
+     * Format a sale total as a SpannableString.
+     * When committed and current-price totals differ, appends the current-price
+     * amount in 65%-size gray text for reference.
+     */
+    private fun saleTotalSpan(
+        committed: Double,
+        currentPrice: Double,
+        fmt: (Double) -> String
+    ): CharSequence {
+        val main = fmt(committed)
+        if (kotlin.math.abs(committed - currentPrice) < 0.01) return main
+        val secondary = "  ${fmt(currentPrice)}"
+        val spannable = android.text.SpannableString("$main$secondary")
+        val start = main.length
+        spannable.setSpan(
+            android.text.style.RelativeSizeSpan(0.65f),
+            start, spannable.length,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            android.text.style.ForegroundColorSpan(android.graphics.Color.parseColor("#9E9E9E")),
+            start, spannable.length,
+            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return spannable
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // TOOLBAR MENU
     // ═══════════════════════════════════════════════════════════════
@@ -191,26 +222,14 @@ class DailyStockFragment : Fragment() {
             R.id.action_export_daily_stock        -> { exportDailyStock();         true }
             R.id.action_export_current_date       -> { exportCurrentDate();        true }
             R.id.action_export_date_range         -> {
-                UserRegistrationManager.ensureRegistered(
-                    context = requireContext(),
-                    scope   = viewLifecycleOwner.lifecycleScope,
-                    onNotRegistered = {
-                        AppDialogs.confirm(
-                            context     = requireContext(),
-                            title       = "Registration Required",
-                            message     = "This feature requires app registration.\n\n" +
-                                "Go to Business Info to register.",
-                            actionLabel = "Go to Business Info"
-                        ) { findNavController().navigate(R.id.businessInfoFragment) }
-                    },
-                    onReady = { exportDateRange() }
-                )
+                requireInvitation { exportDateRange() }
                 true
             }
             R.id.action_download_closing_template -> { downloadClosingTemplate();  true }
             R.id.action_import_closing            -> { importClosing();            true }
-            R.id.action_clear_date_data           -> { clearCurrentDateData();     true }
-            R.id.action_clear_all_daily_stock     -> { clearAllDailyStock();       true }
+            R.id.action_clear_product_data        -> { clearProductForCurrentDate(); true }
+            R.id.action_clear_date_data           -> { clearCurrentDateData();      true }
+            R.id.action_clear_all_daily_stock     -> { clearAllDailyStock();        true }
             else -> false
         }
     }
@@ -358,12 +377,9 @@ class DailyStockFragment : Fragment() {
 
     /** Launch the boxes+loose dialog for a single product card. */
     private fun launchClosingDialog(entry: DailyEntry) {
-        // Always fetch the live entry from entriesCache — the adapter's entry
-        // may be stale if the user has typed a new CB value since the last
-        // LiveData emission (especially on red-flagged cards where imports
-        // left erroneous values that haven't been saved yet).
         val liveEntry = viewModel.entriesCache[entry.product.id] ?: entry
-        ClosingEntryDialog.newInstance(liveEntry)
+        val date = viewModel.selectedDate.value ?: return
+        ClosingEntryDialog.newInstance(liveEntry, date)
             .show(childFragmentManager, ClosingEntryDialog.TAG)
     }
 
@@ -384,6 +400,23 @@ class DailyStockFragment : Fragment() {
             viewModel.updateClosing(productId, "DD", bundle.getInt(ClosingEntryDialog.KEY_DD))
             // Save only this one product — not all 380 records
             viewModel.saveProductEntry(productId)
+        }
+
+        childFragmentManager.setFragmentResultListener(
+            ClosingEntryDialog.REQUEST_KEY_CLEAR,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            val date        = bundle.getString(ClosingEntryDialog.KEY_DATE) ?: return@setFragmentResultListener
+            val productId   = bundle.getLong(ClosingEntryDialog.KEY_PRODUCT_ID)
+            val products = viewModel.allProducts.value ?: emptyList()
+            val productCode = products.find { it.id == productId }?.stockCode
+                ?: return@setFragmentResultListener
+            lifecycleScope.launch {
+                dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
+                viewModel.clearDirty()
+                viewModel.loadEntriesForDate()
+                Toast.makeText(requireContext(), "Entry cleared", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -820,13 +853,20 @@ class DailyStockFragment : Fragment() {
             if (request == null) return@observe
             val preview = request.preview
             com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Update affected dates?")
-                .setMessage(preview.dialogMessage)
-                .setPositiveButton("Update") { _, _ ->
-                    viewModel.confirmCascade(true)
+                .setTitle("Next day has committed data")
+                .setMessage(
+                    preview.dialogMessage + "\n\n" +
+                    "Or choose \"Clear Next Day\" to delete the next day's committed entry " +
+                    "so you can re-enter it fresh."
+                )
+                .setPositiveButton("Update OB") { _, _ ->
+                    viewModel.confirmCascade(DailyStockViewModel.CascadeChoice.UPDATE)
+                }
+                .setNeutralButton("Clear Next Day") { _, _ ->
+                    viewModel.confirmCascade(DailyStockViewModel.CascadeChoice.CLEAR_NEXT)
                 }
                 .setNegativeButton("Skip") { _, _ ->
-                    viewModel.confirmCascade(false)
+                    viewModel.confirmCascade(DailyStockViewModel.CascadeChoice.SKIP)
                 }
                 .setCancelable(false)
                 .show()
@@ -844,19 +884,21 @@ class DailyStockFragment : Fragment() {
         }
         adapter.submitList(entries)
 
-        val total = entries.sumOf { entry ->
+        val committedTotal = entries.sumOf { entry -> entry.saleAmount }
+        val currentPriceTotal = entries.sumOf { entry ->
             entry.sale.qq * entry.product.qqSalePrice +
             entry.sale.pp * entry.product.ppSalePrice +
             entry.sale.nn * entry.product.nnSalePrice +
             entry.sale.dd * entry.product.ddSalePrice
         }
-        currentTotalSale = total
+        currentTotalSale = committedTotal
+        currentPriceTotalSale = currentPriceTotal
         val indFmt = java.text.NumberFormat.getInstance(java.util.Locale("en", "IN")).apply {
             minimumFractionDigits = 2; maximumFractionDigits = 2
         }
-        binding.textTotalSaleStrip.text = "₹${indFmt.format(total)}"
-        reconciliationViewModel.setTotalDaySales(total)
-        footerFormatRupee?.let { fmt -> footerTextTotal?.text = fmt(total) }
+        binding.textTotalSaleStrip.text = saleTotalSpan(committedTotal, currentPriceTotal) { "₹${indFmt.format(it)}" }
+        reconciliationViewModel.setTotalDaySales(committedTotal)
+        footerSetTotalSale?.invoke(committedTotal, currentPriceTotal)
 
         val pUnits = entries.sumOf { e ->
             e.purchase.qq + e.purchase.pp + e.purchase.nn + e.purchase.dd }
@@ -927,11 +969,14 @@ class DailyStockFragment : Fragment() {
             groups.add(0, rest)
             return prefix + groups.joinToString(",") + ",$last3"
         }
-        // Store formatter reference so dailyEntries observer can use it
-        footerFormatRupee = ::formatRupee
+        // Store formatter references so dailyEntries observer can use them
+        footerFormatRupee  = ::formatRupee
+        footerSetTotalSale = { committed, current ->
+            textTotal.text = saleTotalSpan(committed, current, ::formatRupee)
+        }
 
         // Push current values immediately — LiveData may already have emitted
-        currentTotalSale.takeIf { it > 0.0 }?.let { textTotal.text = formatRupee(it) }
+        footerSetTotalSale?.invoke(currentTotalSale, currentPriceTotalSale)
         viewModel.dailyEntries.value?.let { entries ->
             val pu = entries.sumOf { it.purchase.qq + it.purchase.pp + it.purchase.nn + it.purchase.dd }
             val pv = entries.sumOf { it.purchase.qq * it.product.qqPurchasePrice +
@@ -1000,7 +1045,7 @@ class DailyStockFragment : Fragment() {
         // before wireFooter() ran (user scrolled to footer after data loaded), the
         // observer would miss it. We push the current value immediately after wiring.
         reconciliationViewModel.totalDaySales.observe(viewLifecycleOwner) { total ->
-            textTotal.text = formatRupee(total)
+            textTotal.text = saleTotalSpan(total, currentPriceTotalSale, ::formatRupee)
         }
 
         reconciliationViewModel.cashForDeposit.observe(viewLifecycleOwner) { cash ->
@@ -1155,12 +1200,7 @@ class DailyStockFragment : Fragment() {
         try {
             val fileName = "DailyStock_${date.replace("-", "")}.xlsx"
             val uri = excelHelper.exportDailySaleSheet(date, entries, customTitle, fileName)
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "Export Daily Stock"))
-            Toast.makeText(requireContext(), "Exported: $fileName", Toast.LENGTH_SHORT).show()
+            exportToDownloadsAndShare(uri, fileName, "Share Daily Stock")
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -1235,12 +1275,7 @@ class DailyStockFragment : Fragment() {
             val uri = FileProvider.getUriForFile(requireContext(),
                 "${requireContext().packageName}.fileprovider", file)
 
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "Save Closing Balances"))
-
+            exportToDownloadsAndShare(uri, fileName, "Share Closing Balances")
             Toast.makeText(requireContext(), "✓ Exported ${rowIndex - 1} products", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
@@ -1351,12 +1386,7 @@ class DailyStockFragment : Fragment() {
                 val uri = FileProvider.getUriForFile(requireContext(),
                     "${requireContext().packageName}.fileprovider", file)
 
-                startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                    type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }, "Save Closing Balances"))
-
+                exportToDownloadsAndShare(uri, fileName, "Share Closing Balances")
                 val dateCount = rows.map { it.date }.toSet().size
                 Toast.makeText(requireContext(),
                     "✓ Exported ${rows.size} entries across $dateCount date(s)",
@@ -1379,13 +1409,9 @@ class DailyStockFragment : Fragment() {
             return
         }
         try {
-            val uri = importHelper.generateClosingTemplate(products, "DailyStock_Closing_Template.xlsx")
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "Save Closing Template"))
-            Toast.makeText(requireContext(), "✓ Closing template ready", Toast.LENGTH_SHORT).show()
+            val fileName = "DailyStock_Closing_Template.xlsx"
+            val uri = importHelper.generateClosingTemplate(products, fileName)
+            exportToDownloadsAndShare(uri, fileName, "Share Closing Template")
         } catch (e: Exception) {
             Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -1620,6 +1646,48 @@ class DailyStockFragment : Fragment() {
     // ═══════════════════════════════════════════════════════════════
     // CLEAR DATA
     // ═══════════════════════════════════════════════════════════════
+    private fun clearProductForCurrentDate() {
+        val date = viewModel.selectedDate.value ?: return
+        lifecycleScope.launch {
+            val rows = repository.getAllDailyStockForDate(date).filter { it.isCommitted }
+            if (rows.isEmpty()) {
+                Toast.makeText(requireContext(), "No committed entries for $date", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val products    = viewModel.allProducts.value ?: emptyList()
+            val productMap  = products.associateBy { it.stockCode }
+            val displayList = rows.mapNotNull { row ->
+                val name = productMap[row.productCode]?.displayName ?: row.productCode
+                Pair(row.productCode, name)
+            }.sortedBy { it.second }
+
+            val labels = displayList.map { it.second }.toTypedArray()
+            var selected = -1
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Product to Clear (${formatDateForDisplay(date)})")
+                .setSingleChoiceItems(labels, -1) { _, which -> selected = which }
+                .setPositiveButton("Clear Entry") { _, _ ->
+                    if (selected < 0) return@setPositiveButton
+                    val (productCode, name) = displayList[selected]
+                    AppDialogs.destructive(
+                        requireContext(),
+                        "Clear Entry",
+                        "Delete committed entry for\n$name on $date?\n\nThis cannot be undone."
+                    ) {
+                        lifecycleScope.launch {
+                            val products = viewModel.allProducts.value ?: emptyList()
+                            dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
+                            viewModel.clearDirty()
+                            viewModel.loadEntriesForDate()
+                            Toast.makeText(requireContext(), "Cleared: $name", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
     private fun clearCurrentDateData() {
         val date = viewModel.selectedDate.value ?: return
         AppDialogs.destructive(
@@ -1693,6 +1761,20 @@ class DailyStockFragment : Fragment() {
                 viewModel.loadEntriesForDate()
                 Toast.makeText(requireContext(), "All daily stock data cleared", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun requireInvitation(onReady: () -> Unit) {
+        if (SyncCoordinator(requireContext()).isUserSheetReady()) {
+            onReady()
+        } else {
+            AppDialogs.confirm(
+                context     = requireContext(),
+                title       = "Drive Backup Required",
+                message     = "This feature is available only after your cloud workspace is set up.\n\n" +
+                    "Go to Settings → Drive Backup and request activation from the admin.",
+                actionLabel = "Go to Settings"
+            ) { findNavController().navigate(R.id.settingsFragment) }
         }
     }
 }

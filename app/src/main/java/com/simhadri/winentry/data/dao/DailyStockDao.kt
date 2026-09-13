@@ -203,6 +203,18 @@ interface DailyStockDao {
     suspend fun getEarliestCommittedDate(): String?
 
     /**
+     * Returns 1 if the product has any committed row with non-zero closing balance,
+     * 0 otherwise. Used to block deactivation of products that still have stock.
+     */
+    @Query("""
+        SELECT COUNT(*) FROM daily_stock
+        WHERE productCode = :productCode
+          AND isCommitted = 1
+          AND (closeQq + closePp + closeNn + closeDd) > 0
+    """)
+    suspend fun hasNonZeroClosingBalance(productCode: String): Int
+
+    /**
      * Dates saved from Opening Stock Setup:
      * all committed rows for the date have saleQq=0 AND saleAmount=0
      * (opening stock entries have no sales — OB=CB, sale=0).

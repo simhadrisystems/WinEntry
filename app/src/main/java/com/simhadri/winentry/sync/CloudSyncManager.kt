@@ -22,7 +22,7 @@ import com.simhadri.winentry.data.entity.stockCode
  * L=PP_Boxes  M=PP_Loose  N=PP_Total  O=PP_Price  P=PP_Cost
  * Q=NN_Boxes  R=NN_Loose  S=NN_Total  T=NN_Price  U=NN_Cost
  * V=DD_Boxes  W=DD_Loose  X=DD_Total  Y=DD_Price  Z=DD_Cost
- * AA=TotalCost  AB=Notes
+ * AA=TotalCost  AB=Notes  AC=ReceivedDate
  *
  * ── DailyStock sheet column layout (A–X) ─────────────────────────────────────
  * A=date          B=productCode
@@ -39,15 +39,19 @@ object CloudSyncManager {
 
     internal fun parseDateStr(raw: String): String {
         if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
-            java.util.Locale.getDefault()).format(java.util.Date())
-        val formats = listOf("d/M/yy", "dd/MM/yy", "d/M/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yy")
+            java.util.Locale.US).format(java.util.Date())
+        // Only Indian (DD/MM) and ISO formats — never MM/DD (US format).
+        val formats = listOf("d/M/yyyy", "dd/MM/yyyy", "d/M/yy", "dd/MM/yy", "yyyy-MM-dd")
+        val out = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
         for (fmt in formats) {
             try {
-                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault())
+                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US)
                 sdf.isLenient = false
                 val date = sdf.parse(raw) ?: continue
-                return java.text.SimpleDateFormat("yyyy-MM-dd",
-                    java.util.Locale.getDefault()).format(date)
+                val cal = java.util.Calendar.getInstance()
+                cal.time = date
+                if (cal.get(java.util.Calendar.YEAR) !in 2000..2100) continue
+                return out.format(date)
             } catch (_: Exception) {}
         }
         return raw
@@ -72,7 +76,7 @@ object CloudSyncManager {
      *
      * Row format (shipment block):
      *   Row N+0:  INVOICE NUMBER | TP08726
-     *   Row N+1:  DATE           | 5/2/26
+     *   Row N+1:  DATE | 5/2/26 | RECEIVED DATE | 6/2/26 | Invoice Amount | ...
      *   Row N+2:  Header row
      *   Row N+3+: Data rows (col 1=brand, 3=type, 5=size, 7=boxes, 8=units, 9=price)
      *
@@ -89,9 +93,16 @@ object CloudSyncManager {
         val newPurchases  = mutableListOf<Purchase>()
         val notFoundCodes = mutableSetOf<String>()
 
+        val maxDate = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+        }
+
         data class Shipment(
             val invoiceNumber: String,
             val date: String,
+            val receivedDate: String,
             val dataStartIdx: Int,
             val headerRowNum: Int
         )
@@ -102,9 +113,14 @@ object CloudSyncManager {
             val cell0 = rows[i].getOrNull(0)?.toString()?.trim() ?: ""
             if (cell0.uppercase().contains("INVOICE")) {
                 val invoice = rows[i].getOrNull(1)?.toString()?.trim() ?: ""
-                val dateRaw = if (i + 1 < rows.size)
-                    rows[i + 1].getOrNull(1)?.toString()?.trim() ?: "" else ""
-                shipments.add(Shipment(invoice, parseDateStr(dateRaw), i + 3, i + 1))
+                val dateRow = if (i + 1 < rows.size) rows[i + 1] else null
+                val dateRaw = dateRow?.getOrNull(1)?.toString()?.trim() ?: ""
+                val parsedDate = parseDateStr(dateRaw)
+                val recvRaw = dateRow?.getOrNull(3)?.toString()?.trim() ?: ""
+                val looksLikeDate = recvRaw.contains('/') || recvRaw.contains('-')
+                val parsedRecv = if (looksLikeDate) parseDateStr(recvRaw) else ""
+                val receivedDate = if (parsedRecv.isNotBlank() && parsedRecv > parsedDate && parsedRecv <= maxDate) parsedRecv else ""
+                shipments.add(Shipment(invoice, parsedDate, receivedDate, i + 3, i + 1))
                 i += 3
             } else { i++ }
         }
@@ -160,6 +176,7 @@ object CloudSyncManager {
                 if (dedupKey in existingKeys) continue
                 newPurchases.add(Purchase(
                     purchaseDate   = shipment.date,
+                    receivedDate   = shipment.receivedDate,
                     productId      = product.id,
                     productCode    = product.stockCode,
                     productName    = product.displayName,
@@ -250,6 +267,12 @@ object CloudSyncManager {
         fun Any?.dbl() = this?.toString()?.toDoubleOrNull() ?: 0.0
         fun Any?.str() = this?.toString()?.trim() ?: ""
 
+        val maxDate = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+        }
+
         for (row in rows) {
             val txnId = row.getOrNull(0).str()
             if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
@@ -259,10 +282,14 @@ object CloudSyncManager {
             if (productCode.isBlank()) continue
             val product = productMap[productCode]
 
+            val purchaseDate = parseDateStr(row.getOrNull(1).str())
+            val rawReceived  = row.getOrNull(28).str()
+            val receivedDate = if (rawReceived.isNotBlank() && rawReceived > purchaseDate && rawReceived <= maxDate) rawReceived else ""
+
             result.add(Purchase(
                 txnId         = txnId,
                 syncStatus    = SyncStatus.SYNCED,
-                purchaseDate  = parseDateStr(row.getOrNull(1).str()),
+                purchaseDate  = purchaseDate,
                 productId     = product?.id ?: 0L,
                 productCode   = productCode,
                 productName   = row.getOrNull(3).str(),
@@ -294,6 +321,7 @@ object CloudSyncManager {
                 ddTotalCost   = row.getOrNull(25).dbl(),
                 totalCost     = row.getOrNull(26).dbl(),
                 notes         = row.getOrNull(27).str(),
+                receivedDate  = receivedDate,
                 isProcessed   = false,
                 isDeleted     = false
             ))
@@ -311,7 +339,7 @@ internal fun Purchase.toSheetRow(): List<Any> = listOf(
     ppBoxes, ppLoose, ppTotalUnits, ppUnitPrice, ppTotalCost,
     nnBoxes, nnLoose, nnTotalUnits, nnUnitPrice, nnTotalCost,
     ddBoxes, ddLoose, ddTotalUnits, ddUnitPrice, ddTotalCost,
-    totalCost, notes
+    totalCost, notes, receivedDate
 )
 
 // ── Extension: DailyStock -> sheet row ───────────────────────────────────────

@@ -6,6 +6,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
+import com.simhadri.winentry.utils.SupportHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -22,6 +23,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  *     • Sheet is NEVER modified — permanent record, dedup on every run
  */
 object SyncHelper {
+
+    @Volatile private var purchaseImportInFlight = false
 
     // ── Transaction sync (daily sync icon) ───────────────────────────────────
 
@@ -256,7 +259,13 @@ object SyncHelper {
         activity:   android.app.Activity,
         onRefresh:  () -> Unit = {}
     ) {
+        if (purchaseImportInFlight) {
+            snack(anchorView, "Import already in progress…", Snackbar.LENGTH_SHORT)
+            return
+        }
         scope.launch {
+            purchaseImportInFlight = true
+            try {
             val coordinator = SyncCoordinator(context)
             snack(anchorView, "⬇ Reading PurchaseImport sheet…", Snackbar.LENGTH_SHORT)
 
@@ -402,10 +411,34 @@ object SyncHelper {
                     }
                 }
 
-                is SyncCoordinator.SyncResult.Error ->
-                    snack(anchorView, "✗ ${preview.message}", Snackbar.LENGTH_LONG)
+                is SyncCoordinator.SyncResult.Error -> {
+                    if (preview.message.contains("not configured", ignoreCase = true)) {
+                        MaterialAlertDialogBuilder(anchorView.context)
+                            .setTitle("Cloud Sheet Not Linked")
+                            .setMessage(
+                                "Your cloud workspace sheet is not set up yet.\n\n" +
+                                "Cloud sync and purchase import are only available after the admin " +
+                                "links your account to a Google Sheet.\n\n" +
+                                "Go to Settings → Drive Backup to request activation, " +
+                                "or email the admin directly to ask them to set up your workspace."
+                            )
+                            .setPositiveButton("Email Admin") { _, _ ->
+                                SupportHelper.sendEmail(
+                                    anchorView.context,
+                                    SupportHelper.IssueType.WORKSPACE_REQUEST
+                                )
+                            }
+                            .setNegativeButton("Close", null)
+                            .show()
+                    } else {
+                        snack(anchorView, "✗ ${preview.message}", Snackbar.LENGTH_LONG)
+                    }
+                }
 
                 else -> snack(anchorView, "✗ Unexpected response from server", Snackbar.LENGTH_LONG)
+            }
+            } finally {
+                purchaseImportInFlight = false
             }
         }
     }
@@ -456,11 +489,32 @@ object SyncHelper {
                 }
 
                 is SyncCoordinator.SyncResult.Error -> {
-                    val msg = if (preview.message == "CLOUD_EMPTY")
-                        "Cloud Purchases sheet is empty. Sync your purchases first, then try restoring."
-                    else
-                        "✗ ${preview.message}"
-                    snack(anchorView, msg, Snackbar.LENGTH_LONG)
+                    when {
+                        preview.message == "CLOUD_EMPTY" ->
+                            snack(anchorView,
+                                "Cloud Purchases sheet is empty. Sync your purchases first, then try restoring.",
+                                Snackbar.LENGTH_LONG)
+                        preview.message.contains("not configured", ignoreCase = true) ->
+                            MaterialAlertDialogBuilder(anchorView.context)
+                                .setTitle("Cloud Sheet Not Linked")
+                                .setMessage(
+                                    "Your cloud workspace sheet is not set up yet.\n\n" +
+                                    "Cloud sync and restore are only available after the admin " +
+                                    "links your account to a Google Sheet.\n\n" +
+                                    "Go to Settings → Drive Backup to request activation, " +
+                                    "or email the admin directly."
+                                )
+                                .setPositiveButton("Email Admin") { _, _ ->
+                                    SupportHelper.sendEmail(
+                                        anchorView.context,
+                                        SupportHelper.IssueType.WORKSPACE_REQUEST
+                                    )
+                                }
+                                .setNegativeButton("Close", null)
+                                .show()
+                        else ->
+                            snack(anchorView, "✗ ${preview.message}", Snackbar.LENGTH_LONG)
+                    }
                 }
 
                 else -> snack(anchorView, "✗ Unexpected response from server", Snackbar.LENGTH_LONG)
@@ -522,8 +576,8 @@ object SyncHelper {
         anchorView: View,
         onRefresh:  () -> Unit
     ) {
-        val sdf     = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val dispFmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        val sdf     = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val dispFmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.US)
         val today   = java.util.Calendar.getInstance()
 
         // Start with current month as default range

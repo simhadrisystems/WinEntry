@@ -19,13 +19,19 @@ data class GroupedItem(
     val showDateHeader: Boolean,
     val dateTotal: Double,
     val showInvoiceHeader: Boolean,
-    val invoiceTotal: Double
+    val invoiceTotal: Double,
+    val invoiceTotalBoxes: Int,      // NEW
+    val invoiceTotalLoose: Int,      // NEW
+    val invoiceTotalUnits: Int,      // NEW
+    val invoiceReceivedDate: String, // NEW — blank means same as purchaseDate
+    val showInvoiceFooter: Boolean   // NEW — true for last item in each invoice
 )
 
 class GroupedPurchasesAdapter(
     private val onItemClick: (Purchase) -> Unit,
     private val onItemLongClick: (Purchase, View) -> Unit,
-    private val onSelectionChanged: (Int) -> Unit
+    private val onSelectionChanged: (Int) -> Unit,
+    private val onReceivedDateTap: (invoiceNumber: String, purchaseDate: String, currentReceivedDate: String) -> Unit = { _, _, _ -> }
 ) : ListAdapter<GroupedItem, GroupedPurchasesAdapter.ViewHolder>(DIFF) {
 
     var isMultiSelectMode: Boolean = false
@@ -56,6 +62,49 @@ class GroupedPurchasesAdapter(
                 binding.textInvoiceTotal.text = currencyFmt.format(item.invoiceTotal)
             } else {
                 binding.layoutInvoiceHeader.visibility = View.GONE
+            }
+
+            // Invoice stats row — shown below invoice header
+            if (item.showInvoiceHeader && (item.invoiceTotalBoxes > 0 || item.invoiceTotalLoose > 0)) {
+                binding.layoutInvoiceStats.visibility = View.VISIBLE
+                binding.textInvoiceBoxes.text = "${item.invoiceTotalBoxes} Boxes"
+                binding.textInvoiceLoose.text = "${item.invoiceTotalLoose} Loose"
+                binding.textInvoiceUnits.text = "${item.invoiceTotalUnits} Units"
+            } else {
+                binding.layoutInvoiceStats.visibility = View.GONE
+            }
+
+            // Invoice received-date row — shown below stats on the first product of each invoice
+            if (item.showInvoiceHeader) {
+                binding.layoutInvoiceFooter.visibility = View.VISIBLE
+                val effDate = item.invoiceReceivedDate.ifBlank { item.purchase.purchaseDate }
+                val displayReceived = try {
+                    DB_FMT.parse(effDate)?.let { DISP_FMT.format(it) } ?: effDate
+                } catch (_: Exception) { effDate }
+                binding.textInvoiceReceivedDate.text = "Received: $displayReceived  •  Double-tap to change"
+
+                // Double-tap opens date picker to set/change received date
+                binding.layoutInvoiceFooter.setOnClickListener(
+                    object : android.view.View.OnClickListener {
+                        private var lastClickTime = 0L
+                        override fun onClick(v: android.view.View) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastClickTime < 350L) {
+                                onReceivedDateTap(
+                                    p.invoiceNumber,
+                                    p.purchaseDate,
+                                    item.invoiceReceivedDate.ifBlank { p.purchaseDate }
+                                )
+                                lastClickTime = 0L
+                            } else {
+                                lastClickTime = now
+                            }
+                        }
+                    }
+                )
+            } else {
+                binding.layoutInvoiceFooter.visibility = View.GONE
+                binding.layoutInvoiceFooter.setOnClickListener(null)
             }
 
             // Day totals row hidden
@@ -211,27 +260,45 @@ class GroupedPurchasesAdapter(
             val dateTotals = sorted.groupBy { it.purchaseDate }
                 .mapValues { (_, ps) -> ps.sumOf { it.totalCost } }
 
-            val invoiceTotals = sorted.groupBy { "${it.purchaseDate}|${it.invoiceNumber}" }
+            val invoiceKey = { p: Purchase -> "${p.purchaseDate}|${p.invoiceNumber}" }
+            val invoiceTotals = sorted.groupBy(invoiceKey)
                 .mapValues { (_, ps) -> ps.sumOf { it.totalCost } }
+            val invoiceBoxes = sorted.groupBy(invoiceKey)
+                .mapValues { (_, ps) -> ps.sumOf { it.qqBoxes + it.ppBoxes + it.nnBoxes + it.ddBoxes } }
+            val invoiceLoose = sorted.groupBy(invoiceKey)
+                .mapValues { (_, ps) -> ps.sumOf { it.qqLoose + it.ppLoose + it.nnLoose + it.ddLoose } }
+            val invoiceUnits = sorted.groupBy(invoiceKey)
+                .mapValues { (_, ps) -> ps.sumOf { it.qqTotalUnits + it.ppTotalUnits + it.nnTotalUnits + it.ddTotalUnits } }
+            val invoiceReceived = sorted.groupBy(invoiceKey)
+                .mapValues { (_, ps) -> ps.first().receivedDate }
+
+            // Track last index for each invoice key
+            val lastIndexByInvoice = mutableMapOf<String, Int>()
+            sorted.forEachIndexed { i, p -> lastIndexByInvoice[invoiceKey(p)] = i }
 
             var lastDate = ""
-            var lastInvoiceKey = ""
+            var lastInvoiceKeyStr = ""
             val result = mutableListOf<GroupedItem>()
 
-            for (p in sorted) {
-                val invoiceKey = "${p.purchaseDate}|${p.invoiceNumber}"
+            sorted.forEachIndexed { i, p ->
+                val ik = invoiceKey(p)
                 result.add(
                     GroupedItem(
-                        purchase          = p,
-                        displayDate       = formatDate(p.purchaseDate),
-                        showDateHeader    = p.purchaseDate != lastDate,
-                        dateTotal         = dateTotals[p.purchaseDate] ?: 0.0,
-                        showInvoiceHeader = invoiceKey != lastInvoiceKey,
-                        invoiceTotal      = invoiceTotals[invoiceKey] ?: 0.0
+                        purchase             = p,
+                        displayDate          = formatDate(p.purchaseDate),
+                        showDateHeader       = p.purchaseDate != lastDate,
+                        dateTotal            = dateTotals[p.purchaseDate] ?: 0.0,
+                        showInvoiceHeader    = ik != lastInvoiceKeyStr,
+                        invoiceTotal         = invoiceTotals[ik] ?: 0.0,
+                        invoiceTotalBoxes    = invoiceBoxes[ik] ?: 0,
+                        invoiceTotalLoose    = invoiceLoose[ik] ?: 0,
+                        invoiceTotalUnits    = invoiceUnits[ik] ?: 0,
+                        invoiceReceivedDate  = invoiceReceived[ik] ?: "",
+                        showInvoiceFooter    = lastIndexByInvoice[ik] == i
                     )
                 )
-                lastDate       = p.purchaseDate
-                lastInvoiceKey = invoiceKey
+                lastDate          = p.purchaseDate
+                lastInvoiceKeyStr = ik
             }
 
             return result

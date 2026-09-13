@@ -82,6 +82,46 @@ object SupportHelper {
         }
     }
 
+    /**
+     * Pre-filled workspace activation request with the user's registered business details,
+     * so the admin can identify who to add to invited_users without opening Firestore.
+     */
+    fun sendWorkspaceReminderEmail(
+        context:      Context,
+        ownerName:    String,
+        businessName: String,
+        phone:        String,
+        location:     String,
+        userEmail:    String
+    ) {
+        val body = buildString {
+            appendLine("Hello,")
+            appendLine()
+            appendLine("I have registered WinEntry and requested cloud workspace (Drive Backup).")
+            appendLine("Please activate my account by adding my email to the approved users list.")
+            appendLine()
+            appendLine("My registration details:")
+            if (businessName.isNotBlank()) appendLine("  Business : $businessName")
+            if (ownerName.isNotBlank())    appendLine("  Owner    : $ownerName")
+            if (phone.isNotBlank())        appendLine("  Phone    : $phone")
+            if (location.isNotBlank())     appendLine("  Location : $location")
+            if (userEmail.isNotBlank())    appendLine("  Email    : $userEmail")
+            appendLine()
+            appendLine("Please set up my cloud workspace so I can use cloud sync and backup.")
+        }
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = Uri.parse("mailto:")
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(SUPPORT_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, "[Win Entry] Cloud Workspace Activation Request")
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        try {
+            context.startActivity(Intent.createChooser(intent, "Send via email…"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "No email app found on this device.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // ── Private builders ────────────────────────────────────────────────────
 
     private fun buildEmailBody(issueType: IssueType): String = buildString {

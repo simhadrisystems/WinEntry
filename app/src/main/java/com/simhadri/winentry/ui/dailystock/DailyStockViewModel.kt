@@ -10,6 +10,7 @@ import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.DailyEntry
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.Product
+import com.simhadri.winentry.data.entity.ProductSizeAmounts
 import com.simhadri.winentry.data.entity.ProductSizeQty
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.CascadePreview
@@ -275,7 +276,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                     openQq = qqOb, openPp = ppOb, openNn = nnOb, openDd = ddOb,
                     purchQq = qqPq, purchPp = ppPq, purchNn = nnPq, purchDd = ddPq
                 )
-                purchaseDao.markPurchasesAsProcessed(date, product.id)
+                purchaseDao.markPurchasesAsProcessedByEffectiveDate(date, product.id)
             }
             stock = repository.getDailyStockRaw(date, product.stockCode)
         }
@@ -309,7 +310,10 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 nnOb + nnPq - nnCb,
                 ddOb + ddPq - ddCb
             ),
-            closing  = ProductSizeQty(qqCb, ppCb, nnCb, ddCb)
+            closing  = ProductSizeQty(qqCb, ppCb, nnCb, ddCb),
+            committedAmounts = if (stock?.isCommitted == true)
+                ProductSizeAmounts(stock.amountQq, stock.amountPp, stock.amountNn, stock.amountDd)
+            else null
         )
     }
 
@@ -514,11 +518,35 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun confirmCascade(confirmed: Boolean) {
+    enum class CascadeChoice { UPDATE, SKIP, CLEAR_NEXT }
+
+    fun confirmCascade(choice: CascadeChoice) {
         _cascadeRequest.value = null
-        if (!confirmed) { pendingCascadeRows = null; return }
-        val rows     = pendingCascadeRows ?: return
+        if (choice == CascadeChoice.SKIP) { pendingCascadeRows = null; return }
+
+        val rows = pendingCascadeRows ?: return
         pendingCascadeRows = null
+
+        if (choice == CascadeChoice.CLEAR_NEXT) {
+            viewModelScope.launch {
+                try {
+                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                    val cal = Calendar.getInstance()
+                    for (row in rows) {
+                        cal.time = sdf.parse(row.date) ?: continue
+                        cal.add(Calendar.DAY_OF_MONTH, 1)
+                        repository.deleteDailyStock(sdf.format(cal.time), row.productCode)
+                    }
+                    loadEntriesForDate()
+                    loadDateStatus()
+                } catch (e: Exception) {
+                    ErrorLogger.log(getApplication(), "DailyStock", "Clear next day failed", e)
+                }
+            }
+            return
+        }
+
+        // CascadeChoice.UPDATE
         viewModelScope.launch {
             try {
                 val products = allProducts.value ?: emptyList()
@@ -526,8 +554,6 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 loadEntriesForDate()
                 loadDateStatus()
                 if (result.hasNegatives) {
-                    // Some subsequent days now have CB > OB — impossible stock state.
-                    // Post dates so fragment can navigate/highlight after user taps OK.
                     _negativeSaleDates.value = result.negativeSaleDates.sorted()
                     _saveStatus.value = SaveStatus.CascadeWithWarnings(
                         updatedCount   = result.updatedCount,

@@ -3,10 +3,15 @@ package com.simhadri.winentry.ui.settings
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -74,6 +79,7 @@ class BusinessInfoFragment : Fragment() {
         updateRegistrationUI()
         checkPendingAuthDeletion()
         binding.buttonSave.setOnClickListener { onSaveTapped() }
+        setupKeyboardNavigation()
 
         // Proactive self-heal: if not locally registered, check Firestore.
         // If the doc exists (reinstall / new login), data is restored to prefs and
@@ -86,6 +92,45 @@ class BusinessInfoFragment : Fragment() {
                 populateFields()
                 updateRegistrationUI()
             }
+        }
+    }
+
+    private fun setupKeyboardNavigation() {
+        // When keyboard appears, expand scrollContent paddingBottom to keyboard height so
+        // the Save button stays accessible above the keyboard, then scroll it into view.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollContent) { v, insets ->
+            val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            v.updatePadding(bottom = maxOf(imeBottom, navBottom))
+            if (imeBottom > 0) {
+                binding.nestedScrollView.post {
+                    binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+            insets
+        }
+
+        // Address field: first Enter moves to line 2; second Enter moves focus to City/Location.
+        binding.editAddress1.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+                val newlineCount = binding.editAddress1.text?.count { it == '\n' } ?: 0
+                if (newlineCount >= 1) {
+                    binding.editLocation.requestFocus()
+                    return@setOnKeyListener true
+                }
+            }
+            false
+        }
+
+        // City/Location: Done action or Enter moves focus to the Save button.
+        binding.editLocation.setOnEditorActionListener { _, actionId, event ->
+            val isDone = actionId == EditorInfo.IME_ACTION_DONE
+            val isEnter = event?.action == KeyEvent.ACTION_DOWN &&
+                event.keyCode == KeyEvent.KEYCODE_ENTER
+            if (isDone || isEnter) {
+                binding.buttonSave.requestFocus()
+                true
+            } else false
         }
     }
 
@@ -219,7 +264,6 @@ class BusinessInfoFragment : Fragment() {
         binding.editBusinessName.setText(prefs.getString(KEY_BUSINESS, ""))
         binding.editLicenceNo.setText(prefs.getString(KEY_LICENCE, ""))
         binding.editAddress1.setText(prefs.getString(KEY_ADDRESS1, ""))
-        binding.editAddress2.setText(prefs.getString(KEY_ADDRESS2, ""))
         binding.editLocation.setText(prefs.getString(KEY_LOCATION, ""))
         binding.editPhone.setText(prefs.getString(KEY_PHONE, ""))
         // Show the Firebase Auth email as read-only — this is the account the app is registered to
@@ -255,7 +299,7 @@ class BusinessInfoFragment : Fragment() {
             .putString(KEY_BUSINESS,   businessName)
             .putString(KEY_LICENCE,    binding.editLicenceNo.text.toString().trim())
             .putString(KEY_ADDRESS1,   binding.editAddress1.text.toString().trim())
-            .putString(KEY_ADDRESS2,   binding.editAddress2.text.toString().trim())
+            .putString(KEY_ADDRESS2,   "")
             .putString(KEY_LOCATION,   location)
             .putString(KEY_PHONE,      phone)
             .apply()
@@ -337,18 +381,15 @@ class BusinessInfoFragment : Fragment() {
 
             if (success) {
                 UserRegistrationManager.markRegistered(requireContext(), uid)
-                val msg = if (forceUpdate) "Registration updated \u2713" else "Registered \u2713  Cloud features unlocked"
+                val msg = if (forceUpdate) "Registration updated \u2713" else "Registered \u2713"
                 Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
             } else {
-                com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Registration Failed")
-                    .setMessage(
-                        "Your account has not been activated yet.\n\n" +
-                        "Ask the admin to add your email address to the invited users list.\n\n" +
-                        "Your business info has been saved on this device."
-                    )
-                    .setPositiveButton("OK", null)
-                    .show()
+                AppDialogs.info(
+                    requireContext(),
+                    "Registration Failed",
+                    "Could not complete registration. Check your internet connection and try again.\n\n" +
+                    "Your business info has been saved on this device."
+                )
             }
             binding.buttonSave.isEnabled = true
             findNavController().navigateUp()

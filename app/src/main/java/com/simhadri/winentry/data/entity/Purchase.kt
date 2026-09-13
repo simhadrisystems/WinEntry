@@ -66,6 +66,7 @@ data class Purchase(
     val totalCost: Double = 0.0,
     val supplierName: String = "",
     val invoiceNumber: String = "",
+    val receivedDate: String = "",   // blank = same as purchaseDate
     val notes: String = "",
 
     val isProcessed: Boolean = false,

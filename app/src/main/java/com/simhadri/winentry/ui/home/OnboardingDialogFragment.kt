@@ -14,7 +14,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.snackbar.Snackbar
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simhadri.winentry.R
 import com.simhadri.winentry.databinding.DialogOnboardingBinding
 import com.simhadri.winentry.databinding.ItemOnboardingStepBinding
@@ -84,11 +83,7 @@ class OnboardingDialogFragment : DialogFragment() {
                 .navigate(R.id.action_home_to_businessInfo)
         }
         binding.stepImportProducts.btnStepAction.setOnClickListener {
-            if (vm.state.value.notInvited) {
-                showRequestAccessDialog()
-            } else {
-                vm.startProductDownload()
-            }
+            vm.startProductDownload()
         }
         binding.stepTestData.btnStepAction.setOnClickListener {
             showDatePicker()
@@ -135,19 +130,17 @@ class OnboardingDialogFragment : DialogFragment() {
             step         = binding.stepImportProducts,
             label        = AppStrings.onboardingStep2.get(lang),
             done         = state.step2Done,
-            actionLabel  = when {
-                state.notInvited             -> if (lang == AppStrings.Lang.TE) "యాక్టివేట్" else "Request Access"
-                lang == AppStrings.Lang.TE   -> "దిగుమతి"
-                else                         -> "Download"
-            },
-            showProgress = state.downloadInProgress
+            actionLabel  = if (lang == AppStrings.Lang.TE) "దిగుమతి" else "Download",
+            showProgress = state.downloadInProgress,
+            locked       = !state.step1Done
         )
         renderStep(
             step         = binding.stepTestData,
             label        = AppStrings.onboardingStep3.get(lang),
             done         = state.step3Done,
             actionLabel  = if (lang == AppStrings.Lang.TE) "లోడ్" else "Load",
-            showProgress = state.testImportInProgress
+            showProgress = state.testImportInProgress,
+            locked       = !state.step1Done
         )
         renderStep(
             step         = binding.stepOpeningStock,
@@ -174,7 +167,8 @@ class OnboardingDialogFragment : DialogFragment() {
         label: String,
         done: Boolean,
         actionLabel: String,
-        showProgress: Boolean
+        showProgress: Boolean,
+        locked: Boolean = false
     ) {
         step.tvStepLabel.text = label
         step.ivStepStatus.setImageResource(
@@ -189,31 +183,19 @@ class OnboardingDialogFragment : DialogFragment() {
                 step.btnStepAction.visibility  = View.GONE
                 step.pbStepProgress.visibility = View.VISIBLE
             }
+            locked       -> {
+                step.btnStepAction.text        = actionLabel
+                step.btnStepAction.isEnabled   = false
+                step.btnStepAction.visibility  = View.VISIBLE
+                step.pbStepProgress.visibility = View.GONE
+            }
             else         -> {
                 step.btnStepAction.text        = actionLabel
+                step.btnStepAction.isEnabled   = true
                 step.btnStepAction.visibility  = View.VISIBLE
                 step.pbStepProgress.visibility = View.GONE
             }
         }
-    }
-
-    private fun showRequestAccessDialog() {
-        val ctx = requireContext()
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle("Account Not Activated")
-            .setMessage(
-                "Your account has not been activated yet.\n\n" +
-                "Contact the admin to request access to the product list.\n\n" +
-                "Choose how you'd like to reach out:"
-            )
-            .setPositiveButton("Email Admin") { _, _ ->
-                SupportHelper.sendEmail(ctx, SupportHelper.IssueType.WORKSPACE_REQUEST)
-            }
-            .setNeutralButton("WhatsApp") { _, _ ->
-                SupportHelper.sendWhatsApp(ctx, SupportHelper.IssueType.WORKSPACE_REQUEST)
-            }
-            .setNegativeButton("Later", null)
-            .show()
     }
 
     private fun showDatePicker() {

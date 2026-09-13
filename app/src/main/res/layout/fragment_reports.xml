@@ -4,7 +4,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/app_surface">
+    android:background="@color/app_surface"
+    android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -30,34 +31,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
-
-            <!-- Guidance note -->
-            <TextView
-                android:id="@+id/tvReportsBusinessInfoNote"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Business name and owner details from Settings \u2192 Business Info appear as report headers on all reports."
-                android:textSize="12sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:background="?attr/colorSurfaceVariant"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp"
-                android:layout_marginBottom="12dp"
-                android:drawablePadding="6dp"
-                android:gravity="center_vertical" />
+            android:padding="10dp">
 
             <!-- ── DAILY REPORTS ──────────────────────────────────── -->
             <TextView
+                android:id="@+id/textSectionDailyReports"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/textSectionDailyReports"
                 android:text="DAILY REPORTS"
                 android:textSize="11sp"
                 android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="@color/app_text_hint"
                 android:letterSpacing="0.12"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="9dp"
                 android:layout_marginStart="4dp" />
 
             <!-- 1. Daily Stock Sheet -->
@@ -65,7 +51,7 @@
                 android:id="@+id/cardDailySheet"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="9dp"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="2dp"
                 app:cardBackgroundColor="@color/reports_daily_light"
@@ -75,52 +61,53 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
-
                         <FrameLayout
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:background="@drawable/bg_module_icon"
                             android:backgroundTint="@color/reports_daily_light">
                             <ImageView
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_report_daily_sheet"
                                 android:tint="@color/reports_daily"
                                 android:scaleType="fitCenter" />
                         </FrameLayout>
-
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:orientation="vertical"
-                            android:layout_marginStart="14dp">
+                            android:layout_marginStart="10dp">
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
                                 android:id="@+id/textDailySheetTitle"
-                                android:text="Daily Stock Sheet"
-                                android:textSize="16sp"
-                                android:fontFamily="@font/ramabhadra_regular"
-                                android:textColor="@color/app_text_primary" />
-                            <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:text="Daily Stock Sheet"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/app_text_primary"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
                                 android:id="@+id/textDailySheetDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
                                 android:text="OB · PQ · SQ · CB for all products on a date"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textColor="@color/app_text_secondary"
-                                android:layout_marginTop="2dp" />
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
                         </LinearLayout>
-
                     </LinearLayout>
 
                     <LinearLayout
@@ -128,14 +115,14 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginTop="12dp">
+                        android:layout_marginTop="8dp">
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnDailySheetDate"
                             android:layout_width="0dp"
-                            android:layout_height="40dp"
+                            android:layout_height="36dp"
                             android:layout_weight="1"
                             android:text="Select Date"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:layout_marginEnd="8dp"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             app:strokeColor="@color/reports_daily"
@@ -143,21 +130,21 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnDailySheetView"
                             android:layout_width="wrap_content"
-                            android:layout_height="40dp"
+                            android:layout_height="36dp"
                             android:text="View Report"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             app:backgroundTint="@color/reports_daily" />
                     </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 3. Closing Balances -->
+            <!-- 2. Closing Balances -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardClosingBalances"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="9dp"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="2dp"
                 app:cardBackgroundColor="@color/reports_closing_light"
@@ -167,52 +154,53 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
-
                         <FrameLayout
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:background="@drawable/bg_module_icon"
                             android:backgroundTint="@color/reports_closing_light">
                             <ImageView
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_report_closing_balance"
                                 android:tint="@color/reports_closing"
                                 android:scaleType="fitCenter" />
                         </FrameLayout>
-
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:orientation="vertical"
-                            android:layout_marginStart="14dp">
+                            android:layout_marginStart="10dp">
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
                                 android:id="@+id/textClosingBalancesTitle"
-                                android:text="Closing Balances"
-                                android:textSize="16sp"
-                                android:fontFamily="@font/ramabhadra_regular"
-                                android:textColor="@color/app_text_primary" />
-                            <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:text="Closing Balances"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/app_text_primary"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
                                 android:id="@+id/textClosingBalancesDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
                                 android:text="End-of-day stock balance by product and size"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textColor="@color/app_text_secondary"
-                                android:layout_marginTop="2dp" />
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
                         </LinearLayout>
-
                     </LinearLayout>
 
                     <LinearLayout
@@ -220,14 +208,14 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginTop="12dp">
+                        android:layout_marginTop="8dp">
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnClosingDate"
                             android:layout_width="0dp"
-                            android:layout_height="40dp"
+                            android:layout_height="36dp"
                             android:layout_weight="1"
                             android:text="Select Date"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:layout_marginEnd="8dp"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             app:strokeColor="@color/reports_closing"
@@ -235,21 +223,97 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnClosingView"
                             android:layout_width="wrap_content"
-                            android:layout_height="40dp"
+                            android:layout_height="36dp"
                             android:text="View Report"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             app:backgroundTint="@color/reports_closing" />
                     </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 4. Daily Brand Wise A/c — keeps its crimson identity -->
+            <!-- 3. Monthly Sale Data -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardMonthlySaleData"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="9dp"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/reports_monthly_light"
+                app:rippleColor="#1AD97706">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_module_icon"
+                            android:backgroundTint="@color/reports_monthly_light">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_report_monthly_sale"
+                                android:tint="@color/reports_monthly"
+                                android:scaleType="fitCenter" />
+                        </FrameLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="10dp">
+                            <TextView
+                                android:id="@+id/textMonthlySaleTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Monthly Sale Data"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/app_text_primary"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
+                                android:id="@+id/textMonthlySaleDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Day-end totals · UPI receipts · Expenses · Cash deposit"
+                                android:textSize="12sp"
+                                android:textColor="@color/app_text_secondary"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnMonthlySaleView"
+                        android:layout_width="match_parent"
+                        android:layout_height="36dp"
+                        android:layout_marginTop="8dp"
+                        android:text="Browse Months"
+                        android:textSize="12sp"
+                        app:backgroundTint="@color/reports_monthly" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 4. Daily Brand Wise A/c -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardBrandWise"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="9dp"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="2dp"
                 app:cardBackgroundColor="#FFF1F8"
@@ -260,195 +324,112 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
-
                         <FrameLayout
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:background="@drawable/bg_module_icon"
                             android:backgroundTint="#FFF1F8">
                             <ImageView
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_report_brand_wise"
                                 android:tint="@color/reports_accent_crimson"
                                 android:scaleType="fitCenter" />
                         </FrameLayout>
-
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:orientation="vertical"
-                            android:layout_marginStart="14dp">
+                            android:layout_marginStart="10dp">
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
                                 android:id="@+id/textBrandWiseTitle"
-                                android:text="Daily Brand Wise A/c"
-                                android:textSize="16sp"
-                                android:fontFamily="@font/ramabhadra_regular"
-                                android:textColor="@color/reports_accent_crimson" />
-                            <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:text="Daily Brand Wise A/c"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/reports_accent_crimson"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
                                 android:id="@+id/textBrandWiseDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
                                 android:text="Form R2 — all brands, grouped by type"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textColor="@color/app_text_secondary"
-                                android:layout_marginTop="2dp" />
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
                         </LinearLayout>
-
                     </LinearLayout>
-
-                    <com.google.android.material.checkbox.MaterialCheckBox
-                        android:id="@+id/checkIncludeZero"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Include products with zero activity"
-                        android:textSize="13sp"
-                        android:textColor="@color/app_text_secondary"
-                        android:checked="false"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginBottom="10dp"
-                        app:buttonTint="@color/reports_accent_crimson" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical">
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnBrandWiseDate"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+                        <com.google.android.material.checkbox.MaterialCheckBox
+                            android:id="@+id/checkIncludeZero"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:paddingVertical="4dp"
+                            android:text="Include zero-activity products"
+                            android:textSize="12sp"
+                            android:textColor="@color/app_text_secondary"
+                            android:checked="false"
+                            app:buttonTint="@color/reports_accent_crimson" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnBrandWiseDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="6dp"
+                            android:textSize="12sp"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             app:strokeColor="@color/reports_accent_crimson"
                             android:textColor="@color/reports_accent_crimson" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnBrandWiseView"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_height="36dp"
                             android:text="View"
-                            android:paddingVertical="4dp"
+                            android:textSize="12sp"
                             app:backgroundTint="@color/reports_accent_crimson" />
                     </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- ── MONTHLY REPORTS ────────────────────────────────── -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/textSectionMonthlyReports"
-                android:text="MONTHLY REPORTS"
-                android:textSize="11sp"
-                android:fontFamily="@font/ramabhadra_regular"
-                android:textColor="@color/app_text_hint"
-                android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:layout_marginStart="4dp" />
-
-            <!-- Monthly Sale Data -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cardMonthlySaleData"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardCornerRadius="10dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/reports_monthly_light"
-                app:rippleColor="#1AD97706">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:gravity="center_vertical">
-
-                    <FrameLayout
-                        android:layout_width="52dp"
-                        android:layout_height="52dp"
-                        android:background="@drawable/bg_module_icon"
-                        android:backgroundTint="@color/reports_monthly_light">
-                        <ImageView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_report_monthly_sale"
-                            android:tint="@color/reports_monthly"
-                            android:scaleType="fitCenter" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginStart="14dp">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:id="@+id/textMonthlySaleTitle"
-                            android:layout_height="wrap_content"
-                            android:text="Monthly Sale Data"
-                            android:textSize="16sp"
-                            android:fontFamily="@font/ramabhadra_regular"
-                            android:textColor="@color/app_text_primary" />
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:id="@+id/textMonthlySaleDesc"
-                            android:text="Day-end totals · UPI receipts · Expenses · Cash deposit"
-                            android:textSize="13sp"
-                            android:textColor="@color/app_text_secondary"
-                            android:layout_marginTop="2dp" />
-                    </LinearLayout>
-
-                    <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="8dp"
-                        android:src="@drawable/ic_chevron_right"
-                        android:tint="@color/reports_monthly" />
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
             <!-- ── PERIOD REPORTS ─────────────────────────────────── -->
             <TextView
+                android:id="@+id/textSectionPeriodReports"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:id="@+id/textSectionPeriodReports"
                 android:text="PERIOD REPORTS"
                 android:textSize="11sp"
                 android:fontFamily="@font/ramabhadra_regular"
                 android:textColor="@color/app_text_hint"
                 android:letterSpacing="0.12"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="9dp"
                 android:layout_marginStart="4dp" />
 
-            <!-- Purchase Report -->
+            <!-- 5. Purchase Report -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardPurchaseReport"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="9dp"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="2dp"
                 app:cardBackgroundColor="@color/reports_purchase_light"
@@ -458,52 +439,53 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="10dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
-
                         <FrameLayout
-                            android:layout_width="52dp"
-                            android:layout_height="52dp"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
                             android:background="@drawable/bg_module_icon"
                             android:backgroundTint="@color/reports_purchase_light">
                             <ImageView
-                                android:layout_width="40dp"
-                                android:layout_height="40dp"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_report_purchase"
                                 android:tint="@color/reports_purchase"
                                 android:scaleType="fitCenter" />
                         </FrameLayout>
-
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:orientation="vertical"
-                            android:layout_marginStart="14dp">
+                            android:layout_marginStart="10dp">
                             <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
                                 android:id="@+id/textPurchaseReportTitle"
-                                android:text="Purchase Report"
-                                android:textSize="16sp"
-                                android:fontFamily="@font/ramabhadra_regular"
-                                android:textColor="@color/app_text_primary" />
-                            <TextView
-                                android:layout_width="wrap_content"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:text="Purchase Report"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/app_text_primary"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
                                 android:id="@+id/textPurchaseReportDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
                                 android:text="Purchases by product with daily breakdown for a period"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textColor="@color/app_text_secondary"
-                                android:layout_marginTop="2dp" />
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
                         </LinearLayout>
-
                     </LinearLayout>
 
                     <LinearLayout
@@ -511,44 +493,33 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:layout_marginTop="12dp">
-                        <TextView
-                            android:layout_width="44dp"
-                            android:layout_height="wrap_content"
-                            android:text="From"
-                            android:textSize="12sp"
-                            android:textColor="@color/reports_purchase"
-                            android:fontFamily="@font/ramabhadra_regular" />
+                        android:layout_marginTop="8dp">
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnPurchaseFrom"
-                            android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:text="Select Date"
-                            android:textSize="13sp"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:text="From"
+                            android:textSize="12sp"
+                            android:layout_marginEnd="4dp"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             app:strokeColor="@color/reports_purchase"
                             android:textColor="@color/reports_purchase" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginTop="6dp">
                         <TextView
-                            android:layout_width="44dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="To"
-                            android:textSize="12sp"
-                            android:textColor="@color/reports_purchase"
-                            android:fontFamily="@font/ramabhadra_regular" />
+                            android:text="–"
+                            android:textSize="13sp"
+                            android:textColor="@color/app_text_hint"
+                            android:paddingHorizontal="2dp" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnPurchaseTo"
-                            android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:text="Select Date"
-                            android:textSize="13sp"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:text="To"
+                            android:textSize="12sp"
+                            android:layout_marginStart="4dp"
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             app:strokeColor="@color/reports_purchase"
                             android:textColor="@color/reports_purchase" />
@@ -557,14 +528,140 @@
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnPurchaseView"
                         android:layout_width="match_parent"
-                        android:layout_height="40dp"
-                        android:layout_marginTop="10dp"
+                        android:layout_height="36dp"
+                        android:layout_marginTop="6dp"
                         android:text="View Report"
-                        android:textSize="13sp"
+                        android:textSize="12sp"
                         app:backgroundTint="@color/reports_purchase" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- 6. Sales & Profit Margin Report -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSalesMargin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="9dp"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/reports_margin_light"
+                app:rippleColor="#1AEA580C">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_module_icon"
+                            android:backgroundTint="@color/reports_margin_light">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_report_monthly_sale"
+                                android:tint="@color/reports_margin"
+                                android:scaleType="fitCenter" />
+                        </FrameLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="10dp">
+                            <TextView
+                                android:id="@+id/textSalesMarginTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Sales &amp; Profit Margin"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/reports_margin"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
+                                android:id="@+id/textSalesMarginDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Sale qty · Sale price · Buy price · Margin % for a period"
+                                android:textSize="12sp"
+                                android:textColor="@color/app_text_secondary"
+                                android:maxLines="1"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSalesMarginFrom"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:text="From"
+                            android:textSize="12sp"
+                            android:layout_marginEnd="4dp"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            app:strokeColor="@color/reports_margin"
+                            android:textColor="@color/reports_margin" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="–"
+                            android:textSize="13sp"
+                            android:textColor="@color/app_text_hint"
+                            android:paddingHorizontal="2dp" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSalesMarginTo"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:text="To"
+                            android:textSize="12sp"
+                            android:layout_marginStart="4dp"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            app:strokeColor="@color/reports_margin"
+                            android:textColor="@color/reports_margin" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSalesMarginView"
+                        android:layout_width="match_parent"
+                        android:layout_height="36dp"
+                        android:layout_marginTop="6dp"
+                        android:text="View Report"
+                        android:textSize="12sp"
+                        app:backgroundTint="@color/reports_margin" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Guidance note — bottom -->
+            <TextView
+                android:id="@+id/tvReportsBusinessInfoNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Business name and owner details from Settings → Business Info appear as report headers on all reports."
+                android:textSize="11sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:background="?attr/colorSurfaceVariant"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:layout_marginTop="8dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

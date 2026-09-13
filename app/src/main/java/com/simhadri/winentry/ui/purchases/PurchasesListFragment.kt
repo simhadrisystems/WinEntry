@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.simhadri.winentry.R
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
+import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.databinding.FragmentPurchasesListBinding
@@ -24,7 +25,7 @@ import com.simhadri.winentry.helpers.PurchaseExcelHelper
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
-import com.simhadri.winentry.utils.UserRegistrationManager
+import com.simhadri.winentry.utils.exportToDownloadsAndShare
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -129,20 +130,7 @@ class PurchasesListFragment : Fragment() {
                     true
                 }
                 R.id.action_export -> {
-                    UserRegistrationManager.ensureRegistered(
-                        context = requireContext(),
-                        scope   = viewLifecycleOwner.lifecycleScope,
-                        onNotRegistered = {
-                            AppDialogs.confirm(
-                                context     = requireContext(),
-                                title       = "Registration Required",
-                                message     = "This feature requires app registration.\n\n" +
-                                    "Go to Business Info to register.",
-                                actionLabel = "Go to Business Info"
-                            ) { findNavController().navigate(R.id.businessInfoFragment) }
-                        },
-                        onReady = { exportToExcelDirect() }
-                    )
+                    requireInvitation { exportToExcelDirect() }
                     true
                 }
                 R.id.action_export_filtered -> {
@@ -232,6 +220,9 @@ class PurchasesListFragment : Fragment() {
             },
             onSelectionChanged = { count ->
                 updateMultiSelectMode(count)
+            },
+            onReceivedDateTap = { invoiceNumber, purchaseDate, currentReceivedDate ->
+                showReceivedDatePicker(invoiceNumber, purchaseDate, currentReceivedDate)
             }
         )
         
@@ -266,6 +257,50 @@ class PurchasesListFragment : Fragment() {
             .show()
     }
     
+    private fun showReceivedDatePicker(
+        invoiceNumber:       String,
+        purchaseDate:        String,
+        currentReceivedDate: String
+    ) {
+        val dbFmt   = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val dispFmt = SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+
+        val cal = java.util.Calendar.getInstance()
+        try { dbFmt.parse(currentReceivedDate)?.let { cal.time = it } } catch (_: Exception) {}
+
+        val invDisp = invoiceNumber.ifBlank { "this invoice" }
+        val pdDisp  = try { dbFmt.parse(purchaseDate)?.let { dispFmt.format(it) } ?: purchaseDate }
+                      catch (_: Exception) { purchaseDate }
+
+        // min = invoice date; max = today + 1
+        val minCal = java.util.Calendar.getInstance()
+        try { dbFmt.parse(purchaseDate)?.let { minCal.time = it } } catch (_: Exception) {}
+        val maxCal = java.util.Calendar.getInstance().also {
+            it.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+
+        android.app.DatePickerDialog(
+            requireContext(),
+            { _, year, month, day ->
+                val selected = java.util.Calendar.getInstance().also { it.set(year, month, day) }
+                val newDate  = dbFmt.format(selected.time)
+                viewModel.updateInvoiceReceivedDate(invoiceNumber, purchaseDate, newDate)
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    "Received date updated to ${dispFmt.format(selected.time)}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            },
+            cal.get(java.util.Calendar.YEAR),
+            cal.get(java.util.Calendar.MONTH),
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        ).apply {
+            setTitle("Date Received — $invDisp ($pdDisp)")
+            datePicker.minDate = minCal.timeInMillis
+            datePicker.maxDate = maxCal.timeInMillis
+        }.show()
+    }
+
     private fun showDeleteConfirmation(purchase: Purchase) {
         com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
             .setTitle("Delete Purchase?")
@@ -436,30 +471,7 @@ class PurchasesListFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
                 
-                // Offer to share the file
-                val message = buildString {
-                    appendLine("${purchases.size} purchases exported to Excel")
-                    appendLine()
-                    appendLine("Grouped into $shipments shipment${if(shipments > 1) "s" else ""} by invoice and date")
-                    appendLine()
-                    appendLine("File: $fileName")
-                    appendLine()
-                    appendLine("Would you like to share the file?")
-                }
-                
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Export Successful")
-                    .setMessage(message)
-                    .setPositiveButton("Share") { _, _ ->
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        startActivity(Intent.createChooser(shareIntent, "Share Purchase Export"))
-                    }
-                    .setNegativeButton("Done", null)
-                    .show()
+                exportToDownloadsAndShare(uri, fileName, "Share Purchase Export")
                 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -482,27 +494,7 @@ class PurchasesListFragment : Fragment() {
                 
                 val uri = excelHelper.generateTemplate(products, fileName)
                 
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Template Ready")
-                    .setMessage("Purchase import template has been created with sample data.\n\n" +
-                            "File: $fileName\n\n" +
-                            "Instructions:\n" +
-                            "1. Fill in invoice number and date\n" +
-                            "2. Add your purchase data in the same format\n" +
-                            "3. Each row = one product size\n" +
-                            "4. Multiple rows for same product = combined into one purchase\n" +
-                            "5. Save and import using 'Import from Excel'\n\n" +
-                            "Would you like to share the template?")
-                    .setPositiveButton("Share") { _, _ ->
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        startActivity(Intent.createChooser(shareIntent, "Share Template"))
-                    }
-                    .setNegativeButton("Done", null)
-                    .show()
+                exportToDownloadsAndShare(uri, fileName, "Share Purchase Template")
                 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -616,19 +608,7 @@ class PurchasesListFragment : Fragment() {
                     appendLine("Would you like to share?")
                 }
                 
-                MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Export Successful")
-                    .setMessage(message)
-                    .setPositiveButton("Share") { _, _ ->
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        startActivity(Intent.createChooser(shareIntent, "Share Filtered Export"))
-                    }
-                    .setNegativeButton("Done", null)
-                    .show()
+                exportToDownloadsAndShare(uri, fileName, "Share Filtered Export")
                 
             } catch (e: Exception) {
                 Toast.makeText(
@@ -814,6 +794,20 @@ class PurchasesListFragment : Fragment() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+    private fun requireInvitation(onReady: () -> Unit) {
+        if (SyncCoordinator(requireContext()).isUserSheetReady()) {
+            onReady()
+        } else {
+            AppDialogs.confirm(
+                context     = requireContext(),
+                title       = "Drive Backup Required",
+                message     = "This feature is available only after your cloud workspace is set up.\n\n" +
+                    "Go to Settings → Drive Backup and request activation from the admin.",
+                actionLabel = "Go to Settings"
+            ) { findNavController().navigate(R.id.settingsFragment) }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

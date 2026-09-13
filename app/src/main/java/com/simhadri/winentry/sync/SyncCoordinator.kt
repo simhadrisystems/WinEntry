@@ -301,14 +301,25 @@ class SyncCoordinator(private val context: Context) {
             if (importRows.isEmpty()) return@withContext SyncResult.PurchaseDownSyncPreview(
                 emptyList(), emptyList(), emptySet())
 
-            // No pre-dedup here — commitPurchaseDownSync handles it via deleteByProductIdInvoiceDate.
-            // Passing emptySet() means all parsed rows are treated as "new" by the parser;
-            // the commit step overwrites any existing row with the same productId/invoice/date.
-            val (newRows, notFoundCodes) =
+            // Build dedup keys from currently active (non-deleted) local purchases.
+            // Key format must match what parseImportSheetRows generates: "invoice|productCode|date"
+            val activeLocal = database.purchaseDao().getAllPurchasesSync().filter { !it.isDeleted }
+            val existingKeys = activeLocal.map {
+                "${it.invoiceNumber}|${it.productCode}|${it.purchaseDate}"
+            }.toHashSet()
+
+            val (allRows, notFoundCodes) =
                 CloudSyncManager.parseImportSheetRows(importRows, products, emptySet())
 
-            Log.d(TAG, "PurchaseImport preview: ${newRows.size} rows, ${notFoundCodes.size} not found")
-            SyncResult.PurchaseDownSyncPreview(newRows, emptyList(), notFoundCodes)
+            val newRows = allRows.filter {
+                "${it.invoiceNumber}|${it.productCode}|${it.purchaseDate}" !in existingKeys
+            }
+            val dupRows = allRows.filter {
+                "${it.invoiceNumber}|${it.productCode}|${it.purchaseDate}" in existingKeys
+            }
+
+            Log.d(TAG, "PurchaseImport preview: ${newRows.size} new, ${dupRows.size} dup, ${notFoundCodes.size} not found")
+            SyncResult.PurchaseDownSyncPreview(newRows, dupRows, notFoundCodes)
 
         } catch (e: Exception) {
             Log.e(TAG, "Purchase down-sync preview failed: ${e.message}")
@@ -393,6 +404,13 @@ class SyncCoordinator(private val context: Context) {
                 } catch (e: Exception) {
                     Log.w(TAG, "Replace failed ${p.invoiceNumber}/${p.productCode}: ${e.message}")
                 }
+            }
+
+            // Auto-activate any inactive products that received new purchases
+            val activateIds = (toInsert + toReplace)
+                .map { it.productId }.filter { it > 0 }.toSet()
+            if (activateIds.isNotEmpty()) {
+                database.productDao().activateByIds(activateIds.toList())
             }
 
             Log.d(TAG, "Commit: $inserted inserted, $replaced replaced")
@@ -517,6 +535,76 @@ class SyncCoordinator(private val context: Context) {
         }
     }
 
+    /**
+     * Parse a date string from any format the cloud/Sheets may return into "yyyy-MM-dd".
+     *
+     * Priority order:
+     *   1. ISO  "yyyy-MM-dd" or non-padded "yyyy-M-d"          (YYYY first → unambiguous)
+     *   2. Slash "d/M/yyyy", "d/M/yy", "dd/MM/yyyy", etc.     (always DD/MM — India-only)
+     *   3. Dash  "d-M-yyyy", "dd-MM-yyyy" etc. where year > 31 (DD-MM-YYYY)
+     *   4. Excel / Sheets numeric date serial
+     *
+     * Returns null → row is silently skipped.
+     */
+    private fun parseSyncDate(raw: String): String? {
+        if (raw.isBlank()) return null
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+
+        fun toIso(day: Int, month: Int, year: Int): String? {
+            if (year < 2000 || year > 2099) return null
+            if (month < 1 || month > 12) return null
+            if (day < 1 || day > 31) return null
+            return String.format(java.util.Locale.US, "%04d-%02d-%02d", year, month, day)
+        }
+
+        // 1. Dash-separated: determine order by size of first part
+        if (raw.contains('-') && !raw.contains('/')) {
+            val parts = raw.split('-').map { it.trim() }
+            if (parts.size == 3) {
+                val a = parts[0].toIntOrNull() ?: return null
+                val b = parts[1].toIntOrNull() ?: return null
+                val c = parts[2].toIntOrNull() ?: return null
+                return when {
+                    a > 31  -> toIso(c, b, a)    // yyyy-MM-dd or yyyy-M-d
+                    c > 31  -> toIso(a, b, c)    // dd-MM-yyyy or d-M-yyyy
+                    else    -> toIso(a, b, if (c < 100) 2000 + c else c)  // dd-MM-yy
+                }
+            }
+        }
+
+        // 2. Slash-separated: always DD/MM (India-only — never MM/DD)
+        if (raw.contains('/')) {
+            val parts = raw.split('/').map { it.trim() }
+            if (parts.size == 3) {
+                val a = parts[0].toIntOrNull() ?: return null
+                val b = parts[1].toIntOrNull() ?: return null
+                val c = parts[2].toIntOrNull() ?: return null
+                val year = if (c < 100) 2000 + c else c
+                // Disambiguate DD/MM vs MM/DD:
+                //   first part > 12  → must be day   (DD/MM: only valid interpretation)
+                //   second part > 12 → must be day   (MM/DD: month can't be >12)
+                //   both ≤ 12        → ambiguous; Google Sheets auto-formats in MM/DD (US locale)
+                val (day, month) = when {
+                    a > 12  -> Pair(a, b)   // DD/MM confirmed: a is day
+                    b > 12  -> Pair(b, a)   // MM/DD confirmed: b is day, a is month
+                    else    -> Pair(b, a)   // ambiguous → assume MM/DD (Sheets US locale)
+                }
+                return toIso(day, month, year)
+            }
+        }
+
+        // 3. Excel / Sheets numeric date serial
+        val serial = raw.toDoubleOrNull()
+        if (serial != null && serial > 40000 && serial < 60000) {
+            val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+            cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+            cal.add(java.util.Calendar.DATE, serial.toInt())
+            return fmt.apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
+        }
+
+        return null
+    }
+
     private fun parseDailyStockRows(rawRows: List<List<Any>>): List<DailyStock> {
         val result = mutableListOf<DailyStock>()
         rawRows.forEachIndexed { idx, row ->
@@ -525,14 +613,7 @@ class SyncCoordinator(private val context: Context) {
                 val productCode = row.getOrNull(1)?.toString().orEmpty().trim()
                 if (rawDate.isEmpty() || productCode.isEmpty()) return@forEachIndexed
 
-                val parsedDate = if (rawDate.contains("-")) rawDate else {
-                    val serial = rawDate.toDoubleOrNull()?.toLong() ?: return@forEachIndexed
-                    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-                    cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-                    cal.add(java.util.Calendar.DATE, serial.toInt())
-                    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
-                }
+                val parsedDate = parseSyncDate(rawDate) ?: return@forEachIndexed
 
                 val isCommitted = row.getOrNull(23)?.toString().orEmpty().trim().uppercase() == "YES"
                 if (!isCommitted) return@forEachIndexed
@@ -613,14 +694,7 @@ class SyncCoordinator(private val context: Context) {
                 else { rawDate = row.getOrNull(1)?.toString().orEmpty().trim(); colOffset = 1 }
                 if (rawDate.isEmpty()) return@forEachIndexed
 
-                val date = if (rawDate.contains("-")) rawDate else {
-                    val serial = rawDate.toDoubleOrNull()?.toLong() ?: return@forEachIndexed
-                    val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-                    cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-                    cal.add(java.util.Calendar.DATE, serial.toInt())
-                    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
-                }
+                val date = parseSyncDate(rawDate) ?: return@forEachIndexed
 
                 fun dbl(col: Int) = row.getOrNull(col + colOffset)?.toString()?.toDoubleOrNull() ?: 0.0
 

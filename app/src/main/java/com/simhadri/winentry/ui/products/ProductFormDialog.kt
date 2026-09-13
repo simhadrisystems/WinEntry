@@ -62,8 +62,8 @@ class ProductFormDialog : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
-            val topPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            binding.headerBar.setPadding(0, topPx, 0, 0)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.headerBar.setPadding(bars.left, bars.top, bars.right, 0)
             insets
         }
 

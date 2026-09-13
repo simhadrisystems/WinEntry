@@ -1,0 +1,7 @@
+Fixed: screens could display incorrectly behind the status bar or navigation bar on some devices — every screen now fits the display correctly edge-to-edge.
+
+Fixed: a rare crash in Settings when requesting Drive Backup if you navigated away while it was loading.
+
+Improved: compatibility with the latest Android version (Android 16).
+
+Various under-the-hood fixes and polish.

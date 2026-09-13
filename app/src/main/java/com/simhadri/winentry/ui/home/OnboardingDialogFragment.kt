@@ -55,7 +55,7 @@ class OnboardingDialogFragment : DialogFragment() {
         // Push content below the status bar — required on Android 15 edge-to-edge dialogs
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(0, bars.top, 0, bars.bottom)
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 

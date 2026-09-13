@@ -50,8 +50,10 @@ class PurchaseExcelHelper(private val context: Context) {
         const val COL_SIZE_CODE = 5
         const val COL_SIZE = 6
         const val COL_QTY_BOXES = 7
-        const val COL_QTY_UNITS = 8
-        const val COL_PURCHASE_PRICE = 9
+        const val COL_QTY_LOOSE = 8
+        // Column 9 ("Qty Units") is the export-only derived total (boxes*perBox+loose) —
+        // import recomputes it via Purchase.calculateTotalUnits, so it's not read here.
+        const val COL_PURCHASE_PRICE = 10
         
         // Date formats — Indian (DD/MM) and ISO only. Never MM/DD (US format).
         val DATE_FORMATS = listOf(
@@ -263,7 +265,7 @@ class PurchaseExcelHelper(private val context: Context) {
                     }
                     
                     // Check if quantity is valid
-                    if (excelRow.qtyBoxes == 0 && excelRow.qtyUnits == 0) {
+                    if (excelRow.qtyBoxes == 0 && excelRow.qtyLoose == 0) {
                         warnings.add("Row ${rowNum + 1}: ${excelRow.productName} ${excelRow.sizeCode} has 0 quantity - skipped")
                         rowNum++
                         continue
@@ -322,10 +324,10 @@ class PurchaseExcelHelper(private val context: Context) {
             
             for (row in rows) {
                 when (row.sizeCode.uppercase()) {
-                    "QQ" -> { qqBoxes += row.qtyBoxes; qqLoose += row.qtyUnits; if (row.purchasePrice > 0) qqUnitPrice = row.purchasePrice }
-                    "PP" -> { ppBoxes += row.qtyBoxes; ppLoose += row.qtyUnits; if (row.purchasePrice > 0) ppUnitPrice = row.purchasePrice }
-                    "NN" -> { nnBoxes += row.qtyBoxes; nnLoose += row.qtyUnits; if (row.purchasePrice > 0) nnUnitPrice = row.purchasePrice }
-                    "DD" -> { ddBoxes += row.qtyBoxes; ddLoose += row.qtyUnits; if (row.purchasePrice > 0) ddUnitPrice = row.purchasePrice }
+                    "QQ" -> { qqBoxes += row.qtyBoxes; qqLoose += row.qtyLoose; if (row.purchasePrice > 0) qqUnitPrice = row.purchasePrice }
+                    "PP" -> { ppBoxes += row.qtyBoxes; ppLoose += row.qtyLoose; if (row.purchasePrice > 0) ppUnitPrice = row.purchasePrice }
+                    "NN" -> { nnBoxes += row.qtyBoxes; nnLoose += row.qtyLoose; if (row.purchasePrice > 0) nnUnitPrice = row.purchasePrice }
+                    "DD" -> { ddBoxes += row.qtyBoxes; ddLoose += row.qtyLoose; if (row.purchasePrice > 0) ddUnitPrice = row.purchasePrice }
                 }
             }
             
@@ -719,7 +721,7 @@ class PurchaseExcelHelper(private val context: Context) {
                 sizeCode = getCellValue(row.getCell(COL_SIZE_CODE)) ?: "",
                 size = getCellValue(row.getCell(COL_SIZE)) ?: "",
                 qtyBoxes = getCellValueAsInt(row.getCell(COL_QTY_BOXES)),
-                qtyUnits = getCellValueAsInt(row.getCell(COL_QTY_UNITS)),
+                qtyLoose = getCellValueAsInt(row.getCell(COL_QTY_LOOSE)),
                 purchasePrice = getCellValueAsDouble(row.getCell(COL_PURCHASE_PRICE))
             )
         } catch (e: Exception) {
@@ -824,7 +826,7 @@ class PurchaseExcelHelper(private val context: Context) {
         val sizeCode: String,
         val size: String,
         val qtyBoxes: Int,
-        val qtyUnits: Int,
+        val qtyLoose: Int,
         val purchasePrice: Double
     )
     

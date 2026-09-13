@@ -47,11 +47,11 @@ object ScrollNavigationHelper {
     ) {
         // ── 1. Raise bottom FAB above system navigation bar ───────────────────
         ViewCompat.setOnApplyWindowInsetsListener(fabBottom) { view, insets ->
-            val navBarHeight = insets.getInsets(
-                WindowInsetsCompat.Type.navigationBars()
-            ).bottom
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val margin = 8.dpToPx(view.context)
             val params = view.layoutParams as ViewGroup.MarginLayoutParams
-            params.bottomMargin = navBarHeight + 8.dpToPx(view.context)
+            params.bottomMargin = bars.bottom + margin
+            params.rightMargin = bars.right + margin
             view.layoutParams = params
             insets
         }

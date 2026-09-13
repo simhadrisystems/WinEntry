@@ -56,8 +56,14 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = bars.top, left = bars.left, right = bars.right)
+            insets
+        }
         ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
-            v.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(bottom = bars.bottom, left = bars.left, right = bars.right)
             insets
         }
 
@@ -472,6 +478,11 @@ class SettingsFragment : Fragment() {
 
             val existingSheetId = existingDoc?.getString("userSheetId")
 
+            // View may have been destroyed while the Firestore call was in flight
+            // (e.g. user backed out of Settings) — requireContext()/binding below
+            // would throw IllegalStateException on a detached fragment.
+            if (_binding == null) return@launch
+
             if (!existingSheetId.isNullOrBlank()) {
                 requireContext()
                     .getSharedPreferences(AuthViewModel.PREFS_NAME, Context.MODE_PRIVATE)
@@ -506,6 +517,10 @@ class SettingsFragment : Fragment() {
                 androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
                 appVersion     = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
             )
+
+            // View may have been destroyed while the Cloud Function call was in
+            // flight — guard before touching requireContext()/binding below.
+            if (_binding == null) return@launch
 
             when (cfResult) {
                 is CreateSheetResult.Success -> {
@@ -569,6 +584,10 @@ class SettingsFragment : Fragment() {
                 android.util.Log.w("SettingsFragment",
                     "Firestore admin_requests write failed: ${e.message}")
             }
+
+            // View may have been destroyed while the Firestore write was in
+            // flight — guard before touching requireContext()/binding below.
+            if (_binding == null) return@launch
 
             if (firestoreOk) {
                 // Registry update skipped here — the onAdminRequestCreated Cloud Function

@@ -63,9 +63,15 @@ class PurchasesListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = bars.top, left = bars.left, right = bars.right)
+            insets
+        }
         val initialBottom = binding.recyclerView.paddingBottom
         ViewCompat.setOnApplyWindowInsetsListener(binding.recyclerView) { v, insets ->
-            v.updatePadding(bottom = initialBottom + insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(bottom = initialBottom + bars.bottom, left = bars.left, right = bars.right)
             insets
         }
 

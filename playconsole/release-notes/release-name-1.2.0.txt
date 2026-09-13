@@ -1,0 +1,1 @@
+6 (1.2.0) — targetSdk 36, edge-to-edge fix, Settings crash fix

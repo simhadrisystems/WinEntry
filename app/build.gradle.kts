@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
 }
@@ -15,13 +14,13 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "com.simhadri.winentry"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.simhadri.winentry"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 5
+        targetSdk = 36
+        versionCode = 6
         versionName = "1.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("Boolean", "FORCE_UPDATE", "false")
@@ -60,10 +59,13 @@ android {
     // Generates one APK per CPU architecture instead of a fat universal APK.
     // Expected saving: 2-4 MB per APK (arm64-v8a covers ~95% of modern devices).
     // For direct APK installs (sideloading to testers), use the arm64-v8a build.
-    // For Play Store, upload all splits and Google serves the right one per device.
+    // For Play Store, upload the AAB (bundleRelease) — Google serves the right ABI per device.
+    // Must be disabled when building an .aab: AGP 9.0.1 fails buildReleasePreBundle with
+    // "Multiple shrunk-resources files found" if abi splits are enabled during bundling.
+    // https://issuetracker.google.com/402800800
     splits {
         abi {
-            isEnable = true
+            isEnable = !gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
             isUniversalApk = false
@@ -73,10 +75,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -101,6 +99,10 @@ android {
     }
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
     // ── Core Android ──────────────────────────────────────────────────────
     implementation("androidx.core:core-ktx:1.12.0")
@@ -111,7 +113,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
     // ── Room Database ─────────────────────────────────────────────────────
-    val roomVersion = "2.6.1"
+    val roomVersion = "2.8.4"
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")

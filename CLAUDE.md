@@ -289,7 +289,9 @@ The toolbar's `android:theme=ThemeOverlay.AppCompat.Dark.ActionBar` bleeds into 
 
 ## Key Dependencies
 
-- **Room 2.6.1** with KSP (not KAPT) for DAOs
+- **Room 2.8.4** with KSP (not KAPT) for DAOs — bumped from 2.6.1 for AGP 9 built-in Kotlin support (2.6.1 hit a KSP2 `unexpected jvm signature V` crash on suspend-Unit DAO methods)
+- **AGP 9.0.1 / Gradle 9.1.0** — no separate `org.jetbrains.kotlin.android` plugin (AGP 9's built-in Kotlin support conflicts with it); JVM target set via top-level `kotlin { jvmToolchain(17) }` in `app/build.gradle.kts`, not `kotlinOptions`. KSP plugin bumped to 2.3.12 (2.3.1+ required for built-in Kotlin compatibility)
+- **compileSdk / targetSdk 36** (Android 16) — bumped from 35 to meet Play's 1 Nov 2026 API-level deadline
 - **Navigation 2.7.6** — single nav graph, nav_graph.xml
 - **Firebase BOM 33.1.0** — Auth + Firestore KTX
 - **Google Sheets API v4** + `google-api-client-android:2.2.0`

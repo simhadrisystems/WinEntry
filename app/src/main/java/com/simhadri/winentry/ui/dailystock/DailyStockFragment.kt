@@ -1135,11 +1135,29 @@ class DailyStockFragment : Fragment() {
     }
 
     private fun setupWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = bars.top, left = bars.left, right = bars.right)
+            insets
+        }
+        // stickyHeaders and unsavedBanner are full-width siblings of the AppBarLayout
+        // (not inside it or the RecyclerView), so they need their own side padding
+        // when the nav bar relocates to a screen edge in landscape.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.stickyHeaders) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(left = bars.left, right = bars.right)
+            insets
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(binding.unsavedBanner) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(left = bars.left, right = bars.right)
+            insets
+        }
         val basePx = (32 * resources.displayMetrics.density).toInt()
         ViewCompat.setOnApplyWindowInsetsListener(binding.productRecyclerView) { v, insets ->
+            val bars   = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val ime    = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            v.updatePadding(bottom = maxOf(navBar, ime) + basePx)
+            v.updatePadding(bottom = maxOf(bars.bottom, ime) + basePx, left = bars.left, right = bars.right)
             insets
         }
     }

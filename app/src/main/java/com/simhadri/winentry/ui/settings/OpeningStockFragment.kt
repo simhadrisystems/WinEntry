@@ -394,11 +394,10 @@ class OpeningStockFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         (activity as? AppCompatActivity)?.supportActionBar?.hide()
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(view) { _, windowInsets ->
-            val statusInsets = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-            val navInsets    = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-            toolbar.setPadding(0, statusInsets.top, 0, 0)
-            bottomBar.setPadding(0, 0, 0, navInsets.bottom)
-            (bottomBar.layoutParams as LinearLayout.LayoutParams).height = dp(52) + navInsets.bottom
+            val bars = windowInsets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            toolbar.setPadding(bars.left, bars.top, bars.right, 0)
+            bottomBar.setPadding(bars.left, 0, bars.right, bars.bottom)
+            (bottomBar.layoutParams as LinearLayout.LayoutParams).height = dp(52) + bars.bottom
             bottomBar.requestLayout()
             windowInsets
         }

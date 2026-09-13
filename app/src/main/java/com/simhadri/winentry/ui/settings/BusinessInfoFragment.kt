@@ -96,12 +96,17 @@ class BusinessInfoFragment : Fragment() {
     }
 
     private fun setupKeyboardNavigation() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = bars.top, left = bars.left, right = bars.right)
+            insets
+        }
         // When keyboard appears, expand scrollContent paddingBottom to keyboard height so
         // the Save button stays accessible above the keyboard, then scroll it into view.
         ViewCompat.setOnApplyWindowInsetsListener(binding.scrollContent) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            v.updatePadding(bottom = maxOf(imeBottom, navBottom))
+            v.updatePadding(bottom = maxOf(imeBottom, bars.bottom), left = bars.left, right = bars.right)
             if (imeBottom > 0) {
                 binding.nestedScrollView.post {
                     binding.nestedScrollView.fullScroll(View.FOCUS_DOWN)

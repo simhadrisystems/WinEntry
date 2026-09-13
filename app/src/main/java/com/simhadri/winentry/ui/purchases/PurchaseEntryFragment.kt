@@ -77,10 +77,16 @@ class PurchaseEntryFragment : Fragment() {
         setupButtons()
         observeViewModel()
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updatePadding(top = bars.top, left = bars.left, right = bars.right)
+            insets
+        }
         // Lift action bar above system nav bar if insets reach this fragment
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val navBar = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            if (navBar > 0) binding.bottomActionBar.updatePadding(bottom = navBar)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.bottomActionBar.updatePadding(bottom = bars.bottom, left = bars.left, right = bars.right)
+            binding.nestedScrollView.updatePadding(left = bars.left, right = bars.right)
             insets
         }
         // After the bar is fully measured, set scroll padding = bar height + 16 dp.

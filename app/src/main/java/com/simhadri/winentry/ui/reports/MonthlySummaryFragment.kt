@@ -63,6 +63,7 @@ class MonthlySummaryFragment : Fragment() {
     private lateinit var headerHScroll: HorizontalScrollView
     private lateinit var dataHScroll:   HorizontalScrollView
     private lateinit var nestedScroll:  androidx.core.widget.NestedScrollView
+    private lateinit var reportHeader:  LinearLayout
 
     // ── Build view programmatically ───────────────────────────────────────────
 
@@ -101,7 +102,7 @@ class MonthlySummaryFragment : Fragment() {
         root.addView(toolbar)
 
         // ── Report header (business name, location, title + inline month nav) ─
-        val reportHeader = LinearLayout(ctx).apply {
+        reportHeader = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -205,7 +206,7 @@ class MonthlySummaryFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            isFillViewport = false
+            isFillViewport = true
             isHorizontalScrollBarEnabled = false
             // Header follows data scroll — block direct touch so user can't drag header independently
             setOnTouchListener { _, _ -> true }
@@ -233,7 +234,10 @@ class MonthlySummaryFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            isFillViewport = false
+            // true so the table (and its row backgrounds) stretches to fill wide/landscape
+            // viewports instead of leaving a blank gap; still scrolls normally when the
+            // table is wider than the viewport (narrow/portrait screens).
+            isFillViewport = true
         }
 
         val tableInner = LinearLayout(ctx).apply {
@@ -298,12 +302,16 @@ class MonthlySummaryFragment : Fragment() {
         // Push toolbar below status bar; pad scroll content above nav bar
         val toolbarHeightPx = (56 * requireContext().resources.displayMetrics.density).toInt()
         ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
-            val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            val navBarHeight    = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            toolbar.setPadding(0, statusBarHeight, 0, 0)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            toolbar.setPadding(bars.left, bars.top, bars.right, 0)
             (toolbar.layoutParams as? LinearLayout.LayoutParams)?.height =
-                toolbarHeightPx + statusBarHeight
-            nestedScroll.setPadding(0, 0, 0, navBarHeight)
+                toolbarHeightPx + bars.top
+            // reportHeader (business name + month nav) and headerHScroll (frozen table
+            // header) are direct siblings of nestedScroll, not inside it — each needs its
+            // own side padding or their content/background extends under a side nav bar.
+            reportHeader.setPadding(bars.left, reportHeader.paddingTop, bars.right, reportHeader.paddingBottom)
+            headerHScroll.setPadding(bars.left, 0, bars.right, 0)
+            nestedScroll.setPadding(bars.left, 0, bars.right, bars.bottom)
             insets
         }
 

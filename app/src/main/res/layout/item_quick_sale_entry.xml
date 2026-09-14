@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="3dp"
+    app:cardElevation="2dp"
+    app:cardCornerRadius="6dp"
+    app:cardBackgroundColor="@color/app_card"
+    app:strokeWidth="1dp"
+    app:strokeColor="@color/app_divider">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Product name row + computed Sale Amount (always visible, both modes) -->
+        <LinearLayout
+            android:id="@+id/rowProductName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#DDEEFF"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/textProductName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Product Name"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#0D47A1"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/textSaleAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹0.00"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#2E7D32"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+        <!-- ═══ OB/CB MODE group — visibility toggled by adapter ═══ -->
+        <LinearLayout
+            android:id="@+id/groupObCb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Excel table zone: header · OB · PQ · SQ -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_excel_table_border">
+
+                <!-- Column headers -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="20dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="4dp"
+                    android:background="#F1F5F9">
+
+                    <TextView
+                        android:id="@+id/textProductCode"
+                        android:layout_width="34dp"
+                        android:layout_height="match_parent"
+                        android:text=""
+                        android:textSize="9sp"
+                        android:textColor="#64748B"
+                        android:gravity="center_vertical"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:ellipsize="end" />
+
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="QQ" android:textSize="13sp" android:textColor="#FF4CAF50" android:gravity="center" android:includeFontPadding="false" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="PP" android:textSize="13sp" android:textColor="#FF2196F3" android:gravity="center" android:includeFontPadding="false" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.1" android:text="NN" android:textSize="13sp" android:textColor="#FFFF9800" android:gravity="center" android:includeFontPadding="false" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="DD" android:textSize="13sp" android:textColor="@color/app_color_dd" android:gravity="center" android:includeFontPadding="false" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/app_divider" />
+
+                <!-- OB row — editable (this screen's Opening is user-typed, not read from DB) -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="8dp" android:paddingEnd="4dp" android:background="@color/daily_ob_row">
+                    <TextView android:layout_width="34dp" android:layout_height="match_parent" android:text="OB" android:textSize="14sp" android:textStyle="bold" android:textColor="#334155" android:gravity="center_vertical" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <EditText android:id="@+id/editOpeningQQ" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_green" android:padding="2dp" />
+                    <EditText android:id="@+id/editOpeningPP" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_blue" android:padding="2dp" android:layout_marginStart="2dp" />
+                    <EditText android:id="@+id/editOpeningNN" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1.1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_orange" android:padding="2dp" android:layout_marginStart="2dp" />
+                    <EditText android:id="@+id/editOpeningDD" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_purple" android:padding="2dp" android:layout_marginStart="2dp" />
+                </LinearLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/app_divider" />
+
+                <!-- PQ row — editable; hidden entirely when "Hide Purchases" is toggled on -->
+                <LinearLayout android:id="@+id/rowPurchase" android:layout_width="match_parent" android:layout_height="36dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="8dp" android:paddingEnd="4dp" android:background="@color/daily_pq_row">
+                    <TextView android:layout_width="34dp" android:layout_height="match_parent" android:text="PQ" android:textSize="14sp" android:textStyle="bold" android:textColor="#334155" android:gravity="center_vertical" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <EditText android:id="@+id/editPurchaseQQ" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_green" android:padding="2dp" />
+                    <EditText android:id="@+id/editPurchasePP" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_blue" android:padding="2dp" android:layout_marginStart="2dp" />
+                    <EditText android:id="@+id/editPurchaseNN" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1.1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_orange" android:padding="2dp" android:layout_marginStart="2dp" />
+                    <EditText android:id="@+id/editPurchaseDD" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:hint="–" android:textSize="16sp" android:textColor="#334155" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_purple" android:padding="2dp" android:layout_marginStart="2dp" />
+                </LinearLayout>
+
+                <View android:id="@+id/dividerAfterPurchase" android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/app_divider" />
+
+                <!-- SQ row — read-only, computed = OB + PQ − CB -->
+                <LinearLayout android:layout_width="match_parent" android:layout_height="34dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="8dp" android:paddingEnd="4dp" android:background="@color/app_surface">
+                    <TextView android:layout_width="34dp" android:layout_height="match_parent" android:text="SQ" android:textSize="14sp" android:textStyle="bold" android:textColor="#334155" android:gravity="center_vertical" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:id="@+id/textSaleQQ" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="0" android:textSize="17sp" android:textStyle="bold" android:textColor="#FF4CAF50" android:gravity="center" android:padding="2dp" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:id="@+id/textSalePP" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="0" android:textSize="17sp" android:textStyle="bold" android:textColor="#FF2196F3" android:gravity="center" android:padding="2dp" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:id="@+id/textSaleNN" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.1" android:text="0" android:textSize="17sp" android:textStyle="bold" android:textColor="#FFFF9800" android:gravity="center" android:padding="2dp" />
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="@color/app_divider" />
+                    <TextView android:id="@+id/textSaleDD" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="0" android:textSize="17sp" android:textStyle="bold" android:textColor="@color/app_color_dd" android:gravity="center" android:padding="2dp" />
+                </LinearLayout>
+
+            </LinearLayout>
+            <!-- end excel table zone -->
+
+            <!-- CB bar — "totals bar" matching Daily Stock's sticky-strip colour, editable.
+                 Adapter enables a size's field only once OB+PQ > 0 for that size, and blocks
+                 any value that would exceed OB+PQ (would create a negative sale). -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@color/daily_cb_bar"
+                android:layout_marginTop="5dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp">
+
+                <TextView android:layout_width="34dp" android:layout_height="match_parent" android:text="CB" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/cb_label_text" android:gravity="center_vertical" />
+
+                <EditText android:id="@+id/editClosingQQ" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_qq" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_green" android:padding="2dp" />
+                <EditText android:id="@+id/editClosingPP" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_pp" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_blue" android:padding="2dp" android:layout_marginStart="3dp" />
+                <EditText android:id="@+id/editClosingNN" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1.1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_nn" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_orange" android:padding="2dp" android:layout_marginStart="3dp" />
+                <EditText android:id="@+id/editClosingDD" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_dd" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_purple" android:padding="2dp" android:layout_marginStart="3dp" />
+
+            </LinearLayout>
+            <!-- end CB bar -->
+
+        </LinearLayout>
+        <!-- end groupObCb -->
+
+        <!-- ═══ DIRECT QTY MODE group — visibility toggled by adapter ═══ -->
+        <LinearLayout
+            android:id="@+id/groupDirect"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/daily_cb_bar"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:visibility="gone">
+
+            <TextView android:layout_width="34dp" android:layout_height="match_parent" android:text="SQ" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/cb_label_text" android:gravity="center_vertical" />
+
+            <EditText android:id="@+id/editDirectQQ" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_qq" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_green" android:padding="2dp" />
+            <EditText android:id="@+id/editDirectPP" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_pp" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_blue" android:padding="2dp" android:layout_marginStart="3dp" />
+            <EditText android:id="@+id/editDirectNN" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1.1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_nn" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_orange" android:padding="2dp" android:layout_marginStart="3dp" />
+            <EditText android:id="@+id/editDirectDD" android:layout_width="0dp" android:layout_height="33dp" android:layout_weight="1" android:text="0" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/cb_text_dd" android:gravity="center" android:inputType="number" android:imeOptions="actionNext" android:selectAllOnFocus="true" android:background="@drawable/border_purple" android:padding="2dp" android:layout_marginStart="3dp" />
+        </LinearLayout>
+        <!-- end groupDirect -->
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

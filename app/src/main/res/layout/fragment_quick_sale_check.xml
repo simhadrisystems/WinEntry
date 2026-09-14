@@ -31,13 +31,13 @@
                 android:paddingEnd="4dp">
 
                 <ImageButton
-                    android:id="@+id/btnPrevDate"
-                    android:layout_width="36dp"
+                    android:id="@+id/btnBack"
+                    android:layout_width="32dp"
                     android:layout_height="match_parent"
                     android:src="@drawable/ic_chevron_left"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="#FF4CAF50"
-                    android:contentDescription="Previous date" />
+                    android:tint="@android:color/white"
+                    android:contentDescription="Back" />
 
                 <Button
                     android:id="@+id/dateButton"
@@ -46,23 +46,14 @@
                     android:layout_weight="1"
                     android:text="Select Date"
                     android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:backgroundTint="@android:color/transparent"
-                    android:paddingStart="4dp"
-                    android:paddingEnd="4dp"
+                    android:paddingStart="2dp"
+                    android:paddingEnd="2dp"
                     android:gravity="center"
                     android:elevation="0dp" />
-
-                <ImageButton
-                    android:id="@+id/btnNextDate"
-                    android:layout_width="36dp"
-                    android:layout_height="match_parent"
-                    android:src="@drawable/ic_chevron_right"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="#FF4CAF50"
-                    android:contentDescription="Next date" />
 
                 <ImageButton
                     android:id="@+id/searchIcon"
@@ -71,8 +62,7 @@
                     android:src="@android:drawable/ic_menu_search"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:tint="@android:color/white"
-                    android:contentDescription="Search"
-                    android:layout_marginStart="2dp" />
+                    android:contentDescription="Search" />
 
                 <FrameLayout
                     android:id="@+id/searchContainer"
@@ -110,25 +100,6 @@
                         android:visibility="gone" />
                 </FrameLayout>
 
-                <View
-                    android:id="@+id/searchSpacer"
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="0" />
-
-                <Button
-                    android:id="@+id/saveButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:text="SAVE"
-                    android:textColor="@android:color/white"
-                    android:textSize="12sp"
-                    android:backgroundTint="#FF388E3C"
-                    android:layout_marginStart="4dp"
-                    android:minWidth="0dp"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp" />
-
                 <ImageButton
                     android:id="@+id/menuButton"
                     android:layout_width="40dp"
@@ -136,14 +107,13 @@
                     android:src="@drawable/ic_more_vert"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="More options"
-                    android:tint="@android:color/white"
-                    android:layout_marginStart="0dp" />
+                    android:tint="@android:color/white" />
 
             </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Sticky Info Bar — mode toggle (left) + Total Day Sale (fills remainder) -->
+    <!-- Sticky Info Bar — mode toggle (left) + Total Sale (fills remainder) -->
     <RelativeLayout
         android:id="@+id/stickyHeaders"
         android:layout_width="match_parent"
@@ -152,16 +122,12 @@
         android:elevation="4dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <!-- Mode toggle cycles VIEW ↔ CB ENTRY.
-             Label shows the ACTION (what tapping will do), not the current state.
-             In VIEW mode → shows "CB Entry" (tap to enter CB mode).
-             In BALANCE mode → shows "View Only" (tap to exit back to view). -->
         <Button
             android:id="@+id/btnModeToggle"
-            android:layout_width="66dp"
+            android:layout_width="76dp"
             android:layout_height="match_parent"
             android:layout_alignParentStart="true"
-            android:text="CB&#10;Entry"
+            android:text="Direct&#10;Qty"
             android:textColor="@android:color/white"
             android:textSize="9sp"
             android:maxLines="2"
@@ -173,7 +139,6 @@
             android:insetTop="0dp"
             android:insetBottom="0dp" />
 
-        <!-- Total Day Sale — always visible, not scrollable -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -187,9 +152,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Total Day Sale"
-                android:textSize="14sp"
-                android:textColor="#FF4CAF50" />
+                android:text="Total Sale (Quick Check)"
+                android:textSize="13sp"
+                android:textColor="@color/reports_quick_sale" />
 
             <TextView
                 android:id="@+id/textTotalSaleStrip"
@@ -198,35 +163,12 @@
                 android:text="₹0.00"
                 android:textSize="17sp"
                 android:textStyle="bold"
-                android:textColor="#FF4CAF50" />
+                android:textColor="@color/reports_quick_sale" />
 
         </LinearLayout>
 
     </RelativeLayout>
 
-    <!-- Unsaved-changes banner -->
-    <TextView
-        android:id="@+id/unsavedBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="⚠️  Unsaved changes — tap 💾 on a card to save, ✖ to cancel edit"
-        android:textSize="11sp"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp"
-        android:background="#E65100"
-        android:visibility="gone"
-        android:elevation="6dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    <!--
-        RecyclerView fills the screen. The reconciliation footer is the last
-        item in the ConcatAdapter — it scrolls in/out naturally with the list.
-        paddingBottom reserves space so the last product card clears the
-        nav bar when scrolled to the bottom.
-    -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/productRecyclerView"
         android:layout_width="match_parent"
@@ -241,7 +183,6 @@
         android:fastScrollAlwaysVisible="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-    <!-- Scroll-to-top FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabScrollTop"
         android:layout_width="wrap_content"
@@ -252,12 +193,11 @@
         android:src="@android:drawable/arrow_up_float"
         android:contentDescription="Scroll to top"
         app:fabSize="mini"
-        app:backgroundTint="#661976D2"
+        app:backgroundTint="#660D9488"
         app:tint="@android:color/white"
         android:visibility="gone"
         android:elevation="6dp" />
 
-    <!-- Scroll-to-bottom FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabScrollBottom"
         android:layout_width="wrap_content"
@@ -268,7 +208,7 @@
         android:src="@android:drawable/arrow_down_float"
         android:contentDescription="Scroll to bottom"
         app:fabSize="mini"
-        app:backgroundTint="#661976D2"
+        app:backgroundTint="#660D9488"
         app:tint="@android:color/white"
         android:visibility="gone"
         android:elevation="6dp" />

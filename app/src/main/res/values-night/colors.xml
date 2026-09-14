@@ -38,6 +38,7 @@
     <color name="reports_closing_light">#022C22</color>   <!-- deep emerald   -->
     <color name="reports_purchase_light">#160630</color>  <!-- deep violet    -->
     <color name="reports_upcoming_light">#1E0A38</color>  <!-- deep purple    -->
+    <color name="reports_quick_sale_light">#042F2E</color> <!-- deep teal      -->
 
     <!-- ── Text colours on dark backgrounds ─────────────────────── -->
     <color name="app_text_primary">#F8FAFC</color>    <!-- Slate-50  — near white  -->

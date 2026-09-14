@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="3dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="?attr/colorSurface">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header band -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/app_toolbar"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DAY-END RECONCILIATION  ·  scratchpad, not saved"
+                android:textSize="11sp"
+                android:letterSpacing="0.04"
+                android:textColor="#CCFFFFFF"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/textReconciliationDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:layout_marginTop="2dp"/>
+
+            <TextView
+                android:id="@+id/textPurchaseSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="#FFFF8A80"
+                android:layout_marginTop="3dp"
+                android:visibility="gone"/>
+        </LinearLayout>
+
+        <!-- Row A: Total sale (Quick Check) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/app_sub_panel"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A   Total sale (Quick Check)"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"/>
+                <TextView
+                    android:id="@+id/textSoldUnitsSummary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="System calculated"
+                    android:textSize="11sp"
+                    android:textColor="#AAFFFFFF"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textTotalDaySales"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹ 0"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"/>
+        </LinearLayout>
+
+        <!-- Row A2: Closing Stock Value — informational, OB/PQ/CB mode only -->
+        <LinearLayout
+            android:id="@+id/rowClosingStockValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/app_sub_panel"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Closing Stock Value"
+                android:textSize="11sp"
+                android:textColor="#AAFFFFFF"/>
+
+            <TextView
+                android:id="@+id/textClosingStockValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹ 0"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#AAFFFFFF"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp"
+            android:background="?attr/colorOutlineVariant"/>
+
+        <!-- Row B: UPI receipts -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/colorSurface"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="B   UPI / Online receipts"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="User enters"
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editUpiReceipts"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:hint="₹ 0"
+                android:gravity="end"
+                android:inputType="number"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:background="@null"
+                android:padding="4dp"
+                android:imeOptions="actionNext"
+                android:nextFocusDown="@id/editDayExpenses"
+                android:importantForAutofill="no"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp"
+            android:background="?attr/colorOutlineVariant"/>
+
+        <!-- Row C: Day expenses -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="#FFF3F3"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="C   Day expenses"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#C62828"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="User enters"
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editDayExpenses"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:hint="₹ 0"
+                android:gravity="end"
+                android:inputType="number"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#C62828"
+                android:background="@null"
+                android:padding="4dp"
+                android:imeOptions="actionNext"
+                android:nextFocusDown="@id/editDeposits"
+                android:importantForAutofill="no"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp"
+            android:background="?attr/colorOutlineVariant"/>
+
+        <!-- Row D: Cash for deposit -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/colorSurface"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="D   Cash for deposit"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="A − B − C"
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textCashForDeposit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹ 0"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp"
+            android:background="?attr/colorOutlineVariant"/>
+
+        <!-- Row E: Bank deposits -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/colorSurface"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="E   Bank deposits"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cash deposited today"
+                    android:textSize="11sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"/>
+            </LinearLayout>
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editDeposits"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:hint="₹ 0"
+                android:gravity="end"
+                android:inputType="number"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:background="@null"
+                android:padding="4dp"
+                android:imeOptions="actionNext"
+                android:nextFocusDown="@id/editNotes"
+                android:importantForAutofill="no"/>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="0.5dp"
+            android:background="?attr/colorOutlineVariant"/>
+
+        <!-- Row F: Notes -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#F3F8FF"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="F   Notes"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginBottom="4dp"/>
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editNotes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Optional remarks"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="1"
+                android:maxLines="4"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:background="@null"
+                android:padding="4dp"
+                android:gravity="start"
+                android:importantForAutofill="no"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

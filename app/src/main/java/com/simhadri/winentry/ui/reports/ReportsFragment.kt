@@ -207,6 +207,14 @@ class ReportsFragment : Fragment() {
                 findNavController().navigate(R.id.action_reports_to_monthlySummary)
             }
         }
+
+        // ── Quick Sale Check ───────────────────────────────────────
+        binding.btnQuickSaleOpen.setOnClickListener {
+            findNavController().navigate(R.id.action_reports_to_quickSaleCheck)
+        }
+        binding.cardQuickSaleCheck.setOnClickListener {
+            findNavController().navigate(R.id.action_reports_to_quickSaleCheck)
+        }
     }
 
     override fun onDestroyView() {
@@ -265,6 +273,8 @@ class ReportsFragment : Fragment() {
         binding.textDailySheetDesc.text             = AppStrings.reportsDailySheetDesc.get(lang)
         binding.textMonthlySaleTitle.text           = AppStrings.reportsMonthlySaleTitle.get(lang)
         binding.textMonthlySaleDesc.text            = AppStrings.reportsMonthlySaleDesc.get(lang)
+        binding.textQuickSaleTitle.text              = AppStrings.reportsQuickSaleTitle.get(lang)
+        binding.textQuickSaleDesc.text               = AppStrings.reportsQuickSaleDesc.get(lang)
         binding.textClosingBalancesTitle.text       = AppStrings.reportsClosingBalancesTitle.get(lang)
         binding.textClosingBalancesDesc.text        = AppStrings.reportsClosingBalancesDesc.get(lang)
         binding.textBrandWiseTitle.text             = AppStrings.reportsBrandWiseTitle.get(lang)
@@ -288,11 +298,13 @@ class ReportsFragment : Fragment() {
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11f)
         for (v in listOf(binding.textDailySheetTitle, binding.textMonthlySaleTitle,
                          binding.textClosingBalancesTitle, binding.textBrandWiseTitle,
-                         binding.textPurchaseReportTitle, binding.textSalesMarginTitle))
+                         binding.textPurchaseReportTitle, binding.textSalesMarginTitle,
+                         binding.textQuickSaleTitle))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
         for (v in listOf(binding.textDailySheetDesc, binding.textMonthlySaleDesc,
                          binding.textClosingBalancesDesc, binding.textBrandWiseDesc,
-                         binding.textPurchaseReportDesc, binding.textSalesMarginDesc))
+                         binding.textPurchaseReportDesc, binding.textSalesMarginDesc,
+                         binding.textQuickSaleDesc))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 

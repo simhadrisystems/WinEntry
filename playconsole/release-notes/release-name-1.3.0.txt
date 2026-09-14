@@ -1,0 +1,1 @@
+7 (1.3.0) — Quick Sale Check, targetSdk 36, edge-to-edge fixes, Settings crash fix, Excel import price fix

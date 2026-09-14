@@ -56,6 +56,22 @@ object ScrollNavigationHelper {
             insets
         }
 
+        // ── 1b. Push top FAB below the status bar (edge-to-edge devices) ──────
+        // fabTop sits directly under the CoordinatorLayout, not inside the
+        // AppBarLayout's scrolling area, so on edge-to-edge screens (toolbar
+        // padded down by the status-bar inset) it must get the same inset
+        // added on top of its XML marginTop or it ends up floating over the
+        // toolbar's own buttons (e.g. the 3-dot menu) instead of below them.
+        val baseTopMargin = (fabTop.layoutParams as ViewGroup.MarginLayoutParams).topMargin
+        ViewCompat.setOnApplyWindowInsetsListener(fabTop) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val params = view.layoutParams as ViewGroup.MarginLayoutParams
+            params.topMargin = bars.top + baseTopMargin
+            params.rightMargin = bars.right + 8.dpToPx(view.context)
+            view.layoutParams = params
+            insets
+        }
+
         // ── 2. Dim at rest, opaque on touch ───────────────────────────────────
         val touchFade = View.OnTouchListener { view, event ->
             when (event.action) {

@@ -186,6 +186,14 @@
             app:popEnterAnim="@android:anim/slide_in_left"
             app:popExitAnim="@android:anim/slide_out_right" />
 
+        <action
+            android:id="@+id/action_reports_to_quickSaleCheck"
+            app:destination="@id/quickSaleCheckFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@android:anim/slide_in_left"
+            app:popExitAnim="@android:anim/slide_out_right" />
+
     </fragment>
 
     <fragment
@@ -193,6 +201,12 @@
         android:name="com.simhadri.winentry.ui.reports.ReportViewerFragment"
         android:label="Report Viewer"
         tools:layout="@layout/fragment_report_viewer" />
+
+    <fragment
+        android:id="@+id/quickSaleCheckFragment"
+        android:name="com.simhadri.winentry.ui.quicksale.QuickSaleCheckFragment"
+        android:label="Quick Sale Check"
+        tools:layout="@layout/fragment_quick_sale_check" />
 
     <!-- Settings Fragment -->
     <fragment

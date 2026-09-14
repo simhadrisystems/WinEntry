@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_quick_sale_toggle_purchase"
+        android:title="Hide Purchase Row"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_refresh_prices"
+        android:title="Refresh Prices"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_export"
+        android:title="Export"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_export_for_daily_stock"
+        android:title="Export Closing for Daily Stock Import"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_import"
+        android:title="Import"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_print"
+        android:title="Print"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_print_closing_stock"
+        android:title="Print Closing Stock"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quick_sale_clear_all"
+        android:title="Clear All"
+        app:showAsAction="never" />
+
+</menu>

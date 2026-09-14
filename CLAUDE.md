@@ -11,6 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Release build (minified, per-ABI APKs)
 ./gradlew assembleRelease
 
+# Release AAB (for Play Store upload)
+./gradlew bundleRelease
+
 # Run unit tests
 ./gradlew test
 
@@ -24,7 +27,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew clean assembleDebug
 ```
 
-The release build generates separate APKs per ABI (`arm64-v8a`, `armeabi-v7a`, `x86_64`). For sideloading to testers, use `arm64-v8a`. For Play Store, upload all splits.
+The release build generates separate APKs per ABI (`arm64-v8a`, `armeabi-v7a`, `x86_64`). For sideloading to testers, use `arm64-v8a`. For Play Store, upload the **AAB** from `bundleRelease` — Google serves the right ABI per device automatically.
+
+**Gotcha:** `./gradlew bundleRelease assembleRelease` in one invocation silently disables the per-ABI APK splits for both tasks (`splits.abi.isEnable` checks `gradle.startParameter.taskNames` for any "bundle" task, build-wide) — you'll get one fat universal `app-release.apk` instead of three per-ABI ones. Run them as two separate `./gradlew` invocations if you need both a real AAB and real per-ABI APKs from the same source state.
 
 ## Version History
 
@@ -35,6 +40,8 @@ The release build generates separate APKs per ABI (`arm64-v8a`, `armeabi-v7a`, `
 | 1.0.2 | 3 | 4 | Day reconciliation crash fix (Android 9), deposits field (Migration 3→4), invite system, OAuth fix |
 | 1.1.0 | 4 | 4 | In-app update detection, Getting Started onboarding flow, edge-to-edge (Android 15), delete dialog fixes |
 | 1.2.0 | 5 | 5 | Profit Reports & Date Received — Sales & Profit Margin report, Date Received on purchases, committed price lock, cascade-clear, deactivation guard, auto-activate on import, report watermark, Downloads save |
+| 1.2.0 | 6 | 5 | **Internal test only — never shipped to production.** targetSdk 36, edge-to-edge fixes across all screens (including Login, Opening Stock Setup), Settings Drive-Backup crash fix, Excel-imported-purchase wrong-unit-price fix. Superseded by 1.3.0/vc7, which bundles all of this. |
+| 1.3.0 | 7 | 5 | Ships everything from vc6 (above) plus **Quick Sale Check** (new Reports scratchpad — see `ui/quicksale/` section below), and the scroll-to-top FAB overlapping the 3-dot menu fix (`ScrollNavigationHelper`, 5 screens). First production release since 1.2.0/vc5. |
 
 ### v1.2.0 — V5 Changes (2026-06-09)
 
@@ -148,7 +155,7 @@ Navigation graph with five main destinations reachable via bottom navigation:
 - **Home** — sync trigger, sign-in, Getting Started onboarding card
 - **Daily Stock** (`DailyStockFragment` + `DailyStockViewModel`) — core daily workflow; entry mode switches between opening-balance and closing-balance modes
 - **Purchases** — purchase entry (`PurchaseEntryFragment`) and list/export (`PurchasesListFragment`)
-- **Reports** — monthly summary and report viewer
+- **Reports** — monthly summary, report viewer, and Quick Sale Check (scratchpad)
 - **Settings** — product list management, product sort order, opening stock, business info
 
 `DailyStockViewModel` handles the day-to-day entry; `DailyStockDataViewModel` handles import/export/data-management operations for the same screen to keep the core ViewModel focused.
@@ -171,6 +178,25 @@ New users see a **Getting Started** module card on the Home screen (amber, alway
 - Card dismissal is persisted via `inventory_prefs["onboarding_card_dismissed"]`
 
 Navigation clicks in `OnboardingDialogFragment` do **not** call `dismiss()` — the dialog stays in `childFragmentManager` and re-appears automatically when the user navigates back from BusinessInfo or OpeningStock.
+
+### Quick Sale Check (`ui/quicksale/`) — shipping in 1.3.0/vc7, started 2026-09-13
+
+A scratchpad version of the Daily Stock workflow, reachable from Reports → "Quick Sale Check" (next to "Daily Stock Sheet"). Lets the user sanity-check a day's sale numbers — type Opening/Purchase/Closing (or toggle to "Direct Qty" mode and type Sale Qty directly) per product/size, computed against current Products-module sale prices — **without ever reading from or writing to `daily_stock`/`purchases`**.
+
+**Isolation constraint (must hold for every future change here too):** never read from or write to `DailyStockDao`, `PurchaseDao`, `DailyStockRepository`, `PurchaseRepository`, `DailyStockViewModel`, `DailyStockFragment`, `DailyStockExcelHelper`, `PurchaseExcelHelper`, `SyncCoordinator`, `CloudSyncManager`. The only read-only reuse allowed is `ProductDao`'s existing query methods, the `Product` entity, `ProductCodeResolver`, `FileDownloadHelper.exportToDownloadsAndShare()`, `ScrollNavigationHelper`. Every file for this feature lives in `ui/quicksale/` or is its own standalone `utils/QuickSaleExcelHelper.kt` / footer layout — never edit a Daily-Stock-owned file to add functionality here, even cross-module import/export support.
+
+Key points:
+- `QuickSaleViewModel` (`activityViewModels()`, not `viewModels()`) holds everything in memory — survives navigating away and back within a session, resets on app close.
+- `QuickSaleEntryAdapter` mirrors `DailyEntryAdapter`'s visual language (row colours, CB bar) and its two Closing-field rules: a size's CB is only editable once Opening+Purchase>0 for that size, and CB can never exceed Opening+Purchase (red border + blocked, not just a visual warning) — prevents negative sales.
+- Reconciliation footer (UPI/Expenses/Deposits/Notes/Cash-for-deposit) scrolls with the list via `ConcatAdapter` + `QuickSaleFooterAdapter`, mirroring `DailyStockFragment`'s footer pattern but fully in-memory.
+- The date button at the top is a **label only** (stamps print/export headers) — there's no per-date storage, just one ongoing scratchpad.
+- `QuickSaleExcelHelper.importQuickSaleSheet()` auto-detects three Excel formats by header marker: this screen's own export ("Code" header), the real Daily Stock Sheet report export ("PRODUCT NAME" header, matched by display name), and Daily Stock's Closing-Balances template/export ("DATE_CLOSING" header, Type+BrandCode with the same zero-padding-tolerant matching `DailyStockImportHelper` uses). It also detects the source file's date and updates the working-date label.
+- "Export Closing for Daily Stock Import" (3-dot menu) writes a file in the exact layout `DailyStockImportHelper.importClosingOnly()` already reads, so a Closing value checked here can be carried into the real module via its own Import Closing Balances feature — closing the loop both ways without touching that file.
+- `QuickSaleViewModel.refreshProducts()` re-reads the active product list on every `onResume()` (plus a manual "Refresh Prices" menu action) and **rebuilds `rowsById` from scratch in the freshly-queried order** — updating in place instead would silently keep the original load's row order even after a display-order change elsewhere, since `LinkedHashMap` preserves insertion order regardless of value updates.
+- The search filter (`_searchQuery`) is cleared in `onDestroyView()` regardless of exit path — the search bar UI always looks empty/collapsed on next entry even though the ViewModel (Activity-scoped) would otherwise keep the last query alive, silently hiding products with no visible sign why.
+- Export's "Code" column is the **plain** `brandCode` (matches what's shown on screen), so import matches against `Product.getAllBrandCodes()` directly — never `ProductCodeResolver`, which is keyed by the *prefixed* `stockCode` and would silently fail to match most real-world (plain-numeric) brand codes.
+- The exported title cell carries a `[MODE:OB_CB]` / `[MODE:DIRECT_QTY]` marker so re-importing the screen's own export restores Direct Qty mode data (Sale Qty columns) correctly and switches the mode to match; the day-end reconciliation figures (UPI/Expenses/Deposits/Notes) are written below the totals row and restored the same way.
+- `QuickSaleRow.closingStockValue()` (closing qty × current sale price) is shown in the reconciliation footer under "Total sale" — OB_CB mode only, since Direct Qty never touches `closing`. A parallel **"Print Closing Stock"** menu action mirrors the sale report's full OB/PQ/CB/SQ table but with a Closing Value column and grand-total box, instead of Sale Amount.
 
 ### In-App Update Detection (`ui/update/AppUpdateManager.kt`)
 
@@ -211,6 +237,7 @@ Products have a `brandCode` (primary, e.g. `"W1249"`) and optional `aliases` (co
 - `ExcelHelper` / `PurchaseExcelHelper` — export purchases to `.xlsx`
 - `DailyStockExcelHelper` — export daily stock
 - `DailyStockImportHelper` — import daily stock from Excel
+- `QuickSaleExcelHelper` — export/import for the Quick Sale Check scratchpad (see `ui/quicksale/` section above); standalone, does not touch the two helpers above
 - All use Apache POI 5.2.5
 
 ### Google Sheets Column Layouts

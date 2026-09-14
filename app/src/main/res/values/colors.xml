@@ -90,6 +90,8 @@
     <color name="reports_upcoming_light">#F3E8FF</color>      <!-- Purple-100   -->
     <color name="reports_margin">#EA580C</color>              <!-- Orange-600   -->
     <color name="reports_margin_light">#FFF7ED</color>        <!-- Orange-50    -->
+    <color name="reports_quick_sale">#0D9488</color>          <!-- Teal-600     -->
+    <color name="reports_quick_sale_light">#F0FDFA</color>    <!-- Teal-50      -->
 
     <!-- ── Daily stock row backgrounds ─────────────────────────── -->
     <color name="daily_ob_row">#FFFBEB</color>               <!-- Amber-50  — Opening Balance row  -->

@@ -1,0 +1,9 @@
+New: Quick Sale Check — sanity-check a day's sale numbers anytime from Reports, without touching saved Daily Stock or Purchases data. Type quantities, see the value instantly, export/import as Excel, or print.
+
+Fixed: a rare crash in Settings during Drive Backup.
+
+Fixed: some screens could display behind the status/navigation bar on certain devices.
+
+Fixed: Excel-imported purchases could record the wrong unit price.
+
+Improved: compatibility with Android 16.

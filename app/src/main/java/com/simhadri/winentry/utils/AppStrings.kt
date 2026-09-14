@@ -315,6 +315,14 @@ object AppStrings {
         en = "Day-end totals · UPI receipts · Expenses · Cash deposit",
         te = "రోజుచివర్న వచ్చిన మొత్తం వివరాలు · UPI బ్యాంకు ద్వారా · ఖర్చులు · నగదు జమ"
     )
+    val reportsQuickSaleTitle = L(
+        en = "Quick Sale Check",
+        te = "శీఘ్ర అమ్మకాల తనిఖీ"
+    )
+    val reportsQuickSaleDesc = L(
+        en = "Scratchpad OB · PQ · CB — not linked to saved data",
+        te = "తాత్కాలిక OB · PQ · CB లెక్క — భద్రపరచిన డేటాతో సంబంధం లేదు"
+    )
     val reportsClosingBalancesTitle = L(
         en = "Closing Balances",
         te = "ముగింపు నిల్వలు CB"

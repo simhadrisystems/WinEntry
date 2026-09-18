@@ -9,6 +9,12 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# Flatten renamed classes into a single top-level package. Only affects
+# classes R8 already decided to obfuscate (kept classes are unaffected),
+# so this is behavior-neutral — pure win for Play Console's "Repackage
+# classes" signal and a smaller string pool for package name segments.
+-repackageclasses
+
 # Strip verbose log calls from release builds.
 # Log.w and Log.e are kept — they guard real error paths.
 # Log.d / Log.i / Log.v are development-only and log business data (product
@@ -27,15 +33,11 @@
 -keep class com.simhadri.winentry.R$layout { *; }
 -keep class com.simhadri.winentry.R$id { *; }
 -keep class com.simhadri.winentry.R$navigation { *; }
-# Room entities, Firestore models and data classes use reflection for
-# field access — R8 must not rename or remove their fields.
-
--keep class com.simhadri.winentry.data.entity.** { *; }
--keep class com.simhadri.winentry.data.repository.** { *; }
--keep class com.simhadri.winentry.data.UserProfile { *; }
--keepclassmembers class com.simhadri.winentry.** {
-    public <init>(...);
-}
+# Room's generated Dao_Impl/RoomDatabase_Impl classes access entity fields
+# via direct compiled calls, not reflection — R8 renames both sides
+# consistently, so entities/repositories need no blanket app-wide keep here.
+# @Entity classes are already fully kept below (Room section); repositories
+# are plain Kotlin wrappers with no reflection or serialization.
 
 # ── Room ─────────────────────────────────────────────────────────────────
 -keep class * extends androidx.room.RoomDatabase { *; }
@@ -46,19 +48,22 @@
 }
 
 # ── Firebase Auth ─────────────────────────────────────────────────────────
--keep class com.google.firebase.auth.** { *; }
--keep class com.google.firebase.auth.internal.** { *; }
+# firebase-auth's own bundled proguard.txt already keeps what its internal
+# reflection actually touches (com.google.android.gms.internal.** response
+# classes) — our app only calls the public Auth API directly (currentUser,
+# signInWithCredential, etc.), which R8 keeps reachable on its own. No
+# blanket package keep needed; GoogleAuthProvider name is kept as a
+# narrow safety net since app code may look it up by provider id string.
 -keepnames class com.google.firebase.auth.GoogleAuthProvider { *; }
 
 # ── Firebase Firestore ────────────────────────────────────────────────────
-# Firestore uses reflection to map documents to data classes
--keep class com.google.firebase.firestore.** { *; }
--keepnames class com.google.firebase.firestore.** { *; }
+# firebase-firestore's own bundled proguard.txt has no -keep rules at all —
+# it relies on the app to protect only its own POJO model classes used with
+# toObject()/DocumentId/ServerTimestamp. UserProfile is the only such model.
 -keepclassmembers class * {
     @com.google.firebase.firestore.DocumentId <fields>;
     @com.google.firebase.firestore.ServerTimestamp <fields>;
 }
-# Keep all classes that Firestore deserializes into (toObject calls)
 -keep class com.simhadri.winentry.data.UserProfile { *; }
 
 # ── Google Sign-In / GMS ─────────────────────────────────────────────────
@@ -74,21 +79,27 @@
 # in code — but the system needs them at runtime via reflection.
 -keep class com.google.android.gms.auth.api.signin.** { *; }
 -keep class com.google.android.gms.auth.api.signin.internal.** { *; }
--keepclassmembers class com.google.android.gms.auth.api.signin.** {
-    <init>(...);
-    <fields>;
-}
--keepclassmembers class com.google.android.gms.auth.api.signin.internal.** {
-    <init>(...);
-    <fields>;
-}
+# The two -keepclassmembers blocks that used to follow (repeating <init>/
+# <fields> for the same two packages) were fully redundant — the -keep
+# rules above already retain every member via `{ *; }`. Verified play-
+# services-auth-20.7.0.aar ships zero bundled consumer proguard rules
+# (only META-INF/MANIFEST.MF), so the internal.** keep above is the only
+# protection for its ~25 Parcelable internal classes — do not narrow it
+# without testing sign-in end to end.
 
 # ── Google API Client (Sheets) ────────────────────────────────────────────
--keep class com.google.api.** { *; }
--keep class com.google.api.client.** { *; }
--keep class com.google.api.services.sheets.** { *; }
--keep class com.google.api.services.drive.** { *; }
--keepclassmembers class com.google.api.** {
+# google-http-client ships NO consumer proguard rules of its own, so its
+# GenericJson reflection (field mapping via @Key, plus reflective
+# instantiation of nested request/response types) is unprotected unless we
+# keep it here. Narrowed from a blanket `com.google.api.** { *; }` (which
+# kept every internal http/googleapis/json class fully unobfuscated) to just
+# the Sheets model classes and the GenericJson base's own reflection needs.
+-keep class com.google.api.services.sheets.v4.** { *; }
+-keepclassmembers class * extends com.google.api.client.json.GenericJson {
+    public <init>();
+    <fields>;
+}
+-keepclassmembers class * {
     @com.google.api.client.util.Key <fields>;
 }
 -dontwarn com.google.api.**
@@ -139,8 +150,18 @@
 -keep class * extends org.apache.poi.ooxml.POIXMLRelation { *; }
 -keep class * extends org.apache.xmlbeans.XmlObject { *; }
 -keep class * extends org.apache.xmlbeans.impl.schema.SchemaTypeSystemImpl { *; }
-# Critical: keep ALL classes that have a no-arg constructor and are in
-# packages that POI uses for its type registry
+# RESTORED after a live regression test on device: narrowing this to just
+# the named POI/xmlbeans/schema packages below is NOT safe. XmlBeans
+# compiles each schema into a synthetically-named top-level package (e.g.
+# "schemaorg_apache_xmlbeans.system.sXXXXXXXX") holding a TypeSystemHolder
+# class that XmlBeans instantiates reflectively via a no-arg constructor —
+# that package name isn't known statically and isn't covered by any of the
+# "{ *; }" package keeps above. Removing this blanket rule reproduced a
+# confirmed crash on Product Master Excel import:
+# "IllegalArgumentException: class cc: java.lang.NoSuchMethodException:
+# cc.<init> []" (an obfuscated class whose no-arg constructor R8 had
+# stripped). Keep this app-wide even though it also protects constructors
+# outside POI's own needs.
 -keepclassmembers class ** {
     public <init>();
 }
@@ -172,9 +193,28 @@
 -dontwarn com.graphbuilder.**
 -dontwarn org.etsi.**
 
+# ── Log4j (transitive dependency of Apache POI 5.2.x) ─────────────────────
+# POI 5.2.x logs internally via log4j-api. log4j's StatusLogger/
+# PropertySource discovery reflectively instantiates implementation
+# classes via Class.newInstance() during its static initializer
+# (org.apache.logging.log4j.status.StatusLogger.<clinit>). log4j-api ships
+# no consumer proguard rules of its own. CONFIRMED CRASH without this
+# keep: InstantiationException at org.apache.logging.log4j.status.a.<clinit>
+# the moment any POI Workbook is touched (Excel import/export) — this was
+# previously protected only incidentally by a blanket app-wide
+# "public <init>()" rule; when that was narrowed to remove app-wide
+# over-protection, log4j needed its own explicit keep since it isn't part
+# of the POI/xmlbeans/openxmlformats/schema package tree kept above.
+-keep class org.apache.logging.log4j.** { *; }
+-dontwarn org.apache.logging.log4j.**
+
 # ── WorkManager ───────────────────────────────────────────────────────────
--keep class * extends androidx.work.Worker { *; }
--keep class * extends androidx.work.CoroutineWorker { *; }
+# WorkManager persists the worker's fully-qualified class name as a string
+# and reconstructs it via reflection later — the class name must survive,
+# but (narrowed from a blanket `{ *; }`) its internal methods/fields don't
+# need protecting beyond the constructor WorkManager actually calls.
+-keep class * extends androidx.work.Worker
+-keep class * extends androidx.work.CoroutineWorker
 -keepclassmembers class * extends androidx.work.Worker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
@@ -185,11 +225,19 @@
 -keep class com.simhadri.winentry.sync.SyncWorker { *; }
 
 # ── Navigation Component ──────────────────────────────────────────────────
+# Navigation instantiates destination fragments reflectively by class name
+# from nav_graph.xml — only the name + no-arg constructor need protecting
+# (narrowed from a blanket `{ *; }` that kept every fragment's full body).
 -keepnames class androidx.navigation.** { *; }
--keep class * extends androidx.fragment.app.Fragment { *; }
+-keep class * extends androidx.fragment.app.Fragment {
+    public <init>();
+}
 
 # ── Kotlin ────────────────────────────────────────────────────────────────
--keep class kotlin.** { *; }
+# No kotlin-reflect usage in this app — a blanket `kotlin.** { *; }` kept
+# the entire stdlib (collections/text/sequences helpers included) fully
+# unobfuscated and unshrunk for no reason; only Metadata + coroutines names
+# are actually needed.
 -keep class kotlin.Metadata { *; }
 -keepclassmembers class kotlin.Metadata {
     public <methods>;

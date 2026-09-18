@@ -150,21 +150,22 @@
 -keep class * extends org.apache.poi.ooxml.POIXMLRelation { *; }
 -keep class * extends org.apache.xmlbeans.XmlObject { *; }
 -keep class * extends org.apache.xmlbeans.impl.schema.SchemaTypeSystemImpl { *; }
-# RESTORED after a live regression test on device: narrowing this to just
-# the named POI/xmlbeans/schema packages below is NOT safe. XmlBeans
-# compiles each schema into a synthetically-named top-level package (e.g.
-# "schemaorg_apache_xmlbeans.system.sXXXXXXXX") holding a TypeSystemHolder
-# class that XmlBeans instantiates reflectively via a no-arg constructor —
-# that package name isn't known statically and isn't covered by any of the
-# "{ *; }" package keeps above. Removing this blanket rule reproduced a
-# confirmed crash on Product Master Excel import:
-# "IllegalArgumentException: class cc: java.lang.NoSuchMethodException:
-# cc.<init> []" (an obfuscated class whose no-arg constructor R8 had
-# stripped). Keep this app-wide even though it also protects constructors
-# outside POI's own needs.
--keepclassmembers class ** {
-    public <init>();
-}
+# The blanket "public <init>() for every class in the app" rule that used
+# to stand here was verified (2026-09-18, by unzipping the actual
+# poi-ooxml-lite:5.2.5 / xmlbeans:5.2.0 jars this project depends on) to be
+# based on a wrong package name — "schemaorg_apache_xmlbeans.system.sXXXXXXXX"
+# does not exist in these jars. The real reflectively-instantiated schema
+# holder classes are the fixed (non-random) ones kept below:
+#   org/apache/poi/schemas/ooxml/system/ooxml/TypeSystemHolder.class
+#   org/apache/xmlbeans/metadata/system/{sXMLCONFIG,sXMLLANG,sXMLSCHEMA,sXMLTOOLS}/TypeSystemHolder.class
+#   org/apache/xmlbeans/impl/schema/TypeSystemHolder.class
+# This replaces the app-wide blanket that was masking this wrong assumption.
+# Confirmed crash history if this is under-scoped: "IllegalArgumentException:
+# class cc: java.lang.NoSuchMethodException: cc.<init> []" on Product Master
+# Excel import — regression-test that exact flow before shipping.
+-keep class org.apache.poi.schemas.ooxml.system.ooxml.TypeSystemHolder { *; }
+-keep class org.apache.xmlbeans.metadata.system.** { *; }
+-keep class org.apache.xmlbeans.impl.schema.TypeSystemHolder { *; }
 -keepclassmembers class * extends org.apache.poi.** {
     public <init>();
     public <init>(...);
@@ -192,6 +193,21 @@
 -dontwarn javax.imageio.**
 -dontwarn com.graphbuilder.**
 -dontwarn org.etsi.**
+
+# ── Commons Compress (transitive dependency of Apache POI's OOXML writer) ─
+# org.apache.commons:commons-compress:1.25.0 backs POI's ZIP writing when
+# saving .xlsx files. ExtraFieldUtils registers its ZIP "extra field" impl
+# classes (X5455_ExtendedTimestamp, X000A_NTFS, AsiExtraField, etc.) via
+# reflective no-arg instantiation in a static initializer. CONFIRMED CRASH
+# without this keep: ExceptionInInitializerError / IllegalArgumentException
+# "NoSuchMethodException: <init> []" on Excel export (ZipContentTypeManager
+# .saveImpl -> ZipArchiveEntry.setTime -> ExtraFieldUtils) — this was also
+# only incidentally covered before by the old app-wide "public <init>()"
+# rule, undocumented until this crash surfaced after narrowing it.
+-keepclassmembers class org.apache.commons.compress.archivers.zip.** {
+    public <init>();
+}
+-dontwarn org.apache.commons.compress.**
 
 # ── Log4j (transitive dependency of Apache POI 5.2.x) ─────────────────────
 # POI 5.2.x logs internally via log4j-api. log4j's StatusLogger/

@@ -326,11 +326,15 @@ class HomeFragment : Fragment() {
     }
 
     private fun refreshProfileButton() {
-        val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
-        if (photoUrl == null) {
+        val rawPhotoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
+        if (rawPhotoUrl == null) {
             resetToPersonIcon()
             return
         }
+        // btnMenu is a 36dp circular icon — fetching/decoding whatever full resolution
+        // Google happens to serve wastes network and memory for a thumbnail this small.
+        val targetPx = (36 * resources.displayMetrics.density * 2).toInt().coerceAtLeast(96)
+        val photoUrl = sizedPhotoUrl(rawPhotoUrl, targetPx)
         if (photoUrl == cachedPhotoUrl && cachedPhotoBitmap != null) {
             binding.btnMenu.setPadding(0, 0, 0, 0)
             binding.btnMenu.setImageBitmap(cachedPhotoBitmap)
@@ -342,7 +346,7 @@ class HomeFragment : Fragment() {
                     val conn = URL(photoUrl).openConnection() as HttpURLConnection
                     conn.doInput = true
                     conn.connect()
-                    BitmapFactory.decodeStream(conn.inputStream)
+                    decodeSampledBitmap(conn.inputStream.readBytes(), targetPx)
                 } catch (_: Exception) {
                     null
                 }
@@ -358,6 +362,30 @@ class HomeFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Google's photo CDN honours a "=sNN-c" size suffix, returning an already-downsampled
+     *  image instead of full resolution — far cheaper than downsampling on-device. */
+    private fun sizedPhotoUrl(url: String, targetPx: Int): String {
+        if (!url.contains("googleusercontent.com")) return url
+        return url.substringBefore("=s") + "=s$targetPx-c"
+    }
+
+    /** Safety-net downsample in case the CDN size hint above didn't take effect. RGB_565
+     *  (no alpha channel) halves decoded memory versus the default ARGB_8888 — fine for a
+     *  JPEG profile photo with no transparency. */
+    private fun decodeSampledBitmap(bytes: ByteArray, targetPx: Int): android.graphics.Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sampleSize = 1
+        while (bounds.outWidth / (sampleSize * 2) >= targetPx && bounds.outHeight / (sampleSize * 2) >= targetPx) {
+            sampleSize *= 2
+        }
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
     }
 
     private fun resetToPersonIcon() {

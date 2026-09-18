@@ -65,4 +65,15 @@ data class QuickSaleRow(
         closing.pp * product.ppSalePrice +
         closing.nn * product.nnSalePrice +
         closing.dd * product.ddSalePrice
+
+    /** Same as [closingStockValue] but at current purchase price — the cost basis of the stock. */
+    fun closingStockValueAtPurchasePrice(): Double =
+        closing.qq * product.qqPurchasePrice +
+        closing.pp * product.ppPurchasePrice +
+        closing.nn * product.nnPurchasePrice +
+        closing.dd * product.ddPurchasePrice
+
+    /** True if nothing has been typed into this row yet — safe to drop without data loss. */
+    fun isUntouched(): Boolean =
+        opening == SizeQty() && purchase == SizeQty() && closing == SizeQty() && directSale == SizeQty()
 }

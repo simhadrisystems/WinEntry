@@ -140,6 +140,7 @@ class QuickSaleCheckFragment : Fragment() {
                     }
                     R.id.action_quick_sale_export     -> { exportSheet();     true }
                     R.id.action_quick_sale_export_for_daily_stock -> { exportClosingForDailyStock(); true }
+                    R.id.action_quick_sale_export_closing_as_opening -> { exportClosingAsOpeningBalances(); true }
                     R.id.action_quick_sale_import     -> { launchImport();   true }
                     R.id.action_quick_sale_print       -> { printSheet();     true }
                     R.id.action_quick_sale_print_closing_stock -> { printClosingStock(); true }
@@ -456,7 +457,26 @@ class QuickSaleCheckFragment : Fragment() {
             actionLabel = "Clear All"
         ) {
             viewModel.clearAll()
+            refreshFooterReconciliationFields()
+            forceFullRebind()
             Toast.makeText(requireContext(), "Cleared", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Forces every visible row to go through a full [QuickSaleEntryAdapter.ViewHolder.bind]
+     * instead of the payload-only computed-cell path. The adapter's DiffUtil callback
+     * deliberately skips re-setting a row's EditTexts when only opening/purchase/closing/
+     * directSale changed (so typing in one field doesn't fight the cursor in another) — but
+     * that same skip means a bulk reset (Clear All) or a bulk repopulate (Import), where every
+     * field changes at once for many rows, leaves the on-screen EditTexts showing stale values
+     * even though the ViewModel's data is already correct. Clearing the adapter's list first
+     * makes the next submission look like a fresh insert of every row, which ListAdapter always
+     * binds in full (payloads only ever apply to a changed *existing* item).
+     */
+    private fun forceFullRebind() {
+        adapter.submitList(null) {
+            adapter.submitList(viewModel.filteredRows.value.orEmpty())
         }
     }
 
@@ -518,6 +538,41 @@ class QuickSaleCheckFragment : Fragment() {
         ).show()
     }
 
+    /**
+     * Carries today's Closing forward as tomorrow's (or any chosen day's) Opening Balance —
+     * writes a file the regular Import action already understands as-is (see
+     * `QuickSaleExcelHelper.exportClosingAsOpeningBalances`), so no separate "import as
+     * opening" action is needed: just Clear All (or move to a fresh day) and Import this file.
+     */
+    private fun exportClosingAsOpeningBalances() {
+        if (viewModel.mode.value != QuickSaleMode.OB_CB) {
+            Toast.makeText(
+                requireContext(),
+                "Switch to OB/PQ/CB mode first — Direct Qty mode has no Closing value to carry forward",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        val rows = viewModel.currentRows()
+        val hasAnyClosing = rows.any {
+            it.closing.qq != 0 || it.closing.pp != 0 || it.closing.nn != 0 || it.closing.dd != 0
+        }
+        if (!hasAnyClosing) {
+            Toast.makeText(requireContext(), "No Closing values entered yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val date = viewModel.workingDate.value ?: sdf.format(Date())
+        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val fileName = "OpeningBalances_from_${date}_$stamp.xlsx"
+        val uri = excelHelper.exportClosingAsOpeningBalances(rows, date, fileName)
+        exportToDownloadsAndShare(uri, fileName, "Share Opening Balances")
+        Toast.makeText(
+            requireContext(),
+            "Import this file (⋮ > Import) on the day you want these as Opening Balances",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
     // ── Import ───────────────────────────────────────────────────
     private fun launchImport() {
         importLauncher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
@@ -565,6 +620,7 @@ class QuickSaleCheckFragment : Fragment() {
                 val hasClosing = q.closing.qq != 0 || q.closing.pp != 0 || q.closing.nn != 0 || q.closing.dd != 0
                 if (hasNoOpeningOrPurchase && hasClosing) closingOnlyCount++
             }
+            forceFullRebind()
             val dateNote = outcome.detectedDate?.let { " Date set to $it." } ?: ""
             val msg = "Imported ${quadruples.size} product row(s).$dateNote"
             if (closingOnlyCount > 0) {
@@ -792,40 +848,34 @@ $reconHtml
         fun qty(n: Int): String = if (n == 0) "-" else NumberFormat.getIntegerInstance(inLocale).format(n.toLong())
         fun cur(v: Double): String = if (v == 0.0) "-" else "₹" + NumberFormat.getNumberInstance(inLocale)
             .apply { minimumFractionDigits = 2; maximumFractionDigits = 2 }.format(v)
+        val rateFmt = NumberFormat.getIntegerInstance(inLocale)
+        fun rate(v: Double): String = if (v <= 0.0) "-" else rateFmt.format(v.toLong())
 
-        var totObQQ = 0; var totObPP = 0; var totObNN = 0; var totObDD = 0
-        var totPqQQ = 0; var totPqPP = 0; var totPqNN = 0; var totPqDD = 0
         var totCbQQ = 0; var totCbPP = 0; var totCbNN = 0; var totCbDD = 0
-        var totSqQQ = 0; var totSqPP = 0; var totSqNN = 0; var totSqDD = 0
-        var totValue = 0.0
+        var totValueSale = 0.0
+        var totValuePurchase = 0.0
         var rowSerial = 0
 
-        val mode = viewModel.mode.value ?: QuickSaleMode.OB_CB
         val rowsHtml = rows.joinToString("") { row ->
-            val sale = row.sale(mode)
-            val skip = row.opening.qq == 0 && row.opening.pp == 0 && row.opening.nn == 0 && row.opening.dd == 0 &&
-                       row.purchase.qq == 0 && row.purchase.pp == 0 && row.purchase.nn == 0 && row.purchase.dd == 0 &&
-                       row.closing.qq == 0 && row.closing.pp == 0 && row.closing.nn == 0 && row.closing.dd == 0
+            val skip = row.closing.qq == 0 && row.closing.pp == 0 && row.closing.nn == 0 && row.closing.dd == 0
             if (skip) return@joinToString ""
-            val value = row.closingStockValue()
+            val valueSale = row.closingStockValue()
+            val valuePurchase = row.closingStockValueAtPurchasePrice()
             rowSerial++
-            totObQQ += row.opening.qq; totObPP += row.opening.pp; totObNN += row.opening.nn; totObDD += row.opening.dd
-            totPqQQ += row.purchase.qq; totPqPP += row.purchase.pp; totPqNN += row.purchase.nn; totPqDD += row.purchase.dd
             totCbQQ += row.closing.qq; totCbPP += row.closing.pp; totCbNN += row.closing.nn; totCbDD += row.closing.dd
-            totSqQQ += sale.qq; totSqPP += sale.pp; totSqNN += sale.nn; totSqDD += sale.dd
-            totValue += value
+            totValueSale += valueSale
+            totValuePurchase += valuePurchase
             """<tr>
                 <td class="n">$rowSerial</td>
-                <td>${row.product.displayName.take(18)}</td>
-                <td class="n">${qty(row.opening.qq)}</td><td class="n">${qty(row.opening.pp)}</td>
-                <td class="n">${qty(row.opening.nn)}</td><td class="n">${qty(row.opening.dd)}</td>
-                <td class="n">${qty(row.purchase.qq)}</td><td class="n">${qty(row.purchase.pp)}</td>
-                <td class="n">${qty(row.purchase.nn)}</td><td class="n">${qty(row.purchase.dd)}</td>
+                <td>${row.product.displayName.take(28)}</td>
                 <td class="n">${qty(row.closing.qq)}</td><td class="n">${qty(row.closing.pp)}</td>
                 <td class="n">${qty(row.closing.nn)}</td><td class="n">${qty(row.closing.dd)}</td>
-                <td class="n">${qty(sale.qq)}</td><td class="n">${qty(sale.pp)}</td>
-                <td class="n">${qty(sale.nn)}</td><td class="n">${qty(sale.dd)}</td>
-                <td class="r">${cur(value)}</td>
+                <td class="n">${if (row.closing.qq > 0) rate(row.product.qqPurchasePrice) else ""}</td><td class="n">${if (row.closing.pp > 0) rate(row.product.ppPurchasePrice) else ""}</td>
+                <td class="n">${if (row.closing.nn > 0) rate(row.product.nnPurchasePrice) else ""}</td><td class="n">${if (row.closing.dd > 0) rate(row.product.ddPurchasePrice) else ""}</td>
+                <td class="n">${if (row.closing.qq > 0) rate(row.product.qqSalePrice) else ""}</td><td class="n">${if (row.closing.pp > 0) rate(row.product.ppSalePrice) else ""}</td>
+                <td class="n">${if (row.closing.nn > 0) rate(row.product.nnSalePrice) else ""}</td><td class="n">${if (row.closing.dd > 0) rate(row.product.ddSalePrice) else ""}</td>
+                <td class="r">${cur(valuePurchase)}</td>
+                <td class="r">${cur(valueSale)}</td>
             </tr>"""
         }
 
@@ -870,14 +920,13 @@ $reconHtml
     <tr>
       <th rowspan="2" style="text-align:center;vertical-align:middle">#</th>
       <th rowspan="2" style="text-align:left;vertical-align:middle">Product</th>
-      <th colspan="4">Opening Balance</th>
-      <th colspan="4">Purchase</th>
       <th colspan="4">Closing Balance</th>
-      <th colspan="4">Sale Qty</th>
-      <th rowspan="2" style="vertical-align:middle">Closing Value</th>
+      <th colspan="4">Purchase Price</th>
+      <th colspan="4">Sale Price</th>
+      <th rowspan="2" style="vertical-align:middle">Closing Value<br>(Purchase Price)</th>
+      <th rowspan="2" style="vertical-align:middle">Closing Value<br>(Sale Price)</th>
     </tr>
     <tr>
-      <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
       <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
       <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
       <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
@@ -887,22 +936,21 @@ $reconHtml
     $rowsHtml
     <tr class="totrow">
       <td colspan="2">TOTAL</td>
-      <td class="n">${qty(totObQQ)}</td><td class="n">${qty(totObPP)}</td>
-      <td class="n">${qty(totObNN)}</td><td class="n">${qty(totObDD)}</td>
-      <td class="n">${qty(totPqQQ)}</td><td class="n">${qty(totPqPP)}</td>
-      <td class="n">${qty(totPqNN)}</td><td class="n">${qty(totPqDD)}</td>
       <td class="n">${qty(totCbQQ)}</td><td class="n">${qty(totCbPP)}</td>
       <td class="n">${qty(totCbNN)}</td><td class="n">${qty(totCbDD)}</td>
-      <td class="n">${qty(totSqQQ)}</td><td class="n">${qty(totSqPP)}</td>
-      <td class="n">${qty(totSqNN)}</td><td class="n">${qty(totSqDD)}</td>
-      <td class="r">${cur(totValue)}</td>
+      <td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td>
+      <td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td>
+      <td class="r">${cur(totValuePurchase)}</td>
+      <td class="r">${cur(totValueSale)}</td>
     </tr>
   </tbody>
 </table>
 <div style="display:flex;justify-content:flex-end;margin-top:14px">
-  <table style="border-collapse:collapse;width:auto;min-width:260px;border:1px solid #b0b8d4;font-size:11px">
+  <table style="border-collapse:collapse;width:auto;min-width:320px;border:1px solid #b0b8d4;font-size:11px">
     <tbody>
-      <tr style="background:#1a237e"><td style="padding:6px 12px;color:white;font-weight:bold">TOTAL CLOSING STOCK VALUE</td><td style="padding:6px 12px;color:white;font-weight:bold;text-align:right">${cur(totValue)}</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:bold;border-bottom:1px solid #e0e0e0">CLOSING STOCK VALUE (AT PURCHASE PRICE)</td><td style="padding:6px 12px;font-weight:bold;text-align:right;border-bottom:1px solid #e0e0e0">${cur(totValuePurchase)}</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:bold;border-bottom:1px solid #e0e0e0">CLOSING STOCK VALUE (AT SALE PRICE)</td><td style="padding:6px 12px;font-weight:bold;text-align:right;border-bottom:1px solid #e0e0e0">${cur(totValueSale)}</td></tr>
+      <tr style="background:#1a237e"><td style="padding:6px 12px;color:white;font-weight:bold">MARGIN (POTENTIAL PROFIT)</td><td style="padding:6px 12px;color:white;font-weight:bold;text-align:right">${cur(totValueSale - totValuePurchase)}</td></tr>
     </tbody>
   </table>
 </div>

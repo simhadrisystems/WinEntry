@@ -210,6 +210,71 @@ class QuickSaleExcelHelper(private val context: Context) {
     }
 
     /**
+     * Writes a minimal file in this screen's own "Code"-header format (same auto-detected
+     * layout `importQuickSaleSheet()` already reads — no import-side changes needed at all),
+     * but with each row's *Opening* columns populated from today's Closing instead of the
+     * usual round-trip data, and Purchase/Closing/Sale columns simply omitted (missing cells
+     * read back as zero). Re-importing this file via the regular Import menu action therefore
+     * carries today's Closing forward as Opening Balance for whatever day the user is on when
+     * they import it — matching "current day closing becomes opening for the next day (or any
+     * day the user chooses)". Only rows with a non-zero Closing are written, so importing this
+     * file can't silently zero out every other product's Opening.
+     */
+    fun exportClosingAsOpeningBalances(rows: List<QuickSaleRow>, fromDate: String, fileName: String): Uri {
+        val workbook = XSSFWorkbook()
+        val sheet = workbook.createSheet("Opening Balances")
+
+        val titleStyle = workbook.createCellStyle().apply {
+            setFont(workbook.createFont().apply { bold = true; fontHeightInPoints = 12 })
+        }
+        val headerStyle = workbook.createCellStyle().apply {
+            setFont(workbook.createFont().apply { bold = true; color = IndexedColors.WHITE.index })
+            fillForegroundColor = IndexedColors.GREY_50_PERCENT.index
+            fillPattern = FillPatternType.SOLID_FOREGROUND
+            alignment = HorizontalAlignment.CENTER
+        }
+        val dataStyle = workbook.createCellStyle().apply { alignment = HorizontalAlignment.CENTER }
+
+        var r = 0
+        val titleRow = sheet.createRow(r++)
+        titleRow.createCell(0).apply {
+            setCellValue("OPENING BALANCES — carried from Closing on $fromDate  [MODE:OB_CB]  (import via Quick Sale Check ⋮ > Import)")
+            cellStyle = titleStyle
+        }
+        sheet.addMergedRegion(CellRangeAddress(0, 0, 0, 6))
+
+        val headerRow = sheet.createRow(r++)
+        listOf("Sl.No", "Code", "Product Name", "QQ", "PP", "NN", "DD")
+            .forEachIndexed { i, h -> headerRow.createCell(i).apply { setCellValue(h); cellStyle = headerStyle } }
+
+        var serial = 0
+        rows.forEach { row ->
+            val c = row.closing
+            if (c.qq == 0 && c.pp == 0 && c.nn == 0 && c.dd == 0) return@forEach
+            serial++
+            val dataRow = sheet.createRow(r++)
+            dataRow.createCell(0).apply { setCellValue(serial.toDouble()); cellStyle = dataStyle }
+            dataRow.createCell(1).apply { setCellValue(row.product.brandCode); cellStyle = dataStyle }
+            dataRow.createCell(2).apply { setCellValue(row.product.displayName); cellStyle = dataStyle }
+            dataRow.createCell(3).apply { setCellValue(c.qq.toDouble()); cellStyle = dataStyle }
+            dataRow.createCell(4).apply { setCellValue(c.pp.toDouble()); cellStyle = dataStyle }
+            dataRow.createCell(5).apply { setCellValue(c.nn.toDouble()); cellStyle = dataStyle }
+            dataRow.createCell(6).apply { setCellValue(c.dd.toDouble()); cellStyle = dataStyle }
+        }
+
+        sheet.setColumnWidth(0, 6 * 256)
+        sheet.setColumnWidth(1, 10 * 256)
+        sheet.setColumnWidth(2, 34 * 256)
+        for (i in 3..6) sheet.setColumnWidth(i, 6 * 256)
+
+        val file = File(context.getExternalFilesDir(null), fileName)
+        FileOutputStream(file).use { workbook.write(it) }
+        workbook.close()
+
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+
+    /**
      * Reads back OB/PQ/CB columns (Sale Qty is only read for this screen's own export
      * format, to restore Direct Qty mode data — the other two formats have no Direct Qty
      * concept and always recompute Sale on screen from OB+PQ-CB instead).

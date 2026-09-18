@@ -23,6 +23,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_quick_sale_export_closing_as_opening"
+        android:title="Export Closing as Next-Day Opening"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_quick_sale_import"
         android:title="Import"
         app:showAsAction="never" />

@@ -28,6 +28,11 @@ class QuickSaleViewModel(application: Application) : AndroidViewModel(applicatio
     private val productDao = AppDatabase.getInstance(application).productDao()
 
     private val rowsById = LinkedHashMap<Long, QuickSaleRow>()
+    // Rows for products that dropped out of the active set mid-session while carrying
+    // typed data — held here (out of rowsById/_rows) so the visible list/count always
+    // matches Product Display Order's active list, but a same-session reactivation
+    // still gets its data back instead of losing it.
+    private val orphanedRows = LinkedHashMap<Long, QuickSaleRow>()
     private var loaded = false
 
     private val _rows = MutableLiveData<List<QuickSaleRow>>(emptyList())
@@ -160,6 +165,7 @@ class QuickSaleViewModel(application: Application) : AndroidViewModel(applicatio
                 opening = SizeQty(), purchase = SizeQty(), closing = SizeQty(), directSale = SizeQty()
             )
         }
+        orphanedRows.clear()
         _rows.value = rowsById.values.toList()
         _upiReceipts.value = 0.0
         _dayExpenses.value = 0.0
@@ -183,6 +189,14 @@ class QuickSaleViewModel(application: Application) : AndroidViewModel(applicatio
      * updating values in place — a LinkedHashMap keeps values in *insertion*
      * order, so an in-place update would silently keep showing the original
      * load's row order even after a product's dailySortKey changed elsewhere.
+     *
+     * A product that drops out of the active set (deactivated, reordered out via
+     * Product Display Order, etc.) is removed from the visible list — otherwise the
+     * on-screen row count silently grows past what Product Display Order shows, which
+     * is confusing and was reported as "extra/duplicate products". Any such row that
+     * still carries typed data is stashed in [orphanedRows] instead of being dropped
+     * outright, and restored automatically if the same product becomes active again
+     * later in the same session.
      */
     fun refreshProducts() {
         viewModelScope.launch {
@@ -190,12 +204,12 @@ class QuickSaleViewModel(application: Application) : AndroidViewModel(applicatio
             val activeIds = products.mapTo(HashSet()) { it.id }
             val reordered = LinkedHashMap<Long, QuickSaleRow>()
             products.forEach { p ->
-                val existing = rowsById[p.id]
+                val existing = rowsById[p.id] ?: orphanedRows.remove(p.id)
                 reordered[p.id] = existing?.copy(product = p) ?: QuickSaleRow(product = p)
             }
-            // Keep any row whose product is no longer active (deactivated mid-session)
-            // so typed data isn't silently dropped — appended after the active ones.
-            rowsById.forEach { (id, row) -> if (id !in activeIds) reordered[id] = row }
+            rowsById.forEach { (id, row) ->
+                if (id !in activeIds && !row.isUntouched()) orphanedRows[id] = row
+            }
             rowsById.clear()
             rowsById.putAll(reordered)
             _rows.value = rowsById.values.toList()

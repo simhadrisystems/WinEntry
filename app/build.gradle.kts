@@ -20,7 +20,7 @@ android {
         applicationId = "com.simhadri.winentry"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
+        versionCode = 11
         versionName = "1.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("Boolean", "FORCE_UPDATE", "false")
@@ -140,11 +140,7 @@ dependencies {
     implementation("org.apache.poi:poi:5.2.5")
     implementation("org.apache.poi:poi-ooxml:5.2.5")
 
-    // ── Google Sheets + Drive API ─────────────────────────────────────────
-    implementation("com.google.api-client:google-api-client-android:2.2.0")
-    implementation("com.google.apis:google-api-services-sheets:v4-rev20230526-2.0.0")
-
-    // ── Google Sign-In (needed for Sheets credential + Firebase Auth) ─────
+    // ── Google Sign-In (needed for Firebase Auth) ──────────────────────────
     // 20.7.0 is the last version that supports the legacy GoogleSignIn /
     // GoogleSignInClient intent-based API used throughout this app.
     // 21.x requires migration to the Credential Manager API.

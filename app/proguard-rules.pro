@@ -87,24 +87,6 @@
 # protection for its ~25 Parcelable internal classes — do not narrow it
 # without testing sign-in end to end.
 
-# ── Google API Client (Sheets) ────────────────────────────────────────────
-# google-http-client ships NO consumer proguard rules of its own, so its
-# GenericJson reflection (field mapping via @Key, plus reflective
-# instantiation of nested request/response types) is unprotected unless we
-# keep it here. Narrowed from a blanket `com.google.api.** { *; }` (which
-# kept every internal http/googleapis/json class fully unobfuscated) to just
-# the Sheets model classes and the GenericJson base's own reflection needs.
--keep class com.google.api.services.sheets.v4.** { *; }
--keepclassmembers class * extends com.google.api.client.json.GenericJson {
-    public <init>();
-    <fields>;
-}
--keepclassmembers class * {
-    @com.google.api.client.util.Key <fields>;
-}
--dontwarn com.google.api.**
--dontwarn com.google.common.**
-
 # ── Apache POI (Excel) ────────────────────────────────────────────────────
 # POI uses Class.newInstance() to instantiate XML handlers via reflection.
 # R8 removes constructors it can't see being called directly — which breaks
@@ -120,7 +102,6 @@
 # HSLF, XWPF, HWPF, EMF, WMF packages that reference java.awt.*.
 -keep class org.apache.poi.ss.** { *; }
 -keep class org.apache.poi.xssf.** { *; }
--keep class org.apache.poi.hssf.** { *; }
 -keep class org.apache.poi.ooxml.** { *; }
 -keep class org.apache.poi.openxml4j.** { *; }
 -keep class org.apache.poi.util.** { *; }
@@ -128,19 +109,31 @@
 -keep class org.apache.poi.common.** { *; }
 -keep class org.apache.poi.ddf.** { *; }
 -keep class org.apache.poi.extractor.** { *; }
--keep class org.apache.poi.wp.** { *; }
-# Intentionally NOT kept (unused, reference java.awt.* which isn't on Android):
+# Intentionally NOT kept (unused, reference java.awt.* which isn't on Android,
+# or unreferenced by this app's spreadsheet-only Excel I/O — verified
+# 2026-09-19: no XWPFDocument/HWPFDocument/comment/drawing usage anywhere in
+# utils/*ExcelHelper*.kt, and schemasMicrosoftComOfficeWord/Vml match zero
+# classes in this project's actual poi-ooxml-lite jar, so those two keeps
+# were already no-ops):
 #   org.apache.poi.xslf.**  – PowerPoint OOXML  (SVGUserAgent → java.awt.geom.*)
 #   org.apache.poi.hslf.**  – Legacy PowerPoint
 #   org.apache.poi.xwpf.**  – Word OOXML
 #   org.apache.poi.hwpf.**  – Legacy Word
 #   org.apache.poi.hemf.**  – Enhanced MetaFile
 #   org.apache.poi.hwmf.**  – Windows MetaFile
+#   org.apache.poi.wp.**    – shared Word/PowerPoint text infra
+#   org.apache.poi.hssf.**  – legacy binary .xls. Every import path in this
+#     app (ExcelHelper/PurchaseExcelHelper/DailyStockImportHelper/
+#     QuickSaleExcelHelper) instantiates XSSFWorkbook directly now — the one
+#     holdout, ExcelHelper.importProducts(), used the auto-detecting
+#     WorkbookFactory.create() until 2026-09-19, which is what actually kept
+#     HSSF reachable regardless of this keep rule. Every file picker in the
+#     app is also hard-locked to the OOXML/.xlsx MIME type, so .xls was never
+#     reachable through the UI. If a future import path needs real .xls
+#     support, re-add both the WorkbookFactory.create() call and this keep.
 -keep class org.apache.xmlbeans.** { *; }
 -keep class org.openxmlformats.** { *; }
 -keep class schemasMicrosoftComOfficeOffice.** { *; }
--keep class schemasMicrosoftComOfficeWord.** { *; }
--keep class schemasMicrosoftComVml.** { *; }
 -keep class com.microsoft.schemas.** { *; }
 -keep class org.etsi.uri.** { *; }
 # Keep ALL classes that extend or implement ANY POI type — these are the

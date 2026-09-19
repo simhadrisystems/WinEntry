@@ -6,7 +6,6 @@ import androidx.core.content.FileProvider
 import com.simhadri.winentry.data.entity.Product
 import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
 import java.io.FileOutputStream
@@ -94,7 +93,7 @@ class ExcelHelper(private val context: Context) {
 
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val workbook = WorkbookFactory.create(inputStream)
+                val workbook = XSSFWorkbook(inputStream)
                 val sheet = workbook.getSheetAt(0)
 
                 // Skip header row, start from row 1

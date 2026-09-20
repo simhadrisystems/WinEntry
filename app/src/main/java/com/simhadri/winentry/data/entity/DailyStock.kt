@@ -66,5 +66,12 @@ data class DailyStock(
 
     val isCommitted:  Boolean = false,
     val syncStatus:   String  = SyncStatus.SYNCED,
-    val lastModified: Long    = System.currentTimeMillis()
+    val lastModified: Long    = System.currentTimeMillis(),
+
+    // ── Opening-stock baseline marker ──────────────────────────────────────────
+    // True only for rows saved via the Opening Stock Setup screen (initial setup,
+    // in-place edit, or a re-baseline). The ACTIVE opening stock date is
+    // MAX(date) WHERE isOpeningStock = 1 — older marked dates stay as read-only
+    // Daily Stock history once a newer baseline is set.
+    val isOpeningStock: Boolean = false
 )

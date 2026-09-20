@@ -21,6 +21,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
 
     private val repository: PurchaseRepository
     private val productDao = AppDatabase.getInstance(application).productDao()
+    private val dailyStockDao = AppDatabase.getInstance(application).dailyStockDao()
 
     val allPurchases: LiveData<List<Purchase>>
     val allProducts: LiveData<List<Product>>
@@ -176,6 +177,13 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
+     * The active opening-stock baseline date, if any (see OpeningStockFragment).
+     * New purchases must be dated on/after this date — used both to bound the
+     * invoice-date picker and as the authoritative save-time check below.
+     */
+    suspend fun getActiveOpeningStockDate(): String? = dailyStockDao.getLatestOpeningStockDate()
+
+    /**
      * Save purchase to database
      */
     /**
@@ -190,6 +198,11 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
         )
         savePurchase()
     }
+
+    private fun formatDateForMessage(date: String): String = try {
+        val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(date)
+        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(parsed!!)
+    } catch (_: Exception) { date }
 
     fun savePurchase() {
         viewModelScope.launch {
@@ -207,13 +220,24 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
 
+                // Purchases can only be added on/after the active opening-stock baseline —
+                // anything earlier belongs to a superseded trading period.
+                val minDate = dailyStockDao.getLatestOpeningStockDate()
+                if (minDate != null && calc.purchaseDate < minDate) {
+                    _saveStatus.value = SaveStatus.Error(
+                        "Cannot add a purchase dated before the current opening stock date " +
+                        "(${formatDateForMessage(minDate)}). Purchases must be on or after that date."
+                    )
+                    return@launch
+                }
+
                 // Check if at least one size has quantities
-                if (calc.qqTotalUnits == 0 && calc.ppTotalUnits == 0 && 
+                if (calc.qqTotalUnits == 0 && calc.ppTotalUnits == 0 &&
                     calc.nnTotalUnits == 0 && calc.ddTotalUnits == 0) {
                     _saveStatus.value = SaveStatus.Error("Please enter quantities for at least one size")
                     return@launch
                 }
-                
+
                 // VALIDATION: Check loose units are less than units per box
                 if (calc.qqLoose >= calc.qqUnitsPerBox && calc.qqUnitsPerBox > 0 && calc.qqLoose > 0) {
                     _saveStatus.value = SaveStatus.Error("QQ loose (${calc.qqLoose}) must be less than units/box (${calc.qqUnitsPerBox})")
@@ -600,8 +624,9 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 // Use suspend save so ALL purchases are written before Success is posted.
                 // savePurchase() fires separate coroutines (fire-and-forget) — use
                 // savePurchaseSuspend() here to keep the import sequential and atomic.
+                var skippedByBaseline = 0
                 for (purchase in result.purchases) {
-                    savePurchaseSuspend(purchase)
+                    if (!savePurchaseSuspend(purchase)) skippedByBaseline++
                 }
                 // Auto-activate any inactive products that appear in the imported purchases
                 val importedProductIds = result.purchases
@@ -609,11 +634,15 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 if (importedProductIds.isNotEmpty()) {
                     productDao.activateByIds(importedProductIds.toList())
                 }
+                val baselineWarning = if (skippedByBaseline > 0) listOf(
+                    "$skippedByBaseline purchase(s) skipped — dated before the active " +
+                    "opening stock date."
+                ) else emptyList()
                 _importStatus.postValue(ImportStatus.Success(
-                    newCount     = result.successCount,
-                    skippedCount = result.skippedCount,
+                    newCount     = result.successCount - skippedByBaseline,
+                    skippedCount = result.skippedCount + skippedByBaseline,
                     failCount    = result.failCount,
-                    warnings     = result.warnings,
+                    warnings     = result.warnings + baselineWarning,
                     errors       = result.errors
                 ))
             } catch (e: Exception) {
@@ -661,9 +690,19 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { savePurchaseSuspend(purchase) }
     }
 
-    /** Suspend version — use inside coroutines to ensure sequential writes. */
-    private suspend fun savePurchaseSuspend(purchase: Purchase) {
+    /**
+     * Suspend version — use inside coroutines to ensure sequential writes.
+     * Returns false (without inserting) when [purchase.purchaseDate] is before the
+     * active opening-stock baseline — that period was superseded by a re-baseline.
+     */
+    private suspend fun savePurchaseSuspend(purchase: Purchase): Boolean {
         try {
+            val minDate = dailyStockDao.getLatestOpeningStockDate()
+            if (minDate != null && purchase.purchaseDate < minDate) {
+                android.util.Log.w("PurchaseViewModel",
+                    "Skipped purchase dated ${purchase.purchaseDate} — before opening stock date $minDate")
+                return false
+            }
             val normalised = normalisePurchaseCode(purchase)
             if (normalised.productId > 0 && normalised.invoiceNumber.isNotBlank()) {
                 try {
@@ -678,6 +717,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
             android.util.Log.d("PurchaseViewModel",
                 "Saved purchase: ${normalised.productName} " +
                 "code=${normalised.productCode} date=${normalised.purchaseDate}")
+            return true
         } catch (e: Exception) {
             android.util.Log.e("PurchaseViewModel",
                 "Failed to save purchase: ${e.message}", e)

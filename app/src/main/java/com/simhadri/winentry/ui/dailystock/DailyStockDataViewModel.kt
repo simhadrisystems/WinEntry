@@ -121,8 +121,21 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
      * Parse the Excel file and run anomaly analysis — both DB and file I/O
      * happen in viewModelScope so rotation doesn't cancel them.
      * Fragment observes [pendingImport] to show the confirmation dialog.
+     *
+     * [treatAsOpeningStock] skips the anomaly check entirely — it's meaningless
+     * there. The check flags CB < (previous committed close + that day's purchases),
+     * i.e. "this would create a negative sale by continuing the existing chain."
+     * An opening-stock import explicitly discards that chain (OB = CB = imported
+     * qty, sale forced to 0 in [applyImportedAsOpeningStock]) — comparing a fresh
+     * physical count against a stale prior closing balance isn't a real anomaly,
+     * it's the expected result of however much untracked selling happened in the
+     * gap before this new baseline.
      */
-    fun prepareClosingImport(uri: android.net.Uri, importHelper: DailyStockImportHelper) {
+    fun prepareClosingImport(
+        uri: android.net.Uri,
+        importHelper: DailyStockImportHelper,
+        treatAsOpeningStock: Boolean = false
+    ) {
         if (_importStatus.value is ImportStatus.Running) return
         viewModelScope.launch {
             try {
@@ -151,27 +164,29 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
                     else             -> "${fmt(dates.first())} → ${fmt(dates.last())}"
                 }
 
-                // Anomaly check — needs DB
+                // Anomaly check — needs DB. Skipped for opening-stock imports (see doc above).
                 val anomalyList = mutableListOf<String>()
-                result.closingData.values.sortedBy { it.date }.forEach { ci ->
-                    val product = products.find {
-                        it.productType == ci.productType && it.brandCode == ci.brandCode
-                    } ?: return@forEach
-                    val prevRow = repository.getPreviousRow(product.stockCode, ci.date)
-                    val pqRaw   = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(
-                        ci.date, product.id)
-                    data class Chk(val ob: Int, val pq: Int, val cb: Int, val lbl: String)
-                    listOf(
-                        Chk(prevRow?.closeQq?:0, pqRaw.qqTotalUnits, ci.qqClosing, "QQ"),
-                        Chk(prevRow?.closePp?:0, pqRaw.ppTotalUnits, ci.ppClosing, "PP"),
-                        Chk(prevRow?.closeNn?:0, pqRaw.nnTotalUnits, ci.nnClosing, "NN"),
-                        Chk(prevRow?.closeDd?:0, pqRaw.ddTotalUnits, ci.ddClosing, "DD")
-                    ).forEach { sz ->
-                        val sale = sz.ob + sz.pq - sz.cb
-                        if (sale < 0) anomalyList.add(
-                            "${product.displayName}  ${sz.lbl}  ${fmt(ci.date)}" +
-                            "  |  OB=${sz.ob} PQ=${sz.pq} CB=${sz.cb} → Sale=$sale"
-                        )
+                if (!treatAsOpeningStock) {
+                    result.closingData.values.sortedBy { it.date }.forEach { ci ->
+                        val product = products.find {
+                            it.productType == ci.productType && it.brandCode == ci.brandCode
+                        } ?: return@forEach
+                        val prevRow = repository.getPreviousRow(product.stockCode, ci.date)
+                        val pqRaw   = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(
+                            ci.date, product.id)
+                        data class Chk(val ob: Int, val pq: Int, val cb: Int, val lbl: String)
+                        listOf(
+                            Chk(prevRow?.closeQq?:0, pqRaw.qqTotalUnits, ci.qqClosing, "QQ"),
+                            Chk(prevRow?.closePp?:0, pqRaw.ppTotalUnits, ci.ppClosing, "PP"),
+                            Chk(prevRow?.closeNn?:0, pqRaw.nnTotalUnits, ci.nnClosing, "NN"),
+                            Chk(prevRow?.closeDd?:0, pqRaw.ddTotalUnits, ci.ddClosing, "DD")
+                        ).forEach { sz ->
+                            val sale = sz.ob + sz.pq - sz.cb
+                            if (sale < 0) anomalyList.add(
+                                "${product.displayName}  ${sz.lbl}  ${fmt(ci.date)}" +
+                                "  |  OB=${sz.ob} PQ=${sz.pq} CB=${sz.cb} → Sale=$sale"
+                            )
+                        }
                     }
                 }
 
@@ -252,6 +267,31 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     // causing negative sales on the imported date), this method saves
     // openQq = closeQq = importedQty so the day shows zero sales and correct OB.
     // Used by OpeningStockFragment when importing from Excel.
+    //
+    // Writes a row for EVERY active product on the baseline date, not just the
+    // ones present in the file — a product missing from the file (all-zero rows
+    // are dropped by the parser before this even runs, or the product simply
+    // wasn't listed) must still get an explicit zero row here. Otherwise its
+    // opening balance lookup skips straight past this new baseline to whatever
+    // older committed row precedes it — the exact "stale carried-forward
+    // quantity" bug this re-baseline feature exists to avoid.
+
+    private fun buildOpeningStockRow(
+        date: String, product: Product, ci: DailyStockImportHelper.ClosingImport?
+    ): DailyStock {
+        val qq = ci?.qqClosing ?: 0; val pp = ci?.ppClosing ?: 0
+        val nn = ci?.nnClosing ?: 0; val dd = ci?.ddClosing ?: 0
+        return DailyStock(
+            date = date, productCode = product.stockCode,
+            openQq = qq, openPp = pp, openNn = nn, openDd = dd,
+            closeQq = qq, closePp = pp, closeNn = nn, closeDd = dd,
+            saleQq = 0, salePp = 0, saleNn = 0, saleDd = 0,
+            priceQq = product.qqSalePrice, pricePp = product.ppSalePrice,
+            priceNn = product.nnSalePrice, priceDd = product.ddSalePrice,
+            amountQq = 0.0, amountPp = 0.0, amountNn = 0.0, amountDd = 0.0,
+            saleAmount = 0.0, isCommitted = true, isOpeningStock = true
+        )
+    }
 
     fun applyImportedAsOpeningStock(
         result:   DailyStockImportHelper.ImportResult,
@@ -261,31 +301,35 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         _importStatus.value = ImportStatus.Running("Saving opening stock…")
         viewModelScope.launch {
             try {
+                val byDate = result.closingData.values.groupBy { it.date }
+                val activeProducts = products.filter { it.isActive }
                 var updatedRecords = 0
-                val sortedRecords = result.closingData.values.sortedBy { it.date }
-                for (ci in sortedRecords) {
-                    val product = products.find {
-                        it.productType == ci.productType && it.brandCode == ci.brandCode
-                    } ?: continue
-                    val qqQty = ci.qqClosing; val ppQty = ci.ppClosing
-                    val nnQty = ci.nnClosing; val ddQty = ci.ddClosing
-                    if (qqQty + ppQty + nnQty + ddQty == 0) continue
-                    // OB = CB = imported qty, sale = 0
-                    repository.saveAllEntries(listOf(DailyStock(
-                        date        = ci.date,
-                        productCode = product.stockCode,
-                        openQq = qqQty, openPp = ppQty, openNn = nnQty, openDd = ddQty,
-                        closeQq = qqQty, closePp = ppQty, closeNn = nnQty, closeDd = ddQty,
-                        saleQq = 0, salePp = 0, saleNn = 0, saleDd = 0,
-                        priceQq = product.qqSalePrice, pricePp = product.ppSalePrice,
-                        priceNn = product.nnSalePrice, priceDd = product.ddSalePrice,
-                        amountQq = 0.0, amountPp = 0.0, amountNn = 0.0, amountDd = 0.0,
-                        saleAmount = 0.0, isCommitted = true
-                    )))
-                    updatedRecords++
+                for ((date, records) in byDate) {
+                    val importedByCode = records.mapNotNull { ci ->
+                        val product = products.find {
+                            it.productType == ci.productType && it.brandCode == ci.brandCode
+                        } ?: return@mapNotNull null
+                        product.stockCode to ci
+                    }.toMap()
+
+                    val coveredCodes = activeProducts.map { it.stockCode }.toSet()
+                    val rows = activeProducts.map { product ->
+                        buildOpeningStockRow(date, product, importedByCode[product.stockCode])
+                    }.toMutableList()
+
+                    // Preserve imported values for any inactive product explicitly in the file.
+                    importedByCode.forEach { (code, ci) ->
+                        if (code !in coveredCodes) {
+                            products.find { it.stockCode == code }?.let {
+                                rows.add(buildOpeningStockRow(date, it, ci))
+                            }
+                        }
+                    }
+
+                    repository.saveAllEntries(rows)
+                    updatedRecords += rows.size
                 }
-                val dateCount = result.closingData.values.map { it.date }.toSortedSet().size
-                _importStatus.postValue(ImportStatus.Success(updatedRecords, dateCount))
+                _importStatus.postValue(ImportStatus.Success(updatedRecords, byDate.size))
             } catch (e: Exception) {
                 _importStatus.postValue(ImportStatus.Error(e.message ?: "Import failed"))
             }
@@ -463,6 +507,18 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     suspend fun getEarliestCommittedDate(): String? =
         repository.getEarliestCommittedDate()
 
+    /** The most recent committed date across all products — bounds new re-baseline dates. */
+    suspend fun getLatestCommittedDate(): String? =
+        repository.getLatestCommittedDate()
+
+    /** The ACTIVE opening stock date — the most recent re-baseline. */
+    suspend fun getLatestOpeningStockDate(): String? =
+        repository.getLatestOpeningStockDate()
+
+    /** Same as above, with a one-time self-heal for legacy/restored data — see repository doc. */
+    suspend fun getLatestOpeningStockDateOrHeal(): String? =
+        repository.getLatestOpeningStockDateOrHeal()
+
     /** Dates that are opening stock entries (all rows have zero opening balances). */
     suspend fun getOpeningStockDateCounts() =
         repository.getOpeningStockDateCounts()
@@ -490,6 +546,12 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         productCode: String,
         products:    List<com.simhadri.winentry.data.entity.Product>
     ) = repository.clearEntryWithCascade(date, productCode, products)
+
+    /** Deletes the active opening stock date and cascade-corrects the next committed day. */
+    suspend fun clearOpeningStockWithCascadeAwait(
+        date:     String,
+        products: List<Product>
+    ) = repository.clearOpeningStockWithCascade(date, products)
 
     /** Force all committed rows to re-sync to Google Sheets. */
     fun forceFullResync() {

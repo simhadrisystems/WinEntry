@@ -96,7 +96,7 @@ class OpeningStockFragment : Fragment() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val uri = result.data?.data ?: return@registerForActivityResult
-            importHelper?.let { dataViewModel.prepareClosingImport(uri, it) }
+            importHelper?.let { dataViewModel.prepareClosingImport(uri, it, treatAsOpeningStock = true) }
         }
     }
     private var importHelper: DailyStockImportHelper? = null
@@ -195,33 +195,37 @@ class OpeningStockFragment : Fragment() {
         })
 
         // ── Overflow (3-dot) menu ─────────────────────────────────────────────
-        val MENU_TEMPLATE = 1000
-        val MENU_IMPORT  = 1001
-        val MENU_DELETE  = 1002
-        val MENU_UPLOAD  = 1003
-        val MENU_RESTORE = 1004
+        val MENU_TEMPLATE     = 1000
+        val MENU_IMPORT       = 1001
+        val MENU_DELETE       = 1002
+        val MENU_UPLOAD       = 1003
+        val MENU_RESTORE      = 1004
+        val MENU_NEW_BASELINE = 1005
         toolbar.menu.add(0, MENU_TEMPLATE, 0, "📋 Download Template")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.menu.add(0, MENU_IMPORT,  1, "📥 Import from Excel")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_DELETE,  2, "🗑 Delete Opening Stock")
+        toolbar.menu.add(0, MENU_NEW_BASELINE, 2, "🆕 Start New Opening Balance")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_UPLOAD,  3, "☁ Upload to Cloud")
+        toolbar.menu.add(0, MENU_DELETE,  3, "🗑 Delete Opening Stock")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_RESTORE, 4, "☁ Restore from Cloud")
+        toolbar.menu.add(0, MENU_UPLOAD,  4, "☁ Upload to Cloud")
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, MENU_RESTORE, 5, "☁ Restore from Cloud")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         // Tint the overflow (3-dot) icon white after all items are added
         toolbar.overflowIcon?.setTint(android.graphics.Color.WHITE)
 
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                MENU_TEMPLATE -> { downloadTemplate(); true }
+                MENU_TEMPLATE     -> { downloadTemplate(); true }
                 MENU_IMPORT  -> {
                     importLauncher.launch(Intent(Intent.ACTION_GET_CONTENT).apply {
                         type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         addCategory(Intent.CATEGORY_OPENABLE)
                     }); true
                 }
+                MENU_NEW_BASELINE -> { startNewOpeningBalance(); true }
                 MENU_DELETE  -> { deleteOpeningStock(); true }
                 MENU_UPLOAD  -> { uploadOpeningStock(); true }
                 MENU_RESTORE -> { restoreFromCloud();   true }
@@ -617,27 +621,29 @@ class OpeningStockFragment : Fragment() {
      */
     private fun initialiseScreen() {
         lifecycleScope.launch {
-            val earliest = dataViewModel.getEarliestCommittedDate()
-            if (earliest != null) {
-                showExistingDataDialog(earliest)
+            val active = dataViewModel.getLatestOpeningStockDateOrHeal()
+            if (active != null) {
+                showExistingDataDialog(active)
             } else {
                 showFreshStartDialog()
             }
         }
     }
 
-    /** Case A: DB has data — show earliest date, load read-only. */
-    private fun showExistingDataDialog(earliest: String) {
+    /** Case A: DB has data — show the active (most recent) opening stock date, load read-only. */
+    private fun showExistingDataDialog(active: String) {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("📦 Opening Stock")
             .setMessage(
-                "Opening stock date on record: ${formatDisplay(earliest)}\n\n" +
+                "Active opening stock date: ${formatDisplay(active)}\n\n" +
                 "Quantities shown in read-only mode.\n\n" +
                 "• Tap ✎ EDIT to correct quantities\n" +
+                "• Use ⋮ → Start New Opening Balance to re-baseline from a new date " +
+                "without losing this data\n" +
                 "• Use ⋮ menu to Import, Delete, Upload or Restore"
             )
             .setPositiveButton("View") { _, _ ->
-                selectedDate      = earliest
+                selectedDate      = active
                 isEditMode        = false
                 hasUnsavedChanges = false
                 loadProducts()
@@ -724,6 +730,110 @@ class OpeningStockFragment : Fragment() {
         dialog.show()
     }
 
+    /**
+     * ⋮ → Start New Opening Balance — re-baseline from a new date while keeping
+     * all existing history intact.
+     *
+     * The chosen date must have no committed daily_stock data on or after it,
+     * otherwise it can never become the "nearest earlier committed row" for
+     * anything entered after it and the re-baseline would silently not take
+     * effect. Enforced two ways: the date picker's minDate excludes invalid
+     * dates outright, and the same check runs again on confirm as a safety net.
+     */
+    private fun startNewOpeningBalance() {
+        lifecycleScope.launch {
+            val latestCommitted = dataViewModel.getLatestCommittedDate()
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val ctx = requireContext()
+
+            val minCal = latestCommitted?.let {
+                Calendar.getInstance().apply {
+                    time = sdf.parse(it) ?: Date()
+                    add(Calendar.DAY_OF_MONTH, 1)
+                }
+            }
+            val maxCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, 7) }
+
+            var chosenDate = minCal?.let { sdf.format(it.time) } ?: defaultDate()
+            // If today falls within the allowed range, default to today instead —
+            // re-baselining "from today" is the common case.
+            val todayStr = sdf.format(Calendar.getInstance().time)
+            if (minCal == null || todayStr >= sdf.format(minCal.time)) chosenDate = todayStr
+
+            val panel = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(24), dp(16), dp(24), dp(8))
+            }
+            panel.addView(TextView(ctx).apply {
+                text = "This sets a fresh opening balance from the date you choose. " +
+                       "All existing Daily Stock history before it stays intact — it " +
+                       "just stops being used for future opening balances.\n\n" +
+                       "The date must have no committed Daily Stock data on or after it."
+                textSize = 13f
+                setTextColor(android.graphics.Color.parseColor("#212121"))
+            })
+
+            val btnDate = Button(ctx).apply {
+                text = formatDisplay(chosenDate)
+                textSize = 13f
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.topMargin = dp(16) }
+            }
+            panel.addView(btnDate)
+
+            val dialog = MaterialAlertDialogBuilder(ctx)
+                .setTitle("🆕 Start New Opening Balance")
+                .setView(panel)
+                .setPositiveButton("Begin Entry") { _, _ ->
+                    lifecycleScope.launch {
+                        // Safety-net re-check in case DB state changed since the dialog opened.
+                        val stillLatest = dataViewModel.getLatestCommittedDate()
+                        if (stillLatest != null && chosenDate <= stillLatest) {
+                            MaterialAlertDialogBuilder(ctx)
+                                .setTitle("Date not available")
+                                .setMessage(
+                                    "Committed Daily Stock data already exists on or after " +
+                                    "${formatDisplay(chosenDate)}. Pick an earlier date, or " +
+                                    "clear that data first from Daily Stock."
+                                )
+                                .setPositiveButton("OK", null)
+                                .show()
+                            return@launch
+                        }
+                        selectedDate        = chosenDate
+                        quantities.keys.forEach { quantities[it] = IntArray(4) }
+                        isEditMode          = true
+                        hasUnsavedChanges   = false
+                        isCurrentDateLocked = false
+                        updateDateRow()
+                        loadProducts()
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .create()
+
+            btnDate.setOnClickListener {
+                val c = Calendar.getInstance().apply { time = sdf.parse(chosenDate) ?: Date() }
+                android.app.DatePickerDialog(ctx, { _, y, m, d ->
+                    c.set(y, m, d)
+                    chosenDate = sdf.format(c.time)
+                    btnDate.text = formatDisplay(chosenDate)
+                }, c.get(Calendar.YEAR),
+                   c.get(Calendar.MONTH),
+                   c.get(Calendar.DAY_OF_MONTH)
+                ).apply {
+                    setTitle("Select new opening balance date")
+                    datePicker.maxDate = maxCal.timeInMillis
+                    minCal?.let { datePicker.minDate = it.timeInMillis }
+                }.show()
+            }
+
+            dialog.show()
+        }
+    }
+
     // ── Data loading ──────────────────────────────────────────────────────────
 
     private fun loadProducts() {
@@ -742,12 +852,12 @@ class OpeningStockFragment : Fragment() {
                 }
             }
 
-            // Lock if this is the earliest committed date and data exists for it.
-            // All other dates (from saved-dates Edit) are read-only display only —
-            // date picker is hidden so user cannot navigate there directly.
-            val earliestDate = dataViewModel.getEarliestCommittedDate()
-            isCurrentDateLocked = (earliestDate != null) &&
-                                   (selectedDate == earliestDate) &&
+            // Lock if this is the active (most recent) opening stock date and data
+            // exists for it. All other dates (from saved-dates Edit) are read-only
+            // display only — date picker is hidden so user cannot navigate there directly.
+            val activeDate = dataViewModel.getLatestOpeningStockDate()
+            isCurrentDateLocked = (activeDate != null) &&
+                                   (selectedDate == activeDate) &&
                                    products.any { p ->
                                        repository.getDailyStockRaw(selectedDate, p.stockCode)
                                            ?.isCommitted == true
@@ -765,12 +875,12 @@ class OpeningStockFragment : Fragment() {
     /** Updates the bottom-bar sync status chip from the DB. */
     private fun refreshSavedDates() {
         lifecycleScope.launch {
-            val earliest = dataViewModel.getEarliestCommittedDate()
-            if (earliest == null) {
+            val active = dataViewModel.getLatestOpeningStockDate()
+            if (active == null) {
                 setSyncChip(SYNC_NONE)
                 return@launch
             }
-            val statuses = repository.getOpeningStockSyncStatuses(earliest)
+            val statuses = repository.getOpeningStockSyncStatuses(active)
             val state = when {
                 statuses.isEmpty()                                -> SYNC_SAVED
                 statuses.any { it == SyncStatus.SYNC_ERROR }    -> SYNC_ERROR
@@ -809,13 +919,13 @@ class OpeningStockFragment : Fragment() {
     /** Called from the ⋮ overflow menu Delete item. */
     private fun deleteOpeningStock() {
         lifecycleScope.launch {
-            val earliest = dataViewModel.getEarliestCommittedDate() ?: run {
+            val active = dataViewModel.getLatestOpeningStockDate() ?: run {
                 Toast.makeText(requireContext(),
                     "No opening stock data to delete.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val count = repository.getAllDailyStockForDate(earliest).count { it.isCommitted }
-            confirmDelete(earliest, count)
+            val count = repository.getAllDailyStockForDate(active).count { it.isCommitted }
+            confirmDelete(active, count)
         }
     }
 
@@ -823,19 +933,22 @@ class OpeningStockFragment : Fragment() {
         AppDialogs.destructive(
             requireContext(),
             "Delete Opening Stock",
-            "Delete all opening stock entries for\n${formatDisplay(date)}?\n\n" +
+            "Delete the active opening stock entries for\n${formatDisplay(date)}?\n\n" +
             "$productCount product(s) will be removed.\n\n" +
-            "⚠ Any Daily Stock data that used these as opening balances " +
-            "will no longer have prior history."
+            "The next committed day's opening balance will be corrected automatically " +
+            "to fall back to whatever preceded this date. Any earlier Daily Stock " +
+            "history is not affected."
         ) {
-            dataViewModel.clearDateData(date)
-            quantities.keys.forEach { quantities[it] = IntArray(4) }
-            if (::adapter.isInitialized) adapter.updateProducts(products)
-            updateSummary()
-            refreshSavedDates()
-            Toast.makeText(requireContext(),
-                "Opening stock for ${formatDisplay(date)} deleted.",
-                Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                dataViewModel.clearOpeningStockWithCascadeAwait(date, products)
+                quantities.keys.forEach { quantities[it] = IntArray(4) }
+                if (::adapter.isInitialized) adapter.updateProducts(products)
+                updateSummary()
+                refreshSavedDates()
+                Toast.makeText(requireContext(),
+                    "Opening stock for ${formatDisplay(date)} deleted.",
+                    Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -892,8 +1005,10 @@ class OpeningStockFragment : Fragment() {
                 .setTitle("🔒 Opening Stock Committed")
                 .setMessage(
                     "Opening stock for ${formatDisplay(selectedDate)} is committed.\n\n" +
-                    "To correct quantities, use the Save button below — " +
-                    "it will overwrite the existing record."
+                    "To correct these quantities, use the Save button below — " +
+                    "it will overwrite the existing record.\n\n" +
+                    "To start a fresh opening balance for a different date without " +
+                    "losing this data, use ⋮ → Start New Opening Balance."
                 )
                 .setPositiveButton("OK", null)
                 .show()
@@ -989,9 +1104,12 @@ class OpeningStockFragment : Fragment() {
         btnSave.text = "Saving…"
         lifecycleScope.launch {
             try {
-                val rows = products.mapNotNull { product ->
-                    val qty = quantities[product.id] ?: return@mapNotNull null
-                    if (qty.sum() == 0) return@mapNotNull null
+                // Every active product gets a row on this baseline date, including
+                // zero-quantity ones — otherwise a product left blank here would
+                // silently keep inheriting whatever older committed row precedes
+                // this date instead of correctly resetting to zero.
+                val rows = products.map { product ->
+                    val qty = quantities[product.id] ?: IntArray(4)
                     DailyStock(
                         date        = selectedDate,
                         productCode = product.stockCode,
@@ -1006,16 +1124,31 @@ class OpeningStockFragment : Fragment() {
                         amountQq = 0.0, amountPp = 0.0, amountNn = 0.0, amountDd = 0.0,
                         saleAmount  = 0.0,
                         isCommitted = true,
-                        syncStatus  = SyncStatus.PENDING_UPSERT
+                        syncStatus  = SyncStatus.PENDING_UPSERT,
+                        isOpeningStock = true
                     )
                 }
                 repository.saveAllEntries(rows)
+                // If a later committed day already exists (e.g. correcting an
+                // in-place edit), fix its opening balance to match the new closing.
+                val cascadeResult = repository.cascadeRecalculate(rows, products)
                 // Reset to read-only mode after successful save
                 isEditMode        = false
                 hasUnsavedChanges = false
                 Toast.makeText(requireContext(),
                     "✓ Opening stock saved — ${rows.size} product(s) committed.",
                     Toast.LENGTH_LONG).show()
+                if (cascadeResult.updatedCount > 0) {
+                    Toast.makeText(requireContext(),
+                        "Also corrected the opening balance for the next committed day.",
+                        Toast.LENGTH_LONG).show()
+                }
+                if (cascadeResult.hasNegatives) {
+                    Toast.makeText(requireContext(),
+                        "⚠ ${cascadeResult.negativeSaleDates.joinToString(", ")} now shows " +
+                        "negative sales — please review and correct manually.",
+                        Toast.LENGTH_LONG).show()
+                }
                 // Reload — isCurrentDateLocked re-derived from DB, UI back to read-only
                 loadProducts()
             } catch (e: Exception) {

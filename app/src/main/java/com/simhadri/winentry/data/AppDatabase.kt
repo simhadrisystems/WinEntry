@@ -24,6 +24,7 @@ import com.simhadri.winentry.data.entity.Purchase
  *        All prior incremental migrations collapsed into this baseline.
  *   v3 — products table: removed unused columns quantity, reorderLevel, createdAt.
  *   v4 → v5: add receivedDate column to purchases.
+ *   v5 → v6: add isOpeningStock column to daily_stock.
  *
  * Any future structural change must:
  *   1. Increment version (e.g. version = 3)
@@ -48,7 +49,7 @@ import com.simhadri.winentry.data.entity.Purchase
         DailyStock::class,
         DayReconciliation::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -76,10 +77,29 @@ abstract class AppDatabase : RoomDatabase() {
                 // since all real data lives in Google Sheets.
                 // v2 → future versions must use explicit addMigrations().
                 .fallbackToDestructiveMigrationFrom(1)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 .also { INSTANCE = it }
             }
+
+        /**
+         * v5 → v6: add isOpeningStock marker column to daily_stock, replacing the
+         * open==close/sale==0 heuristic used previously to detect opening-stock rows.
+         * Backfill uses that same heuristic (row-level: open>0, sale=0) so existing
+         * opening stock keeps working — same false-positive risk as before, not
+         * worsened. Every row saved going forward sets the flag explicitly.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE daily_stock ADD COLUMN isOpeningStock INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("""
+                    UPDATE daily_stock SET isOpeningStock = 1, syncStatus = 'PENDING_UPSERT'
+                    WHERE isCommitted = 1
+                      AND (openQq+openPp+openNn+openDd) > 0
+                      AND (saleQq+salePp+saleNn+saleDd) = 0
+                """)
+            }
+        }
 
         /**
          * v4 → v5: add receivedDate column to purchases.

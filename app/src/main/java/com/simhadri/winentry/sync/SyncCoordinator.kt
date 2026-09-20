@@ -621,6 +621,18 @@ class SyncCoordinator(private val context: Context) {
                 fun int(col: Int) = row.getOrNull(col)?.toString()?.toDoubleOrNull()?.toInt() ?: 0
                 fun dbl(col: Int) = row.getOrNull(col)?.toString()?.toDoubleOrNull() ?: 0.0
 
+                // Column Y may be entirely absent on a sheet uploaded before this
+                // column existed — fall back to the same heuristic MIGRATION_5_6
+                // uses locally (open>0, sale=0) rather than defaulting to "not
+                // opening stock" and silently losing track of the baseline date.
+                val openingStockCell = row.getOrNull(24)?.toString()?.trim()
+                val isOpeningStock = if (openingStockCell.isNullOrEmpty()) {
+                    (int(2) + int(3) + int(4) + int(5) > 0) &&
+                    (int(10) + int(11) + int(12) + int(13) == 0)
+                } else {
+                    openingStockCell.uppercase() == "YES"
+                }
+
                 result.add(DailyStock(
                     date = parsedDate, productCode = productCode,
                     openQq  = int(2),  openPp  = int(3),  openNn  = int(4),  openDd  = int(5),
@@ -628,7 +640,8 @@ class SyncCoordinator(private val context: Context) {
                     saleQq  = int(10), salePp  = int(11), saleNn  = int(12), saleDd  = int(13),
                     priceQq = dbl(14), pricePp = dbl(15), priceNn = dbl(16), priceDd = dbl(17),
                     amountQq = dbl(18), amountPp = dbl(19), amountNn = dbl(20), amountDd = dbl(21),
-                    saleAmount = dbl(22), isCommitted = true, syncStatus = SyncStatus.SYNCED
+                    saleAmount = dbl(22), isCommitted = true, syncStatus = SyncStatus.SYNCED,
+                    isOpeningStock = isOpeningStock
                 ))
             } catch (e: Exception) {
                 Log.w(TAG, "Skipping malformed DailyStock row $idx: ${e.message}")

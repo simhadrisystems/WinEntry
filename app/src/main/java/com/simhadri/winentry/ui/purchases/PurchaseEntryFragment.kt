@@ -336,37 +336,55 @@ class PurchaseEntryFragment : Fragment() {
                     // Use today if parsing fails
                 }
             }
-            
-            DatePickerDialog(
-                requireContext(),
-                { _, year, month, day ->
-                    val selectedCalendar = Calendar.getInstance()
-                    selectedCalendar.set(year, month, day)
-                    val selectedDate = dateFormat.format(selectedCalendar.time)
-                    
-                    // Update UI
-                    binding.textPurchaseDate.setText(displayDateFormat.format(selectedCalendar.time))
-                    
-                    // Update ViewModel immediately
-                    android.util.Log.d("PurchaseEntry", "Date selected: $selectedDate")
-                    viewModel.updateMetadata(
-                        date     = selectedDate,
-                        supplier = binding.editSupplierName.text.toString(),
-                        invoice  = if (isInsertMode) lockedInvoice else binding.editInvoiceNumber.text.toString(),
-                        notes    = binding.editNotes.text.toString()
-                    )
-                    // Keep received date in sync with invoice date unless user has explicitly changed it
-                    val currentReceived = viewModel.currentPurchase.value?.receivedDate ?: ""
-                    val currentInvoice  = viewModel.currentPurchase.value?.purchaseDate ?: ""
-                    if (currentReceived.isBlank() || currentReceived == currentInvoice) {
-                        binding.textReceivedDate.setText(displayDateFormat.format(selectedCalendar.time))
-                        viewModel.updateReceivedDate(selectedDate)
-                    }
-                },
-                currentCalendar.get(Calendar.YEAR),
-                currentCalendar.get(Calendar.MONTH),
-                currentCalendar.get(Calendar.DAY_OF_MONTH)
-            ).show()
+
+            fun showPicker(minDate: String?) {
+                val dlg = DatePickerDialog(
+                    requireContext(),
+                    { _, year, month, day ->
+                        val selectedCalendar = Calendar.getInstance()
+                        selectedCalendar.set(year, month, day)
+                        val selectedDate = dateFormat.format(selectedCalendar.time)
+
+                        // Update UI
+                        binding.textPurchaseDate.setText(displayDateFormat.format(selectedCalendar.time))
+
+                        // Update ViewModel immediately
+                        android.util.Log.d("PurchaseEntry", "Date selected: $selectedDate")
+                        viewModel.updateMetadata(
+                            date     = selectedDate,
+                            supplier = binding.editSupplierName.text.toString(),
+                            invoice  = if (isInsertMode) lockedInvoice else binding.editInvoiceNumber.text.toString(),
+                            notes    = binding.editNotes.text.toString()
+                        )
+                        // Keep received date in sync with invoice date unless user has explicitly changed it
+                        val currentReceived = viewModel.currentPurchase.value?.receivedDate ?: ""
+                        val currentInvoice  = viewModel.currentPurchase.value?.purchaseDate ?: ""
+                        if (currentReceived.isBlank() || currentReceived == currentInvoice) {
+                            binding.textReceivedDate.setText(displayDateFormat.format(selectedCalendar.time))
+                            viewModel.updateReceivedDate(selectedDate)
+                        }
+                    },
+                    currentCalendar.get(Calendar.YEAR),
+                    currentCalendar.get(Calendar.MONTH),
+                    currentCalendar.get(Calendar.DAY_OF_MONTH)
+                )
+                // New purchases can't predate the active opening-stock baseline — editing
+                // an existing historical purchase (isEditMode) stays unrestricted.
+                if (!isEditMode && minDate != null) {
+                    try {
+                        dateFormat.parse(minDate)?.let { dlg.datePicker.minDate = it.time }
+                    } catch (_: Exception) {}
+                }
+                dlg.show()
+            }
+
+            if (isEditMode) {
+                showPicker(null)
+            } else {
+                lifecycleScope.launch {
+                    showPicker(viewModel.getActiveOpeningStockDate())
+                }
+            }
         }
     }
 

@@ -69,6 +69,25 @@ class DailyStockRepository(
     suspend fun getEarliestCommittedDate(): String? =
         dailyStockDao.getEarliestCommittedDate()
 
+    suspend fun getLatestCommittedDate(): String? =
+        dailyStockDao.getLatestCommittedDate()
+
+    suspend fun getLatestOpeningStockDate(): String? =
+        dailyStockDao.getLatestOpeningStockDate()
+
+    /**
+     * Active opening stock date, with a one-time self-heal for legacy data that
+     * predates the isOpeningStock column (e.g. restored from an old cloud sheet).
+     * If recovered via the heuristic fallback, the flag is persisted so future
+     * calls hit the fast path and the correction syncs back to the cloud.
+     */
+    suspend fun getLatestOpeningStockDateOrHeal(): String? {
+        dailyStockDao.getLatestOpeningStockDate()?.let { return it }
+        val likely = dailyStockDao.findLikelyOpeningStockDate() ?: return null
+        dailyStockDao.backfillOpeningStockFlagForDate(likely)
+        return likely
+    }
+
     suspend fun getOpeningStockDateCounts() =
         dailyStockDao.getOpeningStockDateCounts()
 
@@ -375,6 +394,27 @@ class DailyStockRepository(
 
     suspend fun clearDateData(date: String) =
         dailyStockDao.deleteAllForDate(date)
+
+    /**
+     * Delete the active opening stock date, then cascade-correct the next committed
+     * day's opening balance for every product that was on [date] — mirrors
+     * [clearEntryWithCascade]'s per-product pattern, batched over the whole date.
+     */
+    suspend fun clearOpeningStockWithCascade(date: String, products: List<Product>) {
+        val rowsToday = dailyStockDao.getAllDailyStockForDate(date).filter { it.isCommitted }
+        dailyStockDao.deleteAllForDate(date)
+        val virtualRows = rowsToday.map { row ->
+            val prevRow = dailyStockDao.getLastCommittedBeforeDate(row.productCode, date)
+            DailyStock(
+                date        = date,
+                productCode = row.productCode,
+                closeQq = prevRow?.closeQq ?: 0, closePp = prevRow?.closePp ?: 0,
+                closeNn = prevRow?.closeNn ?: 0, closeDd = prevRow?.closeDd ?: 0,
+                isCommitted = true
+            )
+        }
+        cascadeRecalculate(virtualRows, products)
+    }
 
     suspend fun clearAllData() =
         dailyStockDao.deleteAll()

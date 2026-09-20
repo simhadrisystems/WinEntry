@@ -24,14 +24,14 @@ import com.simhadri.winentry.data.entity.stockCode
  * V=DD_Boxes  W=DD_Loose  X=DD_Total  Y=DD_Price  Z=DD_Cost
  * AA=TotalCost  AB=Notes  AC=ReceivedDate
  *
- * ── DailyStock sheet column layout (A–X) ─────────────────────────────────────
+ * ── DailyStock sheet column layout (A–Y) ─────────────────────────────────────
  * A=date          B=productCode
  * C=openQq        D=openPp        E=openNn        F=openDd
  * G=closeQq       H=closePp       I=closeNn       J=closeDd
  * K=saleQq        L=salePp        M=saleNn        N=saleDd
  * O=priceQq       P=pricePp       Q=priceNn       R=priceDd
  * S=amountQq      T=amountPp      U=amountNn      V=amountDd
- * W=saleAmount    X=isCommitted
+ * W=saleAmount    X=isCommitted   Y=isOpeningStock
  */
 object CloudSyncManager {
 
@@ -352,16 +352,17 @@ internal fun DailyStock.toSheetRow(): List<Any> = listOf(
     priceQq, pricePp, priceNn, priceDd,
     amountQq, amountPp, amountNn, amountDd,
     saleAmount,
-    if (isCommitted) "YES" else "NO"
+    if (isCommitted) "YES" else "NO",
+    if (isOpeningStock) "YES" else "NO"
 )
-// Sheet columns A..X (24 cols):
+// Sheet columns A..Y (25 cols):
 // A=date          B=productCode
 // C=openQq        D=openPp        E=openNn        F=openDd
 // G=closeQq       H=closePp       I=closeNn       J=closeDd
 // K=saleQq        L=salePp        M=saleNn        N=saleDd
 // O=priceQq       P=pricePp       Q=priceNn       R=priceDd
 // S=amountQq      T=amountPp      U=amountNn      V=amountDd
-// W=saleAmount    X=isCommitted
+// W=saleAmount    X=isCommitted   Y=isOpeningStock
 
 // ── Extension: DayReconciliation -> sheet row ─────────────────────────────────
 

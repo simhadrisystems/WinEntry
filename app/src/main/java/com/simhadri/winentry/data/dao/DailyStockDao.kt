@@ -202,6 +202,43 @@ interface DailyStockDao {
     @Query("SELECT MIN(date) FROM daily_stock WHERE isCommitted = 1")
     suspend fun getEarliestCommittedDate(): String?
 
+    /** The most recent date with any committed row — used to bound new purchase/re-baseline dates. */
+    @Query("SELECT MAX(date) FROM daily_stock WHERE isCommitted = 1")
+    suspend fun getLatestCommittedDate(): String?
+
+    /**
+     * The ACTIVE opening stock date — the most recent date marked isOpeningStock.
+     * Older marked dates are prior re-baselines, kept as read-only Daily Stock history.
+     */
+    @Query("SELECT MAX(date) FROM daily_stock WHERE isOpeningStock = 1")
+    suspend fun getLatestOpeningStockDate(): String?
+
+    /**
+     * Self-heal fallback for [getLatestOpeningStockDate]: the most recent date whose
+     * committed rows look like opening stock (open>0, sale=0 across all products)
+     * but were never flagged — e.g. data restored from a cloud sheet uploaded before
+     * the isOpeningStock column existed. Only consulted when the flag-based lookup
+     * finds nothing despite committed data being present.
+     */
+    @Query("""
+        SELECT date FROM daily_stock
+        WHERE isCommitted = 1
+        GROUP BY date
+        HAVING SUM(ABS(saleQq)+ABS(salePp)+ABS(saleNn)+ABS(saleDd)) = 0
+           AND SUM(openQq+openPp+openNn+openDd) > 0
+        ORDER BY date DESC LIMIT 1
+    """)
+    suspend fun findLikelyOpeningStockDate(): String?
+
+    /** Persists the self-heal result and marks the corrected rows for re-sync. */
+    @Query("""
+        UPDATE daily_stock SET isOpeningStock = 1, syncStatus = 'PENDING_UPSERT'
+        WHERE date = :date AND isCommitted = 1
+          AND (openQq+openPp+openNn+openDd) > 0
+          AND (saleQq+salePp+saleNn+saleDd) = 0
+    """)
+    suspend fun backfillOpeningStockFlagForDate(date: String)
+
     /**
      * Returns 1 if the product has any committed row with non-zero closing balance,
      * 0 otherwise. Used to block deactivation of products that still have stock.
@@ -234,15 +271,13 @@ interface DailyStockDao {
 
     /**
      * Sync statuses for all opening-stock rows on [date].
-     * Opening stock rows are identified by: isCommitted=1, open total > 0, sale total = 0.
      * Used by Opening Stock Setup screen to show Synced / Pending badge.
      */
     @Query("""
         SELECT syncStatus FROM daily_stock
         WHERE date = :date
           AND isCommitted = 1
-          AND (openQq + openPp + openNn + openDd) > 0
-          AND (saleQq + salePp + saleNn + saleDd) = 0
+          AND isOpeningStock = 1
     """)
     suspend fun getOpeningStockSyncStatuses(date: String): List<String>
 }

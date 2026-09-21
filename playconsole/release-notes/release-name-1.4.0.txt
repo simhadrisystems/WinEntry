@@ -1,0 +1,1 @@
+12 (1.4.0) — Opening Stock re-baseline, Closing Balances report redesign (purchase/sale price + margin), Opening Stock sync fix, edge-to-edge dependency bump

@@ -1,0 +1,7 @@
+New: Opening Stock can now be re-baselined — start a fresh count for a new financial year or after a tracking gap, without losing your existing Daily Stock and Purchases history.
+
+New: Closing Balances report now shows purchase price, sale price, and stock value at both prices per product, with a profit margin summary — same detailed format as Quick Sale Check's "Print Closing Stock" report.
+
+Fixed: an issue where the Opening Stock marker could be recorded against the wrong historical dates during cloud sync.
+
+Improved: display compatibility on newer Android versions.

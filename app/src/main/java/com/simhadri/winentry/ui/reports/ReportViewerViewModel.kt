@@ -737,33 +737,42 @@ ${if (recon != null) """
         val location     = prefs.getString("location",      "") ?: ""
 
         val inLocale = Locale("en", "IN")
-        fun qty(n: Int): String = java.text.NumberFormat.getIntegerInstance(inLocale).format(n.toLong())
-        fun cur(v: Double): String = "₹" + java.text.NumberFormat.getNumberInstance(inLocale)
+        fun qty(n: Int): String = if (n == 0) "-" else java.text.NumberFormat.getIntegerInstance(inLocale).format(n.toLong())
+        fun cur(v: Double): String = if (v == 0.0) "-" else "₹" + java.text.NumberFormat.getNumberInstance(inLocale)
             .apply { minimumFractionDigits = 2; maximumFractionDigits = 2 }.format(v)
+        val rateFmt = java.text.NumberFormat.getIntegerInstance(inLocale)
+        fun rate(v: Double): String = if (v <= 0.0) "-" else rateFmt.format(v.toLong())
 
         // Totals accumulators
         var totQQ = 0; var totPP = 0; var totNN = 0; var totDD = 0
-        var totValue = 0.0
+        var totValueSale = 0.0
+        var totValuePurchase = 0.0
 
         var rowSerial = 0
         val rows = entries.joinToString("") { e ->
+            val c = e.closing
+            val skip = c.qq == 0 && c.pp == 0 && c.nn == 0 && c.dd == 0
+            if (skip) return@joinToString ""
+            val p = e.product
+            val valueSale = c.qq * p.qqSalePrice + c.pp * p.ppSalePrice +
+                             c.nn * p.nnSalePrice + c.dd * p.ddSalePrice
+            val valuePurchase = c.qq * p.qqPurchasePrice + c.pp * p.ppPurchasePrice +
+                                 c.nn * p.nnPurchasePrice + c.dd * p.ddPurchasePrice
             rowSerial++
-            val p     = e.product
-            val value = e.closing.qq * p.qqSalePrice +
-                        e.closing.pp * p.ppSalePrice +
-                        e.closing.nn * p.nnSalePrice +
-                        e.closing.dd * p.ddSalePrice
-            totQQ   += e.closing.qq;  totPP += e.closing.pp
-            totNN   += e.closing.nn;  totDD += e.closing.dd
-            totValue += value
+            totQQ += c.qq; totPP += c.pp; totNN += c.nn; totDD += c.dd
+            totValueSale += valueSale
+            totValuePurchase += valuePurchase
             """<tr>
                 <td class="n">$rowSerial</td>
-                <td>${p.displayName}</td>
-                <td class="n">${qty(e.closing.qq)}</td>
-                <td class="n">${qty(e.closing.pp)}</td>
-                <td class="n">${qty(e.closing.nn)}</td>
-                <td class="n">${qty(e.closing.dd)}</td>
-                <td class="r">${cur(value)}</td>
+                <td>${p.displayName.take(28)}</td>
+                <td class="n">${qty(c.qq)}</td><td class="n">${qty(c.pp)}</td>
+                <td class="n">${qty(c.nn)}</td><td class="n">${qty(c.dd)}</td>
+                <td class="n">${if (c.qq > 0) rate(p.qqPurchasePrice) else ""}</td><td class="n">${if (c.pp > 0) rate(p.ppPurchasePrice) else ""}</td>
+                <td class="n">${if (c.nn > 0) rate(p.nnPurchasePrice) else ""}</td><td class="n">${if (c.dd > 0) rate(p.ddPurchasePrice) else ""}</td>
+                <td class="n">${if (c.qq > 0) rate(p.qqSalePrice) else ""}</td><td class="n">${if (c.pp > 0) rate(p.ppSalePrice) else ""}</td>
+                <td class="n">${if (c.nn > 0) rate(p.nnSalePrice) else ""}</td><td class="n">${if (c.dd > 0) rate(p.ddSalePrice) else ""}</td>
+                <td class="r">${cur(valuePurchase)}</td>
+                <td class="r">${cur(valueSale)}</td>
             </tr>"""
         }
 
@@ -772,26 +781,24 @@ ${if (recon != null) """
 
         return """<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
-  @page { margin: 15mm 22mm }
-  body  { font-family:Arial,sans-serif; font-size:12px; margin:0 }
-  .hdr  { text-align:center; margin-bottom:10px }
-  .biz  { font-size:16px; font-weight:bold; color:#1a237e }
-  .loc  { font-size:13px; color:#444; margin-top:2px }
-  .rep  { font-size:13px; font-weight:bold; color:#1a237e; margin-top:4px }
-  .gen  { font-size:10px; color:#888; margin-top:3px }
-  table { border-collapse:collapse; width:100%; border:1px solid #b0b8d4 }
-  th    { background:#1a237e; color:white; padding:5px 8px; font-size:11px;
-          border-right:1px solid #3949ab }
+  @page  { margin:15mm 17mm 15mm 22mm }
+  body   { font-family:Arial,sans-serif; font-size:11px; margin:0 }
+  .hdr   { text-align:center; margin-bottom:10px }
+  .biz   { font-size:15px; font-weight:bold; color:#1a237e }
+  .loc   { font-size:12px; color:#444; margin-top:2px }
+  .rep   { font-size:12px; font-weight:bold; color:#1a237e; margin-top:4px }
+  .gen   { font-size:9px; color:#888; margin-top:3px }
+  table  { border-collapse:collapse; width:100%; border:1px solid #b0b8d4 }
+  th     { background:#1a237e; color:white; padding:4px 5px; font-size:10px; border-right:1px solid #3949ab; white-space:nowrap }
   th:last-child { border-right:none }
-  td    { padding:4px 8px; border-bottom:1px solid #e0e0e0;
-          border-right:1px solid #d0d5e8 }
+  td     { padding:3px 5px; border-bottom:1px solid #e0e0e0; border-right:1px solid #d0d5e8 }
   td:last-child { border-right:none }
-  .n    { text-align:center }
-  .r    { text-align:right }
+  .n     { text-align:center; white-space:nowrap }
+  .r     { text-align:right;  white-space:nowrap }
+  tr     { page-break-inside:avoid; break-inside:avoid }
   tr:nth-child(even) td { background:#eef0f8 }
-  tfoot td { background:#1a237e; color:white; font-weight:bold; padding:5px 8px;
-             border-right:1px solid #3949ab }
-  tfoot td:last-child { border-right:none }
+  tr.totrow td { background:#1a237e; color:white; font-weight:bold; padding:4px 5px; border-right:1px solid #3949ab; white-space:nowrap }
+  tr.totrow td:last-child { border-right:none }
   .wmark     { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) rotate(-40deg); text-align:center; color:rgba(26,35,126,0.07); white-space:nowrap; pointer-events:none; z-index:999 }
   .wmark-app { display:block; font-family:Arial,sans-serif; font-size:68px; font-weight:900; line-height:1 }
   .wmark-co  { display:block; font-family:Arial,sans-serif; font-size:26px; font-weight:600; letter-spacing:3px; margin-top:4px }
@@ -805,22 +812,44 @@ ${if (recon != null) """
   <div class="wmt"><b>WinEntry</b> &middot; Simhadri Systems</div>
 </div>
 <table>
-  <thead><tr>
-    <th>#</th>
-    <th style="text-align:left">Product</th>
-    <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
-    <th>Value</th>
-  </tr></thead>
-  <tbody>$rows</tbody>
-  <tfoot><tr>
-    <td colspan="2">TOTAL</td>
-    <td class="n">${qty(totQQ)}</td>
-    <td class="n">${qty(totPP)}</td>
-    <td class="n">${qty(totNN)}</td>
-    <td class="n">${qty(totDD)}</td>
-    <td class="r">${cur(totValue)}</td>
-  </tr></tfoot>
+  <thead>
+    <tr>
+      <th rowspan="2" style="text-align:center;vertical-align:middle">#</th>
+      <th rowspan="2" style="text-align:left;vertical-align:middle">Product</th>
+      <th colspan="4">Closing Balance</th>
+      <th colspan="4">Purchase Price</th>
+      <th colspan="4">Sale Price</th>
+      <th rowspan="2" style="vertical-align:middle">Closing Value<br>(Purchase Price)</th>
+      <th rowspan="2" style="vertical-align:middle">Closing Value<br>(Sale Price)</th>
+    </tr>
+    <tr>
+      <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
+      <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
+      <th>QQ</th><th>PP</th><th>NN</th><th>DD</th>
+    </tr>
+  </thead>
+  <tbody>
+    $rows
+    <tr class="totrow">
+      <td colspan="2">TOTAL</td>
+      <td class="n">${qty(totQQ)}</td><td class="n">${qty(totPP)}</td>
+      <td class="n">${qty(totNN)}</td><td class="n">${qty(totDD)}</td>
+      <td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td>
+      <td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td>
+      <td class="r">${cur(totValuePurchase)}</td>
+      <td class="r">${cur(totValueSale)}</td>
+    </tr>
+  </tbody>
 </table>
+<div style="display:flex;justify-content:flex-end;margin-top:14px">
+  <table style="border-collapse:collapse;width:auto;min-width:320px;border:1px solid #b0b8d4;font-size:11px">
+    <tbody>
+      <tr><td style="padding:6px 12px;font-weight:bold;border-bottom:1px solid #e0e0e0">CLOSING STOCK VALUE (AT PURCHASE PRICE)</td><td style="padding:6px 12px;font-weight:bold;text-align:right;border-bottom:1px solid #e0e0e0">${cur(totValuePurchase)}</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:bold;border-bottom:1px solid #e0e0e0">CLOSING STOCK VALUE (AT SALE PRICE)</td><td style="padding:6px 12px;font-weight:bold;text-align:right;border-bottom:1px solid #e0e0e0">${cur(totValueSale)}</td></tr>
+      <tr style="background:#1a237e"><td style="padding:6px 12px;color:white;font-weight:bold">MARGIN (POTENTIAL PROFIT)</td><td style="padding:6px 12px;color:white;font-weight:bold;text-align:right">${cur(totValueSale - totValuePurchase)}</td></tr>
+    </tbody>
+  </table>
+</div>
 <div class="wmark"><span class="wmark-app">WinEntry</span><span class="wmark-co">Simhadri Systems</span></div>
 </body></html>"""
     }

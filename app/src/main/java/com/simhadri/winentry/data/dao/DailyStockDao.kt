@@ -215,10 +215,11 @@ interface DailyStockDao {
 
     /**
      * Self-heal fallback for [getLatestOpeningStockDate]: the most recent date whose
-     * committed rows look like opening stock (open>0, sale=0 across all products)
-     * but were never flagged — e.g. data restored from a cloud sheet uploaded before
-     * the isOpeningStock column existed. Only consulted when the flag-based lookup
-     * finds nothing despite committed data being present.
+     * committed rows LOOK like opening stock in aggregate (whole-day open total>0,
+     * whole-day sale total=0) but were never flagged — e.g. data restored from a
+     * cloud sheet uploaded before the isOpeningStock column existed. Only consulted
+     * when the flag-based lookup finds nothing despite committed data being present.
+     * Deliberately a day-level aggregate, not a per-row check (see [backfillOpeningStockFlagForDate]).
      */
     @Query("""
         SELECT date FROM daily_stock
@@ -230,12 +231,16 @@ interface DailyStockDao {
     """)
     suspend fun findLikelyOpeningStockDate(): String?
 
-    /** Persists the self-heal result and marks the corrected rows for re-sync. */
+    /**
+     * Persists the self-heal result and marks the corrected rows for re-sync.
+     * Flags every committed row on [date] — [findLikelyOpeningStockDate] already
+     * verified the whole day qualifies, so no further per-row open/sale check here
+     * (a per-row check would under-flag any product that had zero sales *and* zero
+     * opening balance that day, e.g. a product added after the baseline).
+     */
     @Query("""
         UPDATE daily_stock SET isOpeningStock = 1, syncStatus = 'PENDING_UPSERT'
         WHERE date = :date AND isCommitted = 1
-          AND (openQq+openPp+openNn+openDd) > 0
-          AND (saleQq+salePp+saleNn+saleDd) = 0
     """)
     suspend fun backfillOpeningStockFlagForDate(date: String)
 

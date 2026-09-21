@@ -84,10 +84,11 @@ abstract class AppDatabase : RoomDatabase() {
 
         /**
          * v5 → v6: add isOpeningStock marker column to daily_stock, replacing the
-         * open==close/sale==0 heuristic used previously to detect opening-stock rows.
-         * Backfill uses that same heuristic (row-level: open>0, sale=0) so existing
-         * opening stock keeps working — same false-positive risk as before, not
-         * worsened. Every row saved going forward sets the flag explicitly.
+         * "earliest committed date" concept the app always used before this feature
+         * existed. Backfill flags every committed row on that single earliest date
+         * (not a per-row open/sale check — a per-row check under-flags any date
+         * where an individual product legitimately had zero sales, and over-flags
+         * unrelated later dates where some product happened to have zero sales).
          */
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -95,8 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("""
                     UPDATE daily_stock SET isOpeningStock = 1, syncStatus = 'PENDING_UPSERT'
                     WHERE isCommitted = 1
-                      AND (openQq+openPp+openNn+openDd) > 0
-                      AND (saleQq+salePp+saleNn+saleDd) = 0
+                      AND date = (SELECT MIN(date) FROM daily_stock WHERE isCommitted = 1)
                 """)
             }
         }

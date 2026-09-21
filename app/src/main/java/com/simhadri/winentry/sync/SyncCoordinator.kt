@@ -622,16 +622,13 @@ class SyncCoordinator(private val context: Context) {
                 fun dbl(col: Int) = row.getOrNull(col)?.toString()?.toDoubleOrNull() ?: 0.0
 
                 // Column Y may be entirely absent on a sheet uploaded before this
-                // column existed — fall back to the same heuristic MIGRATION_5_6
-                // uses locally (open>0, sale=0) rather than defaulting to "not
-                // opening stock" and silently losing track of the baseline date.
+                // column existed — default false rather than guess per-row; a
+                // per-row open/sale check can't tell "this day is the baseline"
+                // from "this one product had zero sales today". Recovery instead
+                // goes through DailyStockRepository.getLatestOpeningStockDateOrHeal(),
+                // which uses a whole-day aggregate to find and re-flag the real date.
                 val openingStockCell = row.getOrNull(24)?.toString()?.trim()
-                val isOpeningStock = if (openingStockCell.isNullOrEmpty()) {
-                    (int(2) + int(3) + int(4) + int(5) > 0) &&
-                    (int(10) + int(11) + int(12) + int(13) == 0)
-                } else {
-                    openingStockCell.uppercase() == "YES"
-                }
+                val isOpeningStock = openingStockCell?.uppercase() == "YES"
 
                 result.add(DailyStock(
                     date = parsedDate, productCode = productCode,

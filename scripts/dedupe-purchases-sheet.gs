@@ -10,11 +10,49 @@
  * Run from the sheet: Extensions > Apps Script, paste this file, run dedupePurchases.
  *   DRY_RUN = true  -> only writes the DupReport tab, changes nothing.
  *   DRY_RUN = false -> copies Purchases to a backup tab first, then rewrites Purchases.
+ *
+ * repairPurchaseTextColumns() (run separately) turns real date cells in the text columns
+ * back into plain "yyyy-MM-dd" text, e.g. after the first version of this script.
+ *
+ * Text columns are written with the plain-text format "@": setValues() otherwise parses
+ * strings like typed input, turning "2026-04-30" into a date cell that the Sheets API
+ * returns as a serial number (46142), which the app stored as the purchase date.
  */
 const DRY_RUN = true;
 
 const COL_TXN = 0, COL_DATE = 1, COL_CODE = 2, COL_INVOICE = 4, COL_RECEIVED = 28;
 const FIRST_DATA_COL = 6, LAST_DATA_COL = 27;   // G..AB: quantities, prices, costs, notes
+// TxnId, Date, ProductCode, ProductName, InvoiceNo, Supplier, Notes, ReceivedDate
+const TEXT_COLS = [0, 1, 2, 3, 4, 5, 27, 28];
+
+function asText(v, tz) {
+  if (v instanceof Date) return Utilities.formatDate(v, tz, "yyyy-MM-dd");
+  return v === null || v === undefined ? "" : String(v);
+}
+
+/** Writes rows starting at row 2, with TEXT_COLS stored as plain text. */
+function writeRowsAsText(sheet, rows, width, tz) {
+  if (!rows.length) return;
+  TEXT_COLS.forEach(c => sheet.getRange(2, c + 1, rows.length, 1).setNumberFormat("@"));
+  const out = rows.map(r => r.map((v, c) => TEXT_COLS.indexOf(c) >= 0 ? asText(v, tz) : v));
+  sheet.getRange(2, 1, rows.length, width).setValues(out);
+}
+
+function repairPurchaseTextColumns() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Purchases");
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  const width = Math.max(sheet.getLastColumn(), 29);
+  const tz = ss.getSpreadsheetTimeZone();
+  const rows = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+  const fixed = rows.filter(r => TEXT_COLS.some(c => r[c] instanceof Date)).length;
+
+  const stamp = Utilities.formatDate(new Date(), tz, "yyyyMMdd_HHmm");
+  sheet.copyTo(ss).setName("Purchases_backup_" + stamp);
+  writeRowsAsText(sheet, rows, width, tz);
+  SpreadsheetApp.getUi().alert(`Done. ${fixed} row(s) had date cells, now plain text.\n\nBackup tab: Purchases_backup_${stamp}`);
+}
 
 function dedupePurchases() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -91,6 +129,6 @@ function dedupePurchases() {
   sheet.copyTo(ss).setName("Purchases_backup_" + stamp);
 
   sheet.getRange(2, 1, lastRow - 1, width).clearContent();
-  sheet.getRange(2, 1, kept.length, width).setValues(kept);
+  writeRowsAsText(sheet, kept, width, tz);
   SpreadsheetApp.getUi().alert("Done.\n\n" + summary + "\n\nBackup tab: Purchases_backup_" + stamp);
 }

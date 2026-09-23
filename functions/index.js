@@ -757,8 +757,10 @@ async function readAll(sheets, spreadsheetId) {
     sheets.spreadsheets.values.get({ spreadsheetId, range: "PurchaseImport!A1:L" })
       .catch(() => ({ data: { values: null } }))  // tab may not exist yet
   ]);
-  // Column AC (ReceivedDate) may come back as a serial if edited in the sheet
+  // Date (B) and ReceivedDate (AC) come back as serials when the cell holds a real date
+  // (edited in the sheet, or rewritten by an Apps Script setValues); the app expects yyyy-MM-dd
   const purchases = (purchasesRes.data.values || []).map(row => {
+    if (row.length > 1 && row[1] !== "" && row[1] != null) row[1] = normalizeDate(row[1]);
     if (row.length > 28 && row[28] !== "" && row[28] != null) row[28] = normalizeDate(row[28]);
     return row;
   });

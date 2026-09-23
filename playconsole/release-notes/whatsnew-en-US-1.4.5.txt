@@ -1,0 +1,4 @@
+Purchases: importing an invoice again no longer adds duplicate copies to your cloud sheet. Restore from cloud brings back each purchase once, with its Date Received.
+Opening Stock: correcting an opening balance changes only the products you edit; closing entries already made that day are kept. Baseline dates show an amber OB row.
+Fixed: wrong or negative sales after a purchase's Date Received was changed.
+Fixed: Check for Update in Settings now installs directly.

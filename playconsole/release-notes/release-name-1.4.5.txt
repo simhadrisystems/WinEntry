@@ -1,0 +1,1 @@
+17 (1.4.5) — Purchases: re-import and cloud restore no longer duplicate rows (txnId reuse, restore keeps one copy per line); includes all of vc16 (Opening Stock redesign, force update, in-app update fix)

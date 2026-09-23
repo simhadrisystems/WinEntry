@@ -132,6 +132,55 @@ async function isUserInvited(email) {
 
 // ── SHARED HELPER: create user sheet + write Firestore ────────────────────────
 
+function userSheetTitle(email, uid) {
+  const safeEmail = (email || uid).replace(/@/g, "_at_").replace(/\./g, "_");
+  return `WinEntry \u2013 ${safeEmail}`;  // \u2013 = en-dash, avoids copy-paste encoding issues
+}
+
+// Runs as SHEETS_SA, which every user sheet is shared with, so this finds sheets in the
+// current SHARED_FOLDER_ID and in the admin's old personal-Drive folder alike.
+function saDrive() {
+  const auth = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/drive.metadata.readonly"] });
+  return google.drive({ version: "v3", auth });
+}
+
+/** Most recently modified, non-trashed sheet with the user's title, or null. */
+async function findUserSheetByTitle(email, uid) {
+  const title = userSheetTitle(email, uid).replace(/'/g, "\\'");
+  const res = await saDrive().files.list({
+    q: `name='${title}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+    fields: "files(id, modifiedTime)",
+    orderBy: "modifiedTime desc",
+    pageSize: 5,
+  });
+  const files = res.data.files || [];
+  if (files.length > 1) console.warn(`findUserSheetByTitle: ${files.length} sheets titled "${title}" — using newest ${files[0].id}`);
+  return files.length ? files[0].id : null;
+}
+
+/**
+ * False when the file was deleted, trashed, or is not shared with SHEETS_SA (Drive answers
+ * 404 for all three). Anything else throws: treating e.g. a 403 API error as "gone" would
+ * make createUserSheetForUser create a blank duplicate for a user whose sheet is fine.
+ */
+async function sheetExists(spreadsheetId) {
+  try {
+    const f = await saDrive().files.get({ fileId: spreadsheetId, fields: "id, trashed" });
+    return !f.data.trashed;
+  } catch (err) {
+    if (err.code === 404) return false;
+    throw err;
+  }
+}
+
+async function relinkUserSheet(uid, sheetId) {
+  await db.collection("users").doc(uid).set({
+    userSheetId:  sheetId,
+    userSheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId}`,
+    sheetRelinkedAt: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+}
+
 /**
  * Creates a personal Google Sheet for the user, moves it to the shared admin
  * folder, shares it with the user, and writes /users/{uid} to Firestore.
@@ -149,8 +198,7 @@ async function isUserInvited(email) {
  */
 async function createUserSheetForUser(uid, email, displayName, extraData = {}) {
   const safeDisplayName = displayName || email || "User";
-  const safeEmail = (email || uid).replace(/@/g, "_at_").replace(/\./g, "_");
-  const sheetTitle = `WinEntry \u2013 ${safeEmail}`;  // \u2013 = en-dash, avoids copy-paste encoding issues
+  const sheetTitle = userSheetTitle(email, uid);
 
   // ── Build Google API clients up front (needed for Drive search + creation) ─
   const auth   = getAdminAuth();
@@ -160,16 +208,24 @@ async function createUserSheetForUser(uid, email, displayName, extraData = {}) {
   // ── Check 1: Drive search (PRIMARY gate — immune to Firestore being cleared) ─
   // Always search Drive first. Even if Firestore docs are wiped for testing,
   // an existing sheet in the shared folder is found and reused — no duplicates.
+  // Searches every folder SHEETS_SA can see (old personal-Drive folder included); searching
+  // only SHARED_FOLDER_ID created blank duplicates for users whose sheet predates the move.
   try {
-    const driveSearch = await drive.files.list({
-      q: `name='${sheetTitle}' and '${SHARED_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
-      fields: "files(id)",
-      spaces: "drive",
-      pageSize: 1,
+    let recoveredId = await findUserSheetByTitle(email, uid).catch(err => {
+      console.warn(`SA sheet search failed for uid=${uid}: ${err.message} — trying admin folder search`);
+      return null;
     });
-    const found = driveSearch.data.files;
-    if (found && found.length > 0) {
-      const recoveredId  = found[0].id;
+    if (!recoveredId) {
+      const driveSearch = await drive.files.list({
+        q: `name='${sheetTitle}' and '${SHARED_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+        fields: "files(id)",
+        spaces: "drive",
+        pageSize: 1,
+      });
+      const found = driveSearch.data.files;
+      if (found && found.length > 0) recoveredId = found[0].id;
+    }
+    if (recoveredId) {
       const recoveredUrl = `https://docs.google.com/spreadsheets/d/${recoveredId}`;
       console.log(`Drive search found existing sheet for uid=${uid}: ${recoveredId} — reusing`);
       await db.collection("users").doc(uid).set({
@@ -196,7 +252,7 @@ async function createUserSheetForUser(uid, email, displayName, extraData = {}) {
 
   // ── Check 2: Firestore (secondary gate — catches Drive search failures) ────
   const userDoc = await db.collection("users").doc(uid).get();
-  if (userDoc.exists && userDoc.data().userSheetId) {
+  if (userDoc.exists && userDoc.data().userSheetId && await sheetExists(userDoc.data().userSheetId)) {
     const existingId = userDoc.data().userSheetId;
     console.log(`Firestore: sheet already exists for uid=${uid}: ${existingId}`);
     return {
@@ -1203,23 +1259,39 @@ exports.syncUserSheet = functions
 
     console.log(`syncUserSheet [${operation}] — uid=${uid}, spreadsheetId=${spreadsheetId}`);
 
-    try {
+    const runOperation = async (id) => {
       switch (operation) {
-        case "write_purchases":
-          return res.status(200).json(await writePurchases(sheets, spreadsheetId, rows || []));
-        case "delete_purchases":
-          return res.status(200).json(await deletePurchases(sheets, spreadsheetId, txnIds || []));
-        case "write_daily_stock":
-          return res.status(200).json(await writeDailyStock(sheets, spreadsheetId, rows || []));
-        case "write_day_summary":
-          return res.status(200).json(await writeDaySummary(sheets, spreadsheetId, rows || []));
-        case "read_all":
-          return res.status(200).json(await readAll(sheets, spreadsheetId));
-        case "clear_all":
-          return res.status(200).json(await clearAll(sheets, spreadsheetId));
-        default:
-          return res.status(400).json({ error: `Unknown operation: ${operation}` });
+        case "write_purchases":   return writePurchases(sheets, id, rows || []);
+        case "delete_purchases":  return deletePurchases(sheets, id, txnIds || []);
+        case "write_daily_stock": return writeDailyStock(sheets, id, rows || []);
+        case "write_day_summary": return writeDaySummary(sheets, id, rows || []);
+        case "read_all":          return readAll(sheets, id);
+        case "clear_all":         return clearAll(sheets, id);
+        default:                  return null;
       }
+    };
+    const sheetGone = err => err.code === 404 || /Requested entity was not found/i.test(err.message || "");
+
+    try {
+      let result;
+      try {
+        result = await runOperation(spreadsheetId);
+      } catch (err) {
+        if (!sheetGone(err)) throw err;
+        // Linked sheet was deleted: re-link to the user's sheet found by title (either Drive
+        // folder) and retry once. Never create a blank sheet here — rows the device already
+        // marked SYNCED would not be re-sent, so a new sheet would silently miss history.
+        const foundId = await findUserSheetByTitle(decodedToken.email, uid);
+        if (!foundId || foundId === spreadsheetId) {
+          console.error(`syncUserSheet [${operation}] — sheet ${spreadsheetId} gone, no replacement found — uid=${uid}`);
+          return res.status(404).json({ error: "no_sheet", message: "Linked cloud sheet no longer exists." });
+        }
+        console.warn(`syncUserSheet — sheet ${spreadsheetId} gone; re-linking uid=${uid} to ${foundId}`);
+        await relinkUserSheet(uid, foundId);
+        result = await runOperation(foundId);
+      }
+      if (result === null) return res.status(400).json({ error: `Unknown operation: ${operation}` });
+      return res.status(200).json(result);
     } catch (err) {
       console.error(`syncUserSheet [${operation}] failed — uid=${uid}:`, err.message);
       return res.status(500).json({ error: err.message });

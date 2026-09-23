@@ -10,7 +10,8 @@ data class DailyEntry(
     val purchase: ProductSizeQty,  // User enters
     val sale: ProductSizeQty,      // Calculated
     val closing: ProductSizeQty,   // User enters
-    val committedAmounts: ProductSizeAmounts? = null  // locked at commit time; null = not committed
+    val committedAmounts: ProductSizeAmounts? = null,  // locked at commit time; null = not committed
+    val isBaseline: Boolean = false                    // row is on an opening-stock baseline date
 ) {
     // For committed rows, use the locked amounts from DB (price at commit time).
     // For draft rows, compute from current product master prices.

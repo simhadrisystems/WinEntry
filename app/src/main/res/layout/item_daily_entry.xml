@@ -191,6 +191,7 @@
 
             <!-- OB row — read-only, no box borders; bold slate text -->
             <LinearLayout
+                android:id="@+id/rowOb"
                 android:layout_width="match_parent"
                 android:layout_height="34dp"
                 android:orientation="horizontal"

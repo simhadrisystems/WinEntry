@@ -254,6 +254,32 @@ object CloudSyncManager {
      * Rows whose txnId is in [existingTxnIds] are skipped (dedup by txnId).
      * Rows are marked SYNCED — the cloud row is authoritative, no re-upload needed.
      */
+    /** Column AC, kept only when it is a real later date (blank = same as invoice date). */
+    private fun parseReceivedDate(row: List<Any>, purchaseDate: String, maxDate: String): String {
+        val raw = row.getOrNull(28)?.toString()?.trim().orEmpty()
+        if (raw.isBlank()) return ""
+        val d = parseDateStr(raw)
+        return if (d > purchaseDate && d <= maxDate) d else ""
+    }
+
+    /** txnId to cloud ReceivedDate for rows that carry one. */
+    internal fun parseReceivedDates(rows: List<List<Any>>): Map<String, String> {
+        val maxDate = run {
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+        }
+        val out = mutableMapOf<String, String>()
+        for (row in rows) {
+            val txnId = row.getOrNull(0)?.toString()?.trim().orEmpty()
+            if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
+            val purchaseDate = parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty())
+            val rd = parseReceivedDate(row, purchaseDate, maxDate)
+            if (rd.isNotBlank()) out[txnId] = rd
+        }
+        return out
+    }
+
     internal fun parsePurchasesTabRows(
         rows: List<List<Any>>,
         products: List<Product>,
@@ -283,8 +309,7 @@ object CloudSyncManager {
             val product = productMap[productCode]
 
             val purchaseDate = parseDateStr(row.getOrNull(1).str())
-            val rawReceived  = row.getOrNull(28).str()
-            val receivedDate = if (rawReceived.isNotBlank() && rawReceived > purchaseDate && rawReceived <= maxDate) rawReceived else ""
+            val receivedDate = parseReceivedDate(row, purchaseDate, maxDate)
 
             result.add(Purchase(
                 txnId         = txnId,

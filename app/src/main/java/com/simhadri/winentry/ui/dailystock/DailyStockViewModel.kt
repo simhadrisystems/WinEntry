@@ -267,6 +267,12 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         val nnPq = purchaseMap[product.nnCode] ?: 0
         val ddPq = purchaseMap[product.ddCode] ?: 0
 
+        // A draft whose purchases moved to another date (e.g. Date Received changed) has no reason to exist
+        if (stock != null && !stock.isCommitted && (qqPq + ppPq + nnPq + ddPq) == 0) {
+            runCatching { repository.deleteDraft(date, product.stockCode) }
+            stock = null
+        }
+
         // Auto-save draft if any purchase exists but no today row yet
         if (stock == null && (qqPq + ppPq + nnPq + ddPq) > 0) {
             runCatching {
@@ -281,18 +287,11 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
             stock = repository.getDailyStockRaw(date, product.stockCode)
         }
 
-        // Closing: use stored value if row exists; default to ob + pq.
-        // Exception: when ob=0 AND pq=0 (first-day / opening stock entry),
-        // allow any CB — the user is establishing the initial balance, not
-        // recording a sale. No constraint can be enforced without stock history.
+        // Committed rows keep the user's CB. Drafts only ever stored OB + PQ as of
+        // creation, so their CB is re-derived from the current OB and purchases —
+        // otherwise a later-received or moved purchase shows a phantom or negative sale.
         fun resolveCb(stored: Int?, committed: Boolean, ob: Int, pq: Int): Int =
-            when {
-                stored == null          -> ob + pq
-                committed               -> stored
-                ob == 0 && pq == 0      -> stored   // opening stock — no upper bound
-                stored > ob + pq        -> ob + pq   // impossible draft — auto-correct
-                else                    -> stored
-            }
+            if (stored != null && committed) stored else ob + pq
 
         val qqCb = resolveCb(stock?.closeQq, stock?.isCommitted == true, qqOb, qqPq)
         val ppCb = resolveCb(stock?.closePp, stock?.isCommitted == true, ppOb, ppPq)
@@ -313,7 +312,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
             closing  = ProductSizeQty(qqCb, ppCb, nnCb, ddCb),
             committedAmounts = if (stock?.isCommitted == true)
                 ProductSizeAmounts(stock.amountQq, stock.amountPp, stock.amountNn, stock.amountDd)
-            else null
+            else null,
+            isBaseline = stock?.isCommitted == true && stock.isOpeningStock
         )
     }
 
@@ -372,7 +372,16 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
             "NN" -> entry.sale.copy(nn = entry.opening.nn + entry.purchase.nn - value)
             else -> entry.sale.copy(dd = entry.opening.dd + entry.purchase.dd - value)
         }
-        entriesCache[productId] = entry.copy(closing = newCb, sale = newSale)
+        // Edited values are priced live until saved; stale locked amounts would misreport the sale
+        entriesCache[productId] = entry.copy(closing = newCb, sale = newSale, committedAmounts = null)
+    }
+
+    private fun lockSavedAmounts(rows: List<DailyStock>) {
+        val byCode = rows.associateBy { it.productCode }
+        entriesCache.entries.forEach { (id, e) ->
+            val r = byCode[e.product.stockCode] ?: return@forEach
+            entriesCache[id] = e.copy(committedAmounts = ProductSizeAmounts(r.amountQq, r.amountPp, r.amountNn, r.amountDd))
+        }
     }
 
     // ── Save ──────────────────────────────────────────────────────────────────
@@ -387,6 +396,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 // the cascade system (CascadeWithWarnings) so the user can correct
                 // dates one at a time without being blocked by downstream issues.
                 repository.saveAllEntries(rows)
+                lockSavedAmounts(rows)
                 dirtyProducts.remove(productId)
                 if (dirtyProducts.isEmpty()) _hasUnsavedChanges.value = false
                 loadDateStatus()
@@ -413,6 +423,7 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 if (rowsToSave.isNotEmpty()) {
                     // Save unconditionally — downstream issues handled by cascade warnings.
                     repository.saveAllEntries(rowsToSave)
+                    lockSavedAmounts(rowsToSave)
                 }
                 clearDirty()
                 loadDateStatus()
@@ -535,7 +546,9 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                     for (row in rows) {
                         cal.time = sdf.parse(row.date) ?: continue
                         cal.add(Calendar.DAY_OF_MONTH, 1)
-                        repository.deleteDailyStock(sdf.format(cal.time), row.productCode)
+                        val nextDate = sdf.format(cal.time)
+                        if (repository.getDailyStockRaw(nextDate, row.productCode)?.isOpeningStock == true) continue
+                        repository.deleteDailyStock(nextDate, row.productCode)
                     }
                     loadEntriesForDate()
                     loadDateStatus()
@@ -569,6 +582,36 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    /**
+     * Manually re-runs the cascade check for the current date's already-committed
+     * entries, without requiring any edit. Covers the case where the user picked
+     * "Skip" on the cascade dialog (or the next day's data changed since) and later
+     * wants the next day's opening balance corrected — previously the only way to
+     * reopen that dialog was to re-edit and re-save every product on the date, even
+     * though nothing about today's own values needed to change.
+     */
+    fun recalculateNextDayOpeningBalance() {
+        viewModelScope.launch {
+            try {
+                val date = _selectedDate.value ?: return@launch
+                val rows = repository.getAllDailyStockForDate(date).filter { it.isCommitted }
+                if (rows.isEmpty()) {
+                    _saveStatus.value = SaveStatus.Info("No committed entries on $date.")
+                    return@launch
+                }
+                val preview = repository.previewCascade(rows)
+                if (!preview.isNeeded) {
+                    _saveStatus.value = SaveStatus.Info("No committed next-day data found after $date.")
+                    return@launch
+                }
+                pendingCascadeRows = rows
+                _cascadeRequest.postValue(CascadeRequest(preview))
+            } catch (e: Exception) {
+                ErrorLogger.log(getApplication(), "DailyStock", "recalculateNextDayOpeningBalance failed", e)
+            }
+        }
+    }
+
     // ── Date status ───────────────────────────────────────────────────────────
 
     private val _dateStatus = MutableLiveData<DateStatus>()
@@ -591,7 +634,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 isFullyCommitted = rows.isNotEmpty() && draftCount == 0,
                 commitCount      = commitCount,
                 draftCount       = draftCount,
-                totalEntries     = rows.size
+                totalEntries     = rows.size,
+                isOpeningStockBaseline = rows.any { it.isOpeningStock }
             )
         } catch (e: Exception) { DateStatus(false, false, 0, 0, 0) }
     }
@@ -606,6 +650,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         object Saving : SaveStatus()
         data class Success(val count: Int) : SaveStatus()
         data class Error(val message: String) : SaveStatus()
+        /** Non-error informational message (e.g. a manual action found nothing to do). */
+        data class Info(val message: String) : SaveStatus()
         data class CascadeComplete(val updatedCount: Int) : SaveStatus()
         /** Cascade completed but some subsequent days have CB > new OB (negative sale). */
         data class CascadeWithWarnings(
@@ -627,7 +673,10 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         val isFullyCommitted: Boolean,
         val commitCount:      Int,
         val draftCount:       Int,
-        val totalEntries:     Int
+        val totalEntries:     Int,
+        /** True when this date's rows carry the opening-stock baseline marker — either
+         *  the original setup or a "Start New Opening Balance" re-baseline point. */
+        val isOpeningStockBaseline: Boolean = false
     ) {
         val statusColor: Int get() = when {
             !hasData          -> 0xFF9E9E9E.toInt()

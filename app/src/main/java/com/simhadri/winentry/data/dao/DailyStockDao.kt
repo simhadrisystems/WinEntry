@@ -91,29 +91,26 @@ interface DailyStockDao {
 
     /**
      * Upsert one committed row — sets syncStatus = PENDING_UPSERT.
-     * Wraps insertOrReplace so the caller doesn't need to set syncStatus.
+     * A row on a baseline date keeps isOpeningStock even if the caller built it without the flag.
      */
     @Transaction
     suspend fun upsertCommitted(stock: DailyStock) {
-        insertOrReplace(
-            stock.copy(
-                isCommitted  = true,
-                syncStatus   = SyncStatus.PENDING_UPSERT,
-                lastModified = System.currentTimeMillis()
-            )
-        )
+        upsertCommittedBatch(listOf(stock))
     }
 
     /** Batch upsert — single SQLite transaction for the entire save. */
     @Transaction
     suspend fun upsertCommittedBatch(rows: List<DailyStock>) {
+        if (rows.isEmpty()) return
+        val baselineDates = getAllOpeningStockDates().toHashSet()
         val now = System.currentTimeMillis()
         insertOrReplaceAll(
             rows.map { r ->
                 r.copy(
-                    isCommitted  = true,
-                    syncStatus   = SyncStatus.PENDING_UPSERT,
-                    lastModified = now
+                    isCommitted    = true,
+                    isOpeningStock = r.isOpeningStock || r.date in baselineDates,
+                    syncStatus     = SyncStatus.PENDING_UPSERT,
+                    lastModified   = now
                 )
             }
         )
@@ -161,6 +158,10 @@ interface DailyStockDao {
 
     @Query("DELETE FROM daily_stock WHERE date = :date")
     suspend fun deleteAllForDate(date: String)
+
+    /** Removes an auto-created draft; never touches a committed row. */
+    @Query("DELETE FROM daily_stock WHERE date = :date AND productCode = :productCode AND isCommitted = 0")
+    suspend fun deleteDraft(date: String, productCode: String)
 
     @Query("DELETE FROM daily_stock WHERE productCode = :productCode")
     suspend fun deleteDailyStockByProduct(productCode: String)
@@ -213,6 +214,12 @@ interface DailyStockDao {
     @Query("SELECT MAX(date) FROM daily_stock WHERE isOpeningStock = 1")
     suspend fun getLatestOpeningStockDate(): String?
 
+    /** All dates ever marked as an opening-stock baseline, most recent first — the
+     *  active one is the first (MAX) entry, the rest are prior re-baselines kept as
+     *  read-only Daily Stock history. */
+    @Query("SELECT DISTINCT date FROM daily_stock WHERE isOpeningStock = 1 ORDER BY date DESC")
+    suspend fun getAllOpeningStockDates(): List<String>
+
     /**
      * Self-heal fallback for [getLatestOpeningStockDate]: the most recent date whose
      * committed rows LOOK like opening stock in aggregate (whole-day open total>0,
@@ -244,6 +251,42 @@ interface DailyStockDao {
     """)
     suspend fun backfillOpeningStockFlagForDate(date: String)
 
+    data class BaselineCandidate(val date: String, val markedCount: Int, val committedCount: Int)
+
+    /** Every date with at least one isOpeningStock row, newest first, with how many of its
+     *  committed rows carry the marker — markedCount < committedCount means the marker is incomplete. */
+    @Query("""
+        SELECT date,
+               SUM(CASE WHEN isOpeningStock = 1 THEN 1 ELSE 0 END) AS markedCount,
+               COUNT(*) AS committedCount
+        FROM daily_stock
+        WHERE isCommitted = 1
+        GROUP BY date
+        HAVING markedCount > 0
+        ORDER BY date DESC
+    """)
+    suspend fun getBaselineCandidates(): List<BaselineCandidate>
+
+    @Query("""
+        UPDATE daily_stock SET isOpeningStock = 0, syncStatus = 'PENDING_UPSERT', lastModified = :now
+        WHERE isOpeningStock = 1 AND date > :date
+    """)
+    suspend fun clearOpeningStockFlagsAfter(date: String, now: Long)
+
+    @Query("""
+        UPDATE daily_stock SET isOpeningStock = 1, syncStatus = 'PENDING_UPSERT', lastModified = :now
+        WHERE date = :date AND isCommitted = 1 AND isOpeningStock = 0
+    """)
+    suspend fun markOpeningStockFlagForDate(date: String, now: Long)
+
+    /** Makes [date] the only active baseline: flags all its rows, unflags later dates. Quantities untouched. */
+    @Transaction
+    suspend fun setActiveBaseline(date: String) {
+        val now = System.currentTimeMillis()
+        clearOpeningStockFlagsAfter(date, now)
+        markOpeningStockFlagForDate(date, now)
+    }
+
     /**
      * Returns 1 if the product has any committed row with non-zero closing balance,
      * 0 otherwise. Used to block deactivation of products that still have stock.
@@ -255,24 +298,6 @@ interface DailyStockDao {
           AND (closeQq + closePp + closeNn + closeDd) > 0
     """)
     suspend fun hasNonZeroClosingBalance(productCode: String): Int
-
-    /**
-     * Dates saved from Opening Stock Setup:
-     * all committed rows for the date have saleQq=0 AND saleAmount=0
-     * (opening stock entries have no sales — OB=CB, sale=0).
-     */
-    @Query("""
-        SELECT date, COUNT(*) as productCount
-        FROM daily_stock
-        WHERE isCommitted = 1
-        GROUP BY date
-        HAVING SUM(ABS(saleQq) + ABS(salePp) + ABS(saleNn) + ABS(saleDd)) = 0
-          AND  SUM(openQq + openPp + openNn + openDd) > 0
-        ORDER BY date ASC
-    """)
-    suspend fun getOpeningStockDateCounts(): List<DateCount>
-
-    data class DateCount(val date: String, val productCount: Int)
 
     /**
      * Sync statuses for all opening-stock rows on [date].

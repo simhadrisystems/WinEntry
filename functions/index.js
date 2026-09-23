@@ -87,7 +87,7 @@ const PURCHASES_HEADERS = [
   "PP_Boxes", "PP_Loose", "PP_Total", "PP_Price", "PP_Cost",
   "NN_Boxes", "NN_Loose", "NN_Total", "NN_Price", "NN_Cost",
   "DD_Boxes", "DD_Loose", "DD_Total", "DD_Price", "DD_Cost",
-  "TotalCost", "Notes"
+  "TotalCost", "Notes", "ReceivedDate"
 ];
 const DAILYSTOCK_HEADERS = [
   "Date", "ProductCode",
@@ -96,7 +96,7 @@ const DAILYSTOCK_HEADERS = [
   "Sale_QQ", "Sale_PP", "Sale_NN", "Sale_DD",
   "Price_QQ", "Price_PP", "Price_NN", "Price_DD",
   "Amt_QQ", "Amt_PP", "Amt_NN", "Amt_DD",
-  "SaleAmount", "Committed"
+  "SaleAmount", "Committed", "OpeningStock"
 ];
 const DAYSUMMARY_HEADERS = [
   "Date", "TotalSales", "UPI", "Expenses", "CashDeposit", "Notes"
@@ -568,7 +568,7 @@ async function writePurchases(sheets, spreadsheetId, rows) {
   }
   if (newRows.length) {
     await sheets.spreadsheets.values.append({
-      spreadsheetId, range: "Purchases!A:AB",
+      spreadsheetId, range: "Purchases!A:AC",
       valueInputOption: "RAW", insertDataOption: "INSERT_ROWS",
       requestBody: { values: newRows }
     });
@@ -642,7 +642,7 @@ async function writeDailyStock(sheets, spreadsheetId, rows) {
   }
   if (newRows.length) {
     await sheets.spreadsheets.values.append({
-      spreadsheetId, range: "DailyStock!A:X",
+      spreadsheetId, range: "DailyStock!A:Y",
       valueInputOption: "RAW", insertDataOption: "INSERT_ROWS",
       requestBody: { values: newRows }
     });
@@ -695,14 +695,19 @@ async function readAll(sheets, spreadsheetId) {
   // UNFORMATTED_VALUE → date cells return serial numbers, which Android already
   // knows how to parse (readDailyStockFromSheet does the same conversion).
   const [purchasesRes, dailyStockRes, daySummaryRes, purchaseImportRes] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId, range: "Purchases!A2:AB", valueRenderOption: "UNFORMATTED_VALUE" }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: "DailyStock!A2:X", valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "Purchases!A2:AC", valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: "DailyStock!A2:Y", valueRenderOption: "UNFORMATTED_VALUE" }),
     sheets.spreadsheets.values.get({ spreadsheetId, range: "DaySummary!A2:F", valueRenderOption: "UNFORMATTED_VALUE" }),
     sheets.spreadsheets.values.get({ spreadsheetId, range: "PurchaseImport!A1:L" })
       .catch(() => ({ data: { values: null } }))  // tab may not exist yet
   ]);
+  // Column AC (ReceivedDate) may come back as a serial if edited in the sheet
+  const purchases = (purchasesRes.data.values || []).map(row => {
+    if (row.length > 28 && row[28] !== "" && row[28] != null) row[28] = normalizeDate(row[28]);
+    return row;
+  });
   return {
-    purchases:      purchasesRes.data.values      || [],
+    purchases,
     dailyStock:     dailyStockRes.data.values     || [],
     daySummary:     daySummaryRes.data.values     || [],
     purchaseImport: purchaseImportRes.data.values || []

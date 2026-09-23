@@ -147,6 +147,49 @@
                 android:textColor="#FFFFFF"/>
         </LinearLayout>
 
+        <!-- Row A2: Closing stock — units remaining and their value at today's sale price -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/app_sub_panel"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Closing stock"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#AAFFFFFF"/>
+                <TextView
+                    android:id="@+id/textClosingStockUnits"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="System calculated"
+                    android:textSize="11sp"
+                    android:textColor="#AAFFFFFF"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textClosingStockValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹ 0"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#AAFFFFFF"/>
+        </LinearLayout>
+
         <View android:layout_width="match_parent" android:layout_height="0.5dp"
             android:background="?attr/colorOutlineVariant"/>
 

@@ -52,6 +52,8 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
+private const val BASELINE_CLEAR_NOTE = "This is a baseline date: closing entries will be cleared; the opening stock is kept."
+
 class DailyStockFragment : Fragment() {
 
     private var _binding: FragmentDailyStockBinding? = null
@@ -71,6 +73,8 @@ class DailyStockFragment : Fragment() {
     private var footerSetTotalSale:        ((Double, Double) -> Unit)? = null
     private var footerTextPurchaseSummary: android.widget.TextView? = null
     private var footerTextSoldUnits:       android.widget.TextView? = null
+    private var footerTextClosingUnits:    android.widget.TextView? = null
+    private var footerTextClosingValue:    android.widget.TextView? = null
     private lateinit var excelHelper: DailyStockExcelHelper
     private lateinit var importHelper: DailyStockImportHelper
 
@@ -229,6 +233,7 @@ class DailyStockFragment : Fragment() {
             R.id.action_import_closing            -> { importClosing();            true }
             R.id.action_clear_product_data        -> { clearProductForCurrentDate(); true }
             R.id.action_clear_date_data           -> { clearCurrentDateData();      true }
+            R.id.action_recalculate_next_day      -> { viewModel.recalculateNextDayOpeningBalance(); true }
             R.id.action_clear_all_daily_stock     -> { clearAllDailyStock();        true }
             else -> false
         }
@@ -786,6 +791,10 @@ class DailyStockFragment : Fragment() {
                     Toast.makeText(requireContext(), "Error: ${status.message}", Toast.LENGTH_LONG).show()
                     viewModel.clearSaveStatus()
                 }
+                is DailyStockViewModel.SaveStatus.Info -> {
+                    Toast.makeText(requireContext(), status.message, Toast.LENGTH_SHORT).show()
+                    viewModel.clearSaveStatus()
+                }
 
 
                 is DailyStockViewModel.SaveStatus.CascadeComplete -> {
@@ -921,6 +930,16 @@ class DailyStockFragment : Fragment() {
             e.sale.qq + e.sale.pp + e.sale.nn + e.sale.dd }
         footerTextSoldUnits?.text =
             if (sUnits > 0) "$sUnits units sold today" else "System calculated"
+
+        val cUnits = entries.sumOf { e ->
+            e.closing.qq + e.closing.pp + e.closing.nn + e.closing.dd }
+        val cValue = entries.sumOf { e ->
+            e.closing.qq * e.product.qqSalePrice +
+            e.closing.pp * e.product.ppSalePrice +
+            e.closing.nn * e.product.nnSalePrice +
+            e.closing.dd * e.product.ddSalePrice }
+        footerTextClosingUnits?.text = "$cUnits units in stock"
+        footerTextClosingValue?.text = footerFormatRupee?.invoke(cValue) ?: "₹${cValue.toLong()}"
     }
 
     /**
@@ -941,11 +960,15 @@ class DailyStockFragment : Fragment() {
         val textCash            = footer.textCashForDeposit
         val textPurchaseSummary = footer.textPurchaseSummary
         val textSoldUnits       = footer.textSoldUnitsSummary
+        val textClosingUnits    = footer.textClosingStockUnits
+        val textClosingValue    = footer.textClosingStockValue
         // Store refs so dailyEntries observer can push values directly
         footerTextTotal           = textTotal
         footerTextCash            = textCash
         footerTextPurchaseSummary = textPurchaseSummary
         footerTextSoldUnits       = textSoldUnits
+        footerTextClosingUnits    = textClosingUnits
+        footerTextClosingValue    = textClosingValue
         val editUpi        = footer.editUpiReceipts
         val editExpenses   = footer.editDayExpenses
         val editDeposits   = footer.editDeposits
@@ -989,6 +1012,15 @@ class DailyStockFragment : Fragment() {
             }
             val su = entries.sumOf { it.sale.qq + it.sale.pp + it.sale.nn + it.sale.dd }
             textSoldUnits.text = if (su > 0) "$su units sold today" else "System calculated"
+
+            val cu = entries.sumOf { it.closing.qq + it.closing.pp + it.closing.nn + it.closing.dd }
+            val cv = entries.sumOf {
+                it.closing.qq * it.product.qqSalePrice +
+                it.closing.pp * it.product.ppSalePrice +
+                it.closing.nn * it.product.nnSalePrice +
+                it.closing.dd * it.product.ddSalePrice }
+            textClosingUnits.text = "$cu units in stock"
+            textClosingValue.text = formatRupee(cv)
         }
 
         // ── One-time listener setup — never re-attached ───────────────────────
@@ -1179,12 +1211,18 @@ class DailyStockFragment : Fragment() {
         } catch (e: Exception) { dateString }
     }
 
-    private fun updateDateButtonStatus(@Suppress("UNUSED_PARAMETER") status: DailyStockViewModel.DateStatus) {
+    private fun updateDateButtonStatus(status: DailyStockViewModel.DateStatus) {
         binding.dateButton.apply {
-            // Subtle tint: transparent base with a hint of the status colour as text colour
-            setTextColor(android.graphics.Color.WHITE)
-            // Show status as a tiny suffix so the date stays the dominant text
             val dateStr = viewModel.selectedDate.value?.let { formatDateForDisplay(it) } ?: "Select Date"
+            // A baseline date (original setup or a re-baseline point) gets a distinct
+            // colour so it's visually obvious this day doesn't continue an opening
+            // balance from the previous day — it starts a fresh count. No emoji/badge
+            // text here — this button's width is shared with 5 other toolbar controls
+            // on the same row, and a prefix pushed the date text out of view entirely.
+            setTextColor(
+                if (status.isOpeningStockBaseline) android.graphics.Color.parseColor("#FFD54F")
+                else android.graphics.Color.WHITE
+            )
             text = dateStr
             // No compound drawable — the date IS the title
             setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
@@ -1687,10 +1725,12 @@ class DailyStockFragment : Fragment() {
                 .setPositiveButton("Clear Entry") { _, _ ->
                     if (selected < 0) return@setPositiveButton
                     val (productCode, name) = displayList[selected]
+                    val isBaseline = rows.find { it.productCode == productCode }?.isOpeningStock == true
                     AppDialogs.destructive(
                         requireContext(),
                         "Clear Entry",
-                        "Delete committed entry for\n$name on $date?\n\nThis cannot be undone."
+                        if (isBaseline) "Clear the closing entry for\n$name on $date?\n\n$BASELINE_CLEAR_NOTE"
+                        else "Delete committed entry for\n$name on $date?\n\nThis cannot be undone."
                     ) {
                         lifecycleScope.launch {
                             val products = viewModel.allProducts.value ?: emptyList()
@@ -1708,17 +1748,23 @@ class DailyStockFragment : Fragment() {
 
     private fun clearCurrentDateData() {
         val date = viewModel.selectedDate.value ?: return
-        AppDialogs.destructive(
-            requireContext(),
-            "Clear Current Date Data",
-            "Delete all stock entries for $date?\nThis cannot be undone."
-        ) {
-            lifecycleScope.launch {
-                dataViewModel.clearDateDataAwait(date)
-                viewModel.clearDirty()
-                viewModel.loadEntriesForDate()
-                Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
-            }
+        lifecycleScope.launch {
+            val isBaseline = dataViewModel.isBaselineDate(date)
+            AppDialogs.destructive(
+                requireContext(),
+                "Clear Current Date Data",
+                if (isBaseline) "Clear all closing entries for $date?\n\n$BASELINE_CLEAR_NOTE"
+                else "Delete all stock entries for $date?\nThis cannot be undone."
+            ) { doClearCurrentDateData(date) }
+        }
+    }
+
+    private fun doClearCurrentDateData(date: String) {
+        lifecycleScope.launch {
+            dataViewModel.clearDateDataAwait(date)
+            viewModel.clearDirty()
+            viewModel.loadEntriesForDate()
+            Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
         }
     }
 

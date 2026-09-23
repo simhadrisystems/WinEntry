@@ -1,0 +1,1 @@
+16 (1.4.4) — Opening Stock redesign: per-product OB corrections, baseline marker kept on Daily Stock saves, baseline picker after restore, amber OB row; Purchases Date Received down-sync fix; stale draft CB fix; in-app update fix + force update

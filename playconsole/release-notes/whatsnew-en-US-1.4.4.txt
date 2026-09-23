@@ -1,0 +1,5 @@
+Opening Stock: correcting an opening balance now changes only the products you edit; closing entries already made that day are kept.
+After reinstalling, all your baselines are listed so you can pick the right one. Baseline dates show an amber OB row in Daily Stock.
+Fixed: Date Received on purchases was lost when restoring from the cloud.
+Fixed: wrong or negative sales shown on a date after a purchase's Date Received was changed.
+Fixed: Check for Update in Settings now installs directly.

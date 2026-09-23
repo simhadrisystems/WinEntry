@@ -65,6 +65,7 @@ class ClosingEntryDialog : DialogFragment() {
                     "productName" to p.displayName,
                     "brandCode"   to p.brandCode,
                     "date"        to date,
+                    "isBaseline"  to entry.isBaseline,
                     // Current CB
                     "qqCB" to entry.closing.qq,
                     "ppCB" to entry.closing.pp,
@@ -149,7 +150,12 @@ class ClosingEntryDialog : DialogFragment() {
             val productName = args.getString("productName", "this product")
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Clear Entry")
-                .setMessage("Delete the committed entry for $productName on this date?\n\nThis cannot be undone.")
+                .setMessage(
+                    if (args.getBoolean("isBaseline"))
+                        "Clear the closing entry for $productName on this date?\n\nThis is a baseline date: the opening stock is kept."
+                    else
+                        "Delete the committed entry for $productName on this date?\n\nThis cannot be undone."
+                )
                 .setPositiveButton("Clear") { _, _ ->
                     setFragmentResult(REQUEST_KEY_CLEAR, bundleOf(
                         KEY_PRODUCT_ID to args.getLong("productId"),

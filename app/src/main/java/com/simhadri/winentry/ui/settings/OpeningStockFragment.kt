@@ -29,6 +29,8 @@ import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.SyncStatus
 import com.simhadri.winentry.data.entity.stockCode
+import com.simhadri.winentry.data.dao.DailyStockDao
+import com.simhadri.winentry.data.repository.BaselineMath
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.DailyStockImportHelper
@@ -207,11 +209,11 @@ class OpeningStockFragment : Fragment() {
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.menu.add(0, MENU_NEW_BASELINE, 2, "🆕 Start New Opening Balance")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_DELETE,  3, "🗑 Delete Opening Stock")
+        toolbar.menu.add(0, MENU_DELETE,  4, "🗑 Delete Opening Stock")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_UPLOAD,  4, "☁ Upload to Cloud")
+        toolbar.menu.add(0, MENU_UPLOAD,  5, "☁ Upload to Cloud")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
-        toolbar.menu.add(0, MENU_RESTORE, 5, "☁ Restore from Cloud")
+        toolbar.menu.add(0, MENU_RESTORE, 6, "☁ Restore from Cloud")
             .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         // Tint the overflow (3-dot) icon white after all items are added
         toolbar.overflowIcon?.setTint(android.graphics.Color.WHITE)
@@ -503,37 +505,37 @@ class OpeningStockFragment : Fragment() {
             val prods       = pending.products
             val anomalyList = pending.anomalyList
 
-            val dateBreakdown = result.closingData.values
-                .groupBy { it.date }.toSortedMap()
-                .entries.joinToString("\n") { (d, recs) ->
-                    "  ${formatDisplay(d)}: ${recs.size} product(s)"
-                }
+            val fileDates = result.closingData.values.map { it.date }.toSortedSet()
+            if (fileDates.size > 1) {
+                dataViewModel.clearPendingImport()
+                AppDialogs.info(requireContext(), "Import from Excel",
+                    "The file has ${fileDates.size} dates (" +
+                    fileDates.joinToString(", ") { formatDisplay(it) } + ").\n\n" +
+                    "Opening stock is for one date only. Import a file with a single date.")
+                return@observe
+            }
+            val fileDate = fileDates.firstOrNull()
 
             val summaryMsg = buildString {
-                appendLine("Dates found in file:")
-                appendLine(dateBreakdown)
+                appendLine("${result.closingData.size} product(s) in the file.")
+                if (fileDate != null && fileDate != selectedDate)
+                    appendLine("\nThe file is dated ${formatDisplay(fileDate)}; quantities will be used for ${formatDisplay(selectedDate)}.")
                 appendLine()
-                appendLine("These quantities will be saved as opening stock.")
+                appendLine("Quantities are filled into the grid for ${formatDisplay(selectedDate)}. Nothing is saved until you tap Save/Update.")
+                if (isCurrentDateLocked)
+                    appendLine("\nProducts not in the file keep their current opening stock.")
+                else
+                    appendLine("\nProducts not in the file are set to 0.")
                 if (result.unknownProducts.isNotEmpty())
-                    appendLine("\n⚠️ ${result.unknownProducts.size} unknown product(s) skipped.")
-                if (anomalyList.isNotEmpty())
-                    appendLine("\n🔴 ${anomalyList.size} anomaly(ies) detected.")
+                    appendLine("\n${result.unknownProducts.size} unknown product(s) skipped.")
             }
 
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Import as Opening Stock")
                 .setMessage(summaryMsg.trim())
-                .setPositiveButton("Import") { _, _ ->
-                    // Auto-navigate to first imported date so grid shows it after import
-                    val firstImportedDate = result.closingData.values
-                        .minByOrNull { it.date }?.date
-                    if (firstImportedDate != null) {
-                        selectedDate = firstImportedDate
-                        updateDateRow()
-                    }
+                .setPositiveButton("Fill Grid") { _, _ ->
                     dataViewModel.clearPendingImport()
-                    // Use opening-stock-specific save: OB = CB = imported qty, sale = 0
-                    dataViewModel.applyImportedAsOpeningStock(result, prods)
+                    fillGridFromImport(result, prods)
                 }
                 .setNegativeButton("Cancel") { _, _ ->
                     dataViewModel.clearPendingImport()
@@ -567,6 +569,40 @@ class OpeningStockFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Import only fills the grid; the normal Save/Update path decides what is written. */
+    private fun fillGridFromImport(result: DailyStockImportHelper.ImportResult, allProducts: List<Product>) {
+        val byCode = result.closingData.values.mapNotNull { ci ->
+            allProducts.find { it.productType == ci.productType && it.brandCode == ci.brandCode }
+                ?.let { it.stockCode to ci }
+        }.toMap()
+        val keepMissing = isCurrentDateLocked
+        var filled = 0
+        var missing = 0
+        products.forEach { p ->
+            val ci = byCode[p.stockCode]
+            if (ci != null) {
+                quantities[p.id] = intArrayOf(ci.qqClosing, ci.ppClosing, ci.nnClosing, ci.ddClosing)
+                filled++
+            } else {
+                missing++
+                if (!keepMissing) quantities[p.id] = IntArray(4)
+            }
+        }
+        val notActive = byCode.size - filled
+        isEditMode        = true
+        hasUnsavedChanges = true
+        adapter.updateProducts(products)
+        updateSummary()
+        updateDateLockUI()
+        val msg = buildString {
+            append("Filled $filled product(s). ")
+            append(if (keepMissing) "$missing not in file, kept unchanged. " else "$missing not in file, set to 0. ")
+            if (notActive > 0) append("$notActive inactive product(s) in file ignored. ")
+            append("Review, then tap ${if (isCurrentDateLocked) "Update" else "Save"}.")
+        }
+        Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
     }
 
     // ── Column header ─────────────────────────────────────────────────────────
@@ -621,38 +657,65 @@ class OpeningStockFragment : Fragment() {
      */
     private fun initialiseScreen() {
         lifecycleScope.launch {
-            val active = dataViewModel.getLatestOpeningStockDateOrHeal()
-            if (active != null) {
-                showExistingDataDialog(active)
+            var candidates = dataViewModel.getBaselineCandidates()
+            if (candidates.isEmpty()) {
+                // Legacy data with no marker at all: heuristic fallback, persisted
+                dataViewModel.getLatestOpeningStockDateOrHeal()
+                candidates = dataViewModel.getBaselineCandidates()
+            }
+            if (!isAdded) return@launch
+            if (candidates.isEmpty()) showFreshStartDialog() else showBaselinePicker(candidates)
+        }
+    }
+
+    /** Case A: lists every baseline date, newest (active) preselected. */
+    private fun showBaselinePicker(candidates: List<DailyStockDao.BaselineCandidate>) {
+        val items = candidates.mapIndexed { i, c ->
+            buildString {
+                append(formatDisplay(c.date))
+                append("  ·  ${c.committedCount} products  ·  ")
+                append(if (i == 0) "Active" else "History")
+                if (c.markedCount < c.committedCount) append("\n(marker incomplete, will be repaired)")
+            }
+        }.toTypedArray()
+        AppDialogs.singleChoice(
+            requireContext(),
+            "Opening Stock baselines",
+            items,
+            checkedIndex = 0,
+            actionLabel  = "Use Selected",
+            cancelLabel  = "Close",
+            onCancel     = { findNavController().navigateUp() }
+        ) { idx ->
+            val chosen = candidates[idx]
+            if (idx == 0) {
+                useBaseline(chosen, repair = chosen.markedCount < chosen.committedCount)
             } else {
-                showFreshStartDialog()
+                val later = candidates.take(idx).joinToString(", ") { formatDisplay(it.date) }
+                AppDialogs.destructive(
+                    requireContext(),
+                    "Use an older baseline?",
+                    "${formatDisplay(chosen.date)} becomes the active baseline.\n\n" +
+                    "$later will no longer be a baseline. Its quantities are kept as ordinary " +
+                    "Daily Stock days, so a change on the day before may then carry into it.",
+                    "Use ${formatDisplay(chosen.date)}"
+                ) { useBaseline(chosen, repair = true) }
             }
         }
     }
 
-    /** Case A: DB has data — show the active (most recent) opening stock date, load read-only. */
-    private fun showExistingDataDialog(active: String) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("📦 Opening Stock")
-            .setMessage(
-                "Active opening stock date: ${formatDisplay(active)}\n\n" +
-                "Quantities shown in read-only mode.\n\n" +
-                "• Tap ✎ EDIT to correct quantities\n" +
-                "• Use ⋮ → Start New Opening Balance to re-baseline from a new date " +
-                "without losing this data\n" +
-                "• Use ⋮ menu to Import, Delete, Upload or Restore"
-            )
-            .setPositiveButton("View") { _, _ ->
-                selectedDate      = active
-                isEditMode        = false
-                hasUnsavedChanges = false
-                loadProducts()
-            }
-            .setNegativeButton("Cancel") { _, _ ->
-                findNavController().navigateUp()
-            }
-            .setCancelable(false)
-            .show()
+    private fun useBaseline(c: DailyStockDao.BaselineCandidate, repair: Boolean) {
+        lifecycleScope.launch {
+            if (repair) dataViewModel.setActiveBaseline(c.date)
+            if (!isAdded) return@launch
+            selectedDate      = c.date
+            isEditMode        = false
+            hasUnsavedChanges = false
+            loadProducts()
+            Toast.makeText(requireContext(),
+                "Tap EDIT to correct quantities. Use ⋮ Start New Opening Balance for a new date.",
+                Toast.LENGTH_LONG).show()
+        }
     }
 
     /** Case B: DB is empty — let user pick a start date (past or up to today+7). */
@@ -743,6 +806,7 @@ class OpeningStockFragment : Fragment() {
     private fun startNewOpeningBalance() {
         lifecycleScope.launch {
             val latestCommitted = dataViewModel.getLatestCommittedDate()
+            if (!isAdded) return@launch
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val ctx = requireContext()
 
@@ -790,6 +854,7 @@ class OpeningStockFragment : Fragment() {
                     lifecycleScope.launch {
                         // Safety-net re-check in case DB state changed since the dialog opened.
                         val stillLatest = dataViewModel.getLatestCommittedDate()
+                        if (!isAdded) return@launch
                         if (stillLatest != null && chosenDate <= stillLatest) {
                             MaterialAlertDialogBuilder(ctx)
                                 .setTitle("Date not available")
@@ -863,6 +928,7 @@ class OpeningStockFragment : Fragment() {
                                            ?.isCommitted == true
                                    }
 
+            if (!isAdded) return@launch
             adapter.updateProducts(products)
             // Reset dirty state whenever date changes or data reloads
             if (!isEditMode) hasUnsavedChanges = false
@@ -876,11 +942,13 @@ class OpeningStockFragment : Fragment() {
     private fun refreshSavedDates() {
         lifecycleScope.launch {
             val active = dataViewModel.getLatestOpeningStockDate()
+            if (!isAdded) return@launch
             if (active == null) {
                 setSyncChip(SYNC_NONE)
                 return@launch
             }
             val statuses = repository.getOpeningStockSyncStatuses(active)
+            if (!isAdded) return@launch
             val state = when {
                 statuses.isEmpty()                                -> SYNC_SAVED
                 statuses.any { it == SyncStatus.SYNC_ERROR }    -> SYNC_ERROR
@@ -919,35 +987,40 @@ class OpeningStockFragment : Fragment() {
     /** Called from the ⋮ overflow menu Delete item. */
     private fun deleteOpeningStock() {
         lifecycleScope.launch {
-            val active = dataViewModel.getLatestOpeningStockDate() ?: run {
+            val active = dataViewModel.getLatestOpeningStockDate()
+            if (!isAdded) return@launch
+            if (active == null) {
                 Toast.makeText(requireContext(),
                     "No opening stock data to delete.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val count = repository.getAllDailyStockForDate(active).count { it.isCommitted }
+            if (!isAdded) return@launch
             confirmDelete(active, count)
         }
     }
 
     private fun confirmDelete(date: String, productCount: Int) {
-        AppDialogs.destructive(
+        AppDialogs.withTextInput(
             requireContext(),
             "Delete Opening Stock",
-            "Delete the active opening stock entries for\n${formatDisplay(date)}?\n\n" +
-            "$productCount product(s) will be removed.\n\n" +
-            "The next committed day's opening balance will be corrected automatically " +
-            "to fall back to whatever preceded this date. Any earlier Daily Stock " +
-            "history is not affected."
+            "Deletes the baseline ${formatDisplay(date)} for $productCount product(s), " +
+            "including the Daily Stock closing entries on that date.\n\n" +
+            "The previous baseline becomes active again, and the next day's opening " +
+            "balance falls back to the day before ${formatDisplay(date)}.\n\n" +
+            "Type DELETE to confirm.",
+            requiredText = "DELETE",
+            actionLabel  = "Delete"
         ) {
             lifecycleScope.launch {
                 dataViewModel.clearOpeningStockWithCascadeAwait(date, products)
-                quantities.keys.forEach { quantities[it] = IntArray(4) }
-                if (::adapter.isInitialized) adapter.updateProducts(products)
-                updateSummary()
-                refreshSavedDates()
+                if (!isAdded) return@launch
+                isEditMode        = false
+                hasUnsavedChanges = false
                 Toast.makeText(requireContext(),
                     "Opening stock for ${formatDisplay(date)} deleted.",
                     Toast.LENGTH_SHORT).show()
+                initialiseScreen()
             }
         }
     }
@@ -1005,8 +1078,8 @@ class OpeningStockFragment : Fragment() {
                 .setTitle("🔒 Opening Stock Committed")
                 .setMessage(
                     "Opening stock for ${formatDisplay(selectedDate)} is committed.\n\n" +
-                    "To correct these quantities, use the Save button below — " +
-                    "it will overwrite the existing record.\n\n" +
+                    "To correct a mistake, tap EDIT, change only the wrong products, then UPDATE. " +
+                    "Only those products are changed; closing entries already made in Daily Stock are kept.\n\n" +
                     "To start a fresh opening balance for a different date without " +
                     "losing this data, use ⋮ → Start New Opening Balance."
                 )
@@ -1074,73 +1147,94 @@ class OpeningStockFragment : Fragment() {
     // ── Save ──────────────────────────────────────────────────────────────────
 
     private fun confirmSave() {
-        val totalUnits = quantities.values.sumOf { it.sum() }
-        if (totalUnits == 0) {
-            Toast.makeText(requireContext(),
-                "No quantities entered.", Toast.LENGTH_SHORT).show()
-            return
+        lifecycleScope.launch {
+            val isNew = repository.getAllDailyStockForDate(selectedDate).none { it.isCommitted }
+            val newOb = products.associate { it.stockCode to (quantities[it.id] ?: IntArray(4)).copyOf() }
+            val changes = dataViewModel.planOpeningStockSave(selectedDate, products, newOb, isNew)
+            if (!isAdded) return@launch
+            if (isNew && newOb.values.all { q -> q.all { it == 0 } }) {
+                Toast.makeText(requireContext(), "No quantities entered.", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (changes.isEmpty()) {
+                AppDialogs.info(requireContext(), "Nothing to update",
+                    "The opening stock for ${formatDisplay(selectedDate)} already matches what is entered.")
+                return@launch
+            }
+            val msg = if (isNew) newBaselineSummary(changes) else correctionSummary(changes)
+            AppDialogs.confirm(
+                requireContext(),
+                if (isNew) "Save Opening Stock" else "Update Opening Stock",
+                msg,
+                if (isNew) "Save" else "Update"
+            ) { saveOpeningStock(changes) }
         }
-        val productCount = quantities.values.count { it.sum() > 0 }
-        val totalValue = products.sumOf { p ->
-            val qty = quantities[p.id] ?: IntArray(4)
-            qty[0] * p.qqSalePrice + qty[1] * p.ppSalePrice +
-            qty[2] * p.nnSalePrice + qty[3] * p.ddSalePrice
-        }
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle("Save Opening Stock")
-            .setMessage(
-                "First trading day: ${formatDisplay(selectedDate)}\n\n" +
-                "$productCount product(s) · $totalUnits units\n" +
-                "Total value: ₹${String.format("%,.2f", totalValue)}\n\n" +
-                "Opening balances for $selectedDate will be set to these quantities."
-            )
-            .setPositiveButton("Save") { _, _ -> saveOpeningStock() }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
-    private fun saveOpeningStock() {
+    private fun newBaselineSummary(changes: List<DailyStockRepository.BaselineChange>): String {
+        val withQty = changes.count { BaselineMath.open(it.after).sum() > 0 }
+        val units = changes.sumOf { BaselineMath.open(it.after).sum() }
+        val value = products.sumOf { p ->
+            val q = quantities[p.id] ?: IntArray(4)
+            q[0] * p.qqSalePrice + q[1] * p.ppSalePrice + q[2] * p.nnSalePrice + q[3] * p.ddSalePrice
+        }
+        return "Baseline date: ${formatDisplay(selectedDate)}\n\n" +
+            "$withQty product(s) · $units units\n" +
+            "Total value: ₹${String.format("%,.2f", value)}\n\n" +
+            "All ${changes.size} active products get an opening balance for this date " +
+            "(blank = 0). Daily Stock history before this date is kept and stops here."
+    }
+
+    private fun correctionSummary(changes: List<DailyStockRepository.BaselineChange>): String {
+        val names = products.associate { it.stockCode to it.displayName }
+        val sizes = arrayOf("QQ", "PP", "NN", "DD")
+        val lines = changes.map { c ->
+            val after = c.after
+            val obA = c.before?.let { BaselineMath.open(it) } ?: IntArray(4)
+            val cbA = c.before?.let { BaselineMath.close(it) } ?: IntArray(4)
+            val sA  = c.before?.let { BaselineMath.sale(it) } ?: IntArray(4)
+            val obB = BaselineMath.open(after); val cbB = BaselineMath.close(after); val sB = BaselineMath.sale(after)
+            val parts = (0..3).filter { obA[it] != obB[it] }.map { i ->
+                val rest = if (c.cbKept) "CB kept · Sale ${sA[i]}→${sB[i]}" else "CB ${cbA[i]}→${cbB[i]}"
+                "  ${sizes[i]}: OB ${obA[i]}→${obB[i]} · $rest"
+            }
+            (names[after.productCode] ?: after.productCode) + "\n" + parts.joinToString("\n")
+        }
+        val negatives = changes.filter { c -> BaselineMath.sale(c.after).any { it < 0 } }
+            .map { names[it.after.productCode] ?: it.after.productCode }
+        val cascades = changes.count { !it.cbKept }
+        val unchanged = products.size - changes.size
+        return buildString {
+            appendLine("${formatDisplay(selectedDate)}: ${changes.size} product(s) change, $unchanged unchanged and not touched.")
+            appendLine()
+            lines.take(15).forEach { appendLine(it) }
+            if (lines.size > 15) appendLine("…and ${lines.size - 15} more")
+            if (cascades > 0) {
+                appendLine()
+                appendLine("Products without a closing entry move their CB with the OB; the next day's opening follows.")
+            }
+            if (negatives.isNotEmpty()) {
+                appendLine()
+                appendLine("Warning: negative sale for ${negatives.joinToString(", ")}. Check the closing in Daily Stock.")
+            }
+        }.trim()
+    }
+
+    private fun saveOpeningStock(changes: List<DailyStockRepository.BaselineChange>) {
         btnSave.isEnabled = false
         btnSave.text = "Saving…"
         lifecycleScope.launch {
             try {
-                // Every active product gets a row on this baseline date, including
-                // zero-quantity ones — otherwise a product left blank here would
-                // silently keep inheriting whatever older committed row precedes
-                // this date instead of correctly resetting to zero.
-                val rows = products.map { product ->
-                    val qty = quantities[product.id] ?: IntArray(4)
-                    DailyStock(
-                        date        = selectedDate,
-                        productCode = product.stockCode,
-                        // OB = CB = entered qty, sale = 0
-                        // This is the FIRST day of trading — opening stock IS the opening balance
-                        openQq = qty[0], openPp = qty[1], openNn = qty[2], openDd = qty[3],
-                        closeQq = qty[0], closePp = qty[1],
-                        closeNn = qty[2], closeDd = qty[3],
-                        saleQq = 0, salePp = 0, saleNn = 0, saleDd = 0,
-                        priceQq = product.qqSalePrice, pricePp = product.ppSalePrice,
-                        priceNn = product.nnSalePrice, priceDd = product.ddSalePrice,
-                        amountQq = 0.0, amountPp = 0.0, amountNn = 0.0, amountDd = 0.0,
-                        saleAmount  = 0.0,
-                        isCommitted = true,
-                        syncStatus  = SyncStatus.PENDING_UPSERT,
-                        isOpeningStock = true
-                    )
-                }
-                repository.saveAllEntries(rows)
-                // If a later committed day already exists (e.g. correcting an
-                // in-place edit), fix its opening balance to match the new closing.
-                val cascadeResult = repository.cascadeRecalculate(rows, products)
-                // Reset to read-only mode after successful save
+                val cascadeResult = dataViewModel.applyOpeningStockSave(selectedDate, changes, products)
+                if (!isAdded) return@launch
                 isEditMode        = false
                 hasUnsavedChanges = false
                 Toast.makeText(requireContext(),
-                    "✓ Opening stock saved — ${rows.size} product(s) committed.",
+                    "✓ Opening stock saved — ${changes.size} product(s) updated.",
                     Toast.LENGTH_LONG).show()
                 if (cascadeResult.updatedCount > 0) {
                     Toast.makeText(requireContext(),
-                        "Also corrected the opening balance for the next committed day.",
+                        "Also updated the next day's opening balance for ${cascadeResult.updatedCount} product(s).",
                         Toast.LENGTH_LONG).show()
                 }
                 if (cascadeResult.hasNegatives) {
@@ -1149,12 +1243,13 @@ class OpeningStockFragment : Fragment() {
                         "negative sales — please review and correct manually.",
                         Toast.LENGTH_LONG).show()
                 }
-                // Reload — isCurrentDateLocked re-derived from DB, UI back to read-only
                 loadProducts()
             } catch (e: Exception) {
-                updateDateLockUI()   // restore correct button state
-                Toast.makeText(requireContext(),
-                    "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+                if (isAdded) {
+                    updateDateLockUI()
+                    Toast.makeText(requireContext(),
+                        "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -1172,9 +1267,12 @@ class OpeningStockFragment : Fragment() {
                 "No products found. Download the product list first.", Toast.LENGTH_LONG).show()
             return
         }
+        // Captured up front — the IO block below runs off the main thread and must
+        // not call requireContext() itself, since the fragment can detach mid-write.
+        val appCtx = requireContext().applicationContext
         lifecycleScope.launch {
             try {
-                Toast.makeText(requireContext(), "Generating template…", Toast.LENGTH_SHORT).show()
+                Toast.makeText(appCtx, "Generating template…", Toast.LENGTH_SHORT).show()
                 val uri = withContext(Dispatchers.IO) {
                     val workbook = XSSFWorkbook()
                     val sheet = workbook.createSheet("Closing")
@@ -1213,18 +1311,22 @@ class OpeningStockFragment : Fragment() {
                     sheet.setColumnWidth(3, 30 * 256)
                     for (i in 4..7) sheet.setColumnWidth(i, 12 * 256)
 
-                    val file = File(requireContext().getExternalFilesDir(null),
+                    val file = File(appCtx.getExternalFilesDir(null),
                         "OpeningStock_Template.xlsx")
                     FileOutputStream(file).use { workbook.write(it) }
                     workbook.close()
-                    FileProvider.getUriForFile(requireContext(),
-                        "${requireContext().packageName}.fileprovider", file)
+                    FileProvider.getUriForFile(appCtx,
+                        "${appCtx.packageName}.fileprovider", file)
                 }
 
-                exportToDownloadsAndShare(uri, "OpeningStock_Template.xlsx", "Share Opening Stock Template")
+                // exportToDownloadsAndShare() itself calls requireContext()/startActivity(),
+                // so it still needs the fragment attached even though we avoided that above.
+                if (isAdded) {
+                    exportToDownloadsAndShare(uri, "OpeningStock_Template.xlsx", "Share Opening Stock Template")
+                }
 
             } catch (e: Exception) {
-                Toast.makeText(requireContext(),
+                Toast.makeText(appCtx,
                     "Template generation failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
@@ -1235,26 +1337,30 @@ class OpeningStockFragment : Fragment() {
             "Uploading opening stock to cloud…", Toast.LENGTH_LONG)
         toast.show()
         lifecycleScope.launch {
-            try {
-                val result = SyncCoordinator(requireContext()).performFullSync()
-                toast.cancel()
-                when (result) {
-                    is SyncCoordinator.SyncResult.Success ->
-                        Toast.makeText(requireContext(),
-                            "✓ Opening stock uploaded to cloud.", Toast.LENGTH_SHORT).show()
-                    is SyncCoordinator.SyncResult.Error ->
-                        Toast.makeText(requireContext(),
-                            "✗ Upload failed: ${result.message}", Toast.LENGTH_LONG).show()
-                    else ->
-                        Toast.makeText(requireContext(),
-                            "✓ Sync complete.", Toast.LENGTH_SHORT).show()
-                }
-                refreshSavedDates()
+            val result = try {
+                SyncCoordinator(requireContext()).performFullSync()
             } catch (e: Exception) {
                 toast.cancel()
-                Toast.makeText(requireContext(),
-                    "✗ Upload error: ${e.message}", Toast.LENGTH_LONG).show()
+                if (isAdded) {
+                    Toast.makeText(requireContext(),
+                        "✗ Upload error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                return@launch
             }
+            toast.cancel()
+            if (!isAdded) return@launch
+            when (result) {
+                is SyncCoordinator.SyncResult.Success ->
+                    Toast.makeText(requireContext(),
+                        "✓ Opening stock uploaded to cloud.", Toast.LENGTH_SHORT).show()
+                is SyncCoordinator.SyncResult.Error ->
+                    Toast.makeText(requireContext(),
+                        "✗ Upload failed: ${result.message}", Toast.LENGTH_LONG).show()
+                else ->
+                    Toast.makeText(requireContext(),
+                        "✓ Sync complete.", Toast.LENGTH_SHORT).show()
+            }
+            refreshSavedDates()
         }
     }
 
@@ -1277,35 +1383,38 @@ class OpeningStockFragment : Fragment() {
                     "Downloading from cloud…", Toast.LENGTH_LONG)
                 toast.show()
                 lifecycleScope.launch {
-                    try {
-                        val result = SyncCoordinator(requireContext())
-                            .downloadDailyStockFromCloud()
-                        toast.cancel()
-                        when (result) {
-                            is SyncCoordinator.SyncResult.DailyStockDownSync -> {
-                                if (result.count > 0) {
-                                    Toast.makeText(requireContext(),
-                                        "✓ Restored ${result.count} row(s) from cloud.",
-                                        Toast.LENGTH_LONG).show()
-                                    loadProducts()
-                                } else {
-                                    Toast.makeText(requireContext(),
-                                        "No opening stock found in cloud.",
-                                        Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                            is SyncCoordinator.SyncResult.Error ->
-                                Toast.makeText(requireContext(),
-                                    "✗ Restore failed: ${result.message}",
-                                    Toast.LENGTH_LONG).show()
-                            else ->
-                                Toast.makeText(requireContext(),
-                                    "Restore complete.", Toast.LENGTH_SHORT).show()
-                        }
+                    val result = try {
+                        SyncCoordinator(requireContext()).downloadDailyStockFromCloud()
                     } catch (e: Exception) {
                         toast.cancel()
-                        Toast.makeText(requireContext(),
-                            "✗ Restore error: ${e.message}", Toast.LENGTH_LONG).show()
+                        if (isAdded) {
+                            Toast.makeText(requireContext(),
+                                "✗ Restore error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+                    toast.cancel()
+                    if (!isAdded) return@launch
+                    when (result) {
+                        is SyncCoordinator.SyncResult.DailyStockDownSync -> {
+                            if (result.count > 0) {
+                                Toast.makeText(requireContext(),
+                                    "✓ Restored ${result.count} row(s) from cloud.",
+                                    Toast.LENGTH_LONG).show()
+                                initialiseScreen()
+                            } else {
+                                Toast.makeText(requireContext(),
+                                    "No opening stock found in cloud.",
+                                    Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        is SyncCoordinator.SyncResult.Error ->
+                            Toast.makeText(requireContext(),
+                                "✗ Restore failed: ${result.message}",
+                                Toast.LENGTH_LONG).show()
+                        else ->
+                            Toast.makeText(requireContext(),
+                                "Restore complete.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

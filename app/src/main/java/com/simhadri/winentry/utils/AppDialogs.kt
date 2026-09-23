@@ -129,6 +129,30 @@ object AppDialogs {
     }
 
     /**
+     * Single-choice list with a preselected item and an explicit confirm button.
+     * Not cancelable by tapping outside; [onCancel] runs on the negative button.
+     */
+    fun singleChoice(
+        context: Context,
+        title: String,
+        items: Array<String>,
+        checkedIndex: Int,
+        actionLabel: String,
+        cancelLabel: String = "Cancel",
+        onCancel: () -> Unit = {},
+        onConfirm: (Int) -> Unit
+    ) {
+        var selected = checkedIndex
+        MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setSingleChoiceItems(items, checkedIndex) { _, which -> selected = which }
+            .setNegativeButton(cancelLabel) { _, _ -> onCancel() }
+            .setPositiveButton(actionLabel) { _, _ -> if (selected >= 0) onConfirm(selected) }
+            .setCancelable(false)
+            .show()
+    }
+
+    /**
      * Email-confirmed destructive dialog — used for account deletion.
      * The action button stays disabled until the user types their sign-in email exactly.
      * This prevents accidental or unauthorised deletion if the device is unattended.

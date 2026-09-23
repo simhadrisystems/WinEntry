@@ -26,6 +26,7 @@ import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.databinding.FragmentHomeBinding
 import com.simhadri.winentry.ui.auth.ErrorLogger
+import com.simhadri.winentry.BuildConfig
 import com.simhadri.winentry.ui.update.AppUpdateManager
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
@@ -47,7 +48,13 @@ class HomeFragment : Fragment() {
 
     private val updateLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) { /* result informational; IMMEDIATE mode is handled entirely by Play */ }
+    ) { result ->
+        // Forced update: dismissing the Play screen re-prompts instead of letting the user continue.
+        if (result.resultCode != android.app.Activity.RESULT_OK && BuildConfig.FORCE_UPDATE) {
+            updateCheckDoneThisSession = false
+            checkForAppUpdate()
+        }
+    }
 
     companion object {
         // In-process cache — survives fragment recreation, cleared only when the
@@ -126,11 +133,14 @@ class HomeFragment : Fragment() {
     // ═══════════════════════════════════════════════════════════════
 
     private fun checkForAppUpdate() {
-        if (updateCheckDoneThisSession) return
-        updateCheckDoneThisSession = true
         viewLifecycleOwner.lifecycleScope.launch {
-            AppUpdateManager(requireActivity())
-                .checkForUpdates(updateLauncher)
+            val updater = AppUpdateManager(requireActivity())
+            if (updateCheckDoneThisSession) {
+                updater.resumeInProgressUpdate(updateLauncher)
+            } else {
+                updateCheckDoneThisSession = true
+                updater.checkForUpdates(updateLauncher)
+            }
         }
     }
 

@@ -171,15 +171,15 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
                         val product = products.find {
                             it.productType == ci.productType && it.brandCode == ci.brandCode
                         } ?: return@forEach
-                        val prevRow = repository.getPreviousRow(product.stockCode, ci.date)
+                        val ob      = repository.getOpeningFor(product.stockCode, ci.date)
                         val pqRaw   = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(
                             ci.date, product.id)
                         data class Chk(val ob: Int, val pq: Int, val cb: Int, val lbl: String)
                         listOf(
-                            Chk(prevRow?.closeQq?:0, pqRaw.qqTotalUnits, ci.qqClosing, "QQ"),
-                            Chk(prevRow?.closePp?:0, pqRaw.ppTotalUnits, ci.ppClosing, "PP"),
-                            Chk(prevRow?.closeNn?:0, pqRaw.nnTotalUnits, ci.nnClosing, "NN"),
-                            Chk(prevRow?.closeDd?:0, pqRaw.ddTotalUnits, ci.ddClosing, "DD")
+                            Chk(ob[0], pqRaw.qqTotalUnits, ci.qqClosing, "QQ"),
+                            Chk(ob[1], pqRaw.ppTotalUnits, ci.ppClosing, "PP"),
+                            Chk(ob[2], pqRaw.nnTotalUnits, ci.nnClosing, "NN"),
+                            Chk(ob[3], pqRaw.ddTotalUnits, ci.ddClosing, "DD")
                         ).forEach { sz ->
                             val sale = sz.ob + sz.pq - sz.cb
                             if (sale < 0) anomalyList.add(
@@ -226,11 +226,10 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
                     val product = products.find {
                         it.productType == ci.productType && it.brandCode == ci.brandCode
                     } ?: continue
-                    val prevRow = repository.getPreviousRow(product.stockCode, ci.date)
+                    val ob      = repository.getOpeningFor(product.stockCode, ci.date)
                     val pqRaw   = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(
                         ci.date, product.id)
-                    val obQq = prevRow?.closeQq ?: 0; val obPp = prevRow?.closePp ?: 0
-                    val obNn = prevRow?.closeNn ?: 0; val obDd = prevRow?.closeDd ?: 0
+                    val obQq = ob[0]; val obPp = ob[1]; val obNn = ob[2]; val obDd = ob[3]
                     val cbQq = ci.qqClosing; val cbPp = ci.ppClosing
                     val cbNn = ci.nnClosing; val cbDd = ci.ddClosing
                     val pqQq = pqRaw.qqTotalUnits; val pqPp = pqRaw.ppTotalUnits
@@ -261,81 +260,6 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // ── Opening stock import — OB = CB = imported qty, sale = 0 ─────────────
-    //
-    // Unlike applyImportedClosingData (which saves openQq=0, closeQq=importedQty
-    // causing negative sales on the imported date), this method saves
-    // openQq = closeQq = importedQty so the day shows zero sales and correct OB.
-    // Used by OpeningStockFragment when importing from Excel.
-    //
-    // Writes a row for EVERY active product on the baseline date, not just the
-    // ones present in the file — a product missing from the file (all-zero rows
-    // are dropped by the parser before this even runs, or the product simply
-    // wasn't listed) must still get an explicit zero row here. Otherwise its
-    // opening balance lookup skips straight past this new baseline to whatever
-    // older committed row precedes it — the exact "stale carried-forward
-    // quantity" bug this re-baseline feature exists to avoid.
-
-    private fun buildOpeningStockRow(
-        date: String, product: Product, ci: DailyStockImportHelper.ClosingImport?
-    ): DailyStock {
-        val qq = ci?.qqClosing ?: 0; val pp = ci?.ppClosing ?: 0
-        val nn = ci?.nnClosing ?: 0; val dd = ci?.ddClosing ?: 0
-        return DailyStock(
-            date = date, productCode = product.stockCode,
-            openQq = qq, openPp = pp, openNn = nn, openDd = dd,
-            closeQq = qq, closePp = pp, closeNn = nn, closeDd = dd,
-            saleQq = 0, salePp = 0, saleNn = 0, saleDd = 0,
-            priceQq = product.qqSalePrice, pricePp = product.ppSalePrice,
-            priceNn = product.nnSalePrice, priceDd = product.ddSalePrice,
-            amountQq = 0.0, amountPp = 0.0, amountNn = 0.0, amountDd = 0.0,
-            saleAmount = 0.0, isCommitted = true, isOpeningStock = true
-        )
-    }
-
-    fun applyImportedAsOpeningStock(
-        result:   DailyStockImportHelper.ImportResult,
-        products: List<Product>
-    ) {
-        if (_importStatus.value is ImportStatus.Running) return
-        _importStatus.value = ImportStatus.Running("Saving opening stock…")
-        viewModelScope.launch {
-            try {
-                val byDate = result.closingData.values.groupBy { it.date }
-                val activeProducts = products.filter { it.isActive }
-                var updatedRecords = 0
-                for ((date, records) in byDate) {
-                    val importedByCode = records.mapNotNull { ci ->
-                        val product = products.find {
-                            it.productType == ci.productType && it.brandCode == ci.brandCode
-                        } ?: return@mapNotNull null
-                        product.stockCode to ci
-                    }.toMap()
-
-                    val coveredCodes = activeProducts.map { it.stockCode }.toSet()
-                    val rows = activeProducts.map { product ->
-                        buildOpeningStockRow(date, product, importedByCode[product.stockCode])
-                    }.toMutableList()
-
-                    // Preserve imported values for any inactive product explicitly in the file.
-                    importedByCode.forEach { (code, ci) ->
-                        if (code !in coveredCodes) {
-                            products.find { it.stockCode == code }?.let {
-                                rows.add(buildOpeningStockRow(date, it, ci))
-                            }
-                        }
-                    }
-
-                    repository.saveAllEntries(rows)
-                    updatedRecords += rows.size
-                }
-                _importStatus.postValue(ImportStatus.Success(updatedRecords, byDate.size))
-            } catch (e: Exception) {
-                _importStatus.postValue(ImportStatus.Error(e.message ?: "Import failed"))
-            }
-        }
-    }
-
     // ── Generic import: purchase/sale/closing data (viewModelScope) ──────────
 
     fun applyImportedData(
@@ -350,9 +274,8 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
 
                 result.purchaseData.forEach { (_, pi) ->
                     val product = products.find { it.stockCode == pi.productCode } ?: return@forEach
-                    val prev = repository.getPreviousRow(product.stockCode, pi.date)
-                    val obQq = prev?.closeQq?:0; val obPp = prev?.closePp?:0
-                    val obNn = prev?.closeNn?:0; val obDd = prev?.closeDd?:0
+                    val ob = repository.getOpeningFor(product.stockCode, pi.date)
+                    val obQq = ob[0]; val obPp = ob[1]; val obNn = ob[2]; val obDd = ob[3]
                     val pqQq=pi.qqPurchase; val pqPp=pi.ppPurchase
                     val pqNn=pi.nnPurchase; val pqDd=pi.ddPurchase
                     if (pqQq+pqPp+pqNn+pqDd > 0) {
@@ -369,10 +292,9 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
 
                 result.saleData.forEach { (_, si) ->
                     val product = products.find { it.stockCode == si.productCode } ?: return@forEach
-                    val prev = repository.getPreviousRow(product.stockCode, si.date)
+                    val ob = repository.getOpeningFor(product.stockCode, si.date)
                     val pqRaw = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(si.date, product.id)
-                    val obQq=prev?.closeQq?:0; val obPp=prev?.closePp?:0
-                    val obNn=prev?.closeNn?:0; val obDd=prev?.closeDd?:0
+                    val obQq=ob[0]; val obPp=ob[1]; val obNn=ob[2]; val obDd=ob[3]
                     val sqQq=si.qqSale; val sqPp=si.ppSale; val sqNn=si.nnSale; val sqDd=si.ddSale
                     val cbQq=(obQq+pqRaw.qqTotalUnits-sqQq).coerceAtLeast(0)
                     val cbPp=(obPp+pqRaw.ppTotalUnits-sqPp).coerceAtLeast(0)
@@ -397,10 +319,9 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
 
                 result.closingData.forEach { (_, ci) ->
                     val product = products.find { it.stockCode == ci.productCode } ?: return@forEach
-                    val prev = repository.getPreviousRow(product.stockCode, ci.date)
+                    val ob = repository.getOpeningFor(product.stockCode, ci.date)
                     val pqRaw = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(ci.date, product.id)
-                    val obQq=prev?.closeQq?:0; val obPp=prev?.closePp?:0
-                    val obNn=prev?.closeNn?:0; val obDd=prev?.closeDd?:0
+                    val obQq=ob[0]; val obPp=ob[1]; val obNn=ob[2]; val obDd=ob[3]
                     val cbQq=ci.qqClosing; val cbPp=ci.ppClosing
                     val cbNn=ci.nnClosing; val cbDd=ci.ddClosing
                     val sqQq=(obQq+pqRaw.qqTotalUnits-cbQq).coerceAtLeast(0)
@@ -519,9 +440,36 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     suspend fun getLatestOpeningStockDateOrHeal(): String? =
         repository.getLatestOpeningStockDateOrHeal()
 
-    /** Dates that are opening stock entries (all rows have zero opening balances). */
-    suspend fun getOpeningStockDateCounts() =
-        repository.getOpeningStockDateCounts()
+    /** All dates ever marked as an opening-stock baseline, most recent (active) first. */
+    suspend fun getAllOpeningStockDates(): List<String> =
+        repository.getAllOpeningStockDates()
+
+    suspend fun getBaselineCandidates() = repository.getBaselineCandidates()
+
+    /** Live purchase quantities for [date], keyed by stockCode as [qq, pp, nn, dd]. */
+    suspend fun getPurchaseQtyByStockCode(date: String, products: List<Product>): Map<String, IntArray> {
+        val bySize = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+        return products.associate { p ->
+            p.stockCode to intArrayOf(
+                bySize[p.qqCode] ?: 0, bySize[p.ppCode] ?: 0,
+                bySize[p.nnCode] ?: 0, bySize[p.ddCode] ?: 0
+            )
+        }
+    }
+
+    suspend fun planOpeningStockSave(
+        date: String, products: List<Product>, newOb: Map<String, IntArray>, isNewBaseline: Boolean
+    ) = repository.planOpeningStockSave(
+        date, products, newOb, getPurchaseQtyByStockCode(date, products), isNewBaseline
+    )
+
+    suspend fun applyOpeningStockSave(
+        date: String, changes: List<DailyStockRepository.BaselineChange>, products: List<Product>
+    ) = repository.applyOpeningStockSave(date, changes, products)
+
+    suspend fun setActiveBaseline(date: String) = repository.setActiveBaseline(date)
+
+    suspend fun isBaselineDate(date: String) = repository.isBaselineDate(date)
 
     fun clearDateData(date: String) {
         viewModelScope.launch { repository.clearDateData(date) }

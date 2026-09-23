@@ -1,0 +1,9 @@
+Fixed: correcting a product's Opening Stock could wipe out Closing Balances already entered for later days, forcing re-entry. Corrections now update only the opening balance and next day's figures, exactly as intended.
+
+Fixed: Daily Stock Sheet and Closing Balances reports could show discontinued products no longer used in Daily Stock, and could miss products with a real closing balance. Both reports now always match what Daily Stock itself shows.
+
+New: Daily Stock now shows Closing Stock (units and value) alongside Total Day Sales in the day-end summary.
+
+New: "Recalculate Next Day's OB" option in Daily Stock — fixes the next day's opening balance if you skipped that prompt earlier, without needing to re-enter anything.
+
+Fixed: an intermittent sync interruption (e.g. from rotating the screen or switching apps mid-sync) was being logged as a failure instead of being retried silently.

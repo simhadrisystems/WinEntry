@@ -1,0 +1,1 @@
+13 (1.4.1) — Opening Stock CB-erasure fix + isOpeningStock self-heal, sync cancellation mislabeled as error fix, Daily Stock / Closing Balances report active-product + CB filtering fix, Closing Stock reconciliation row, Recalculate Next Day's OB

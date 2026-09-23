@@ -112,10 +112,18 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Loads entries for reports that show only products with activity (daily sheet,
      * closing balances). Products with zero OB and zero PQ are excluded.
+     *
+     * Active products only — must mirror what the Daily Stock module itself shows
+     * (`DailyStockViewModel.allProducts` = `repository.getActiveProducts()`). A
+     * product deactivated (or dropped from the current re-baselined session) still
+     * has its last committed row sitting in `daily_stock` with a non-zero closing
+     * balance from before; querying all products here let that stale balance leak
+     * back in as a non-zero opening balance, showing rows for products no longer
+     * visible in Daily Stock at all.
      */
     private suspend fun loadEntries(date: String): List<DailyEntry> {
         return try {
-            val products     = repository.getAllProductsByDailySortKeySync()
+            val products     = repository.getActiveProductsSortedSync()
             val productCodes = products.map { it.stockCode }
             val pqByCode     = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
             val prevByCode   = repository.getBulkPreviousRows(productCodes, date)
@@ -142,9 +150,14 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
                     val nnCb = stock?.closeNn ?: (nnOb + pqNN)
                     val ddCb = stock?.closeDd ?: (ddOb + pqDD)
 
-                    // Skip products with zero activity
+                    // Skip products with zero activity. Closing balance must also be
+                    // checked, not just OB/PQ — a product can have a real committed
+                    // CB (e.g. a manual stock correction) with zero OB and zero
+                    // purchase that day; dropping it would silently omit actual
+                    // closing stock from a report whose whole job is to show it.
                     if (qqOb == 0 && ppOb == 0 && nnOb == 0 && ddOb == 0 &&
-                        pqQQ  == 0 && pqPP  == 0 && pqNN  == 0 && pqDD  == 0)
+                        pqQQ  == 0 && pqPP  == 0 && pqNN  == 0 && pqDD  == 0 &&
+                        qqCb  == 0 && ppCb  == 0 && nnCb  == 0 && ddCb  == 0)
                         return@mapNotNull null
 
                     DailyEntry(

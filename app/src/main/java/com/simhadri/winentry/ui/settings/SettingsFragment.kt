@@ -44,7 +44,12 @@ class SettingsFragment : Fragment() {
 
     private val updateLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) { /* result informational */ }
+    ) { result ->
+        if (result.resultCode == com.google.android.play.core.install.model.ActivityResult.RESULT_IN_APP_UPDATE_FAILED) {
+            Toast.makeText(requireContext(), "Update failed — opening Play Store.", Toast.LENGTH_SHORT).show()
+            AppUpdateManager(requireActivity()).openPlayStore()
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -108,11 +113,12 @@ class SettingsFragment : Fragment() {
 
         binding.btnCheckUpdate.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
-                val updateStarted = AppUpdateManager(requireActivity())
-                    .checkForUpdatesManually(updateLauncher)
-                if (!updateStarted) {
-                    Toast.makeText(requireContext(), "You're up to date.", Toast.LENGTH_SHORT).show()
+                val msg = when (AppUpdateManager(requireActivity()).checkForUpdatesManually(updateLauncher)) {
+                    AppUpdateManager.ManualResult.UP_TO_DATE    -> "You're up to date."
+                    AppUpdateManager.ManualResult.SKIPPED_DEBUG -> "Update check is disabled in debug builds."
+                    else -> null
                 }
+                msg?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show() }
             }
         }
 

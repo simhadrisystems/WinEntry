@@ -131,6 +131,7 @@ class DailyEntryAdapter(
                 }
 
                 // ── Static rows ───────────────────────────────────
+                bindObRowColor(entry)
                 textOpeningQQ.text = if (entry.opening.qq == 0) "–" else entry.opening.qq.toString()
                 textOpeningPP.text = if (entry.opening.pp == 0) "–" else entry.opening.pp.toString()
                 textOpeningNN.text = if (entry.opening.nn == 0) "–" else entry.opening.nn.toString()
@@ -406,10 +407,17 @@ class DailyEntryAdapter(
         // Called when DiffUtil detects only numeric values changed.
         // Updates OB/PQ/CB/sale text and sale amount — leaves card structure,
         // backgrounds, and watcher setup completely untouched.
+        private fun bindObRowColor(entry: DailyEntry) {
+            binding.rowOb.setBackgroundResource(
+                if (entry.isBaseline) R.color.daily_ob_row_baseline else R.color.daily_ob_row
+            )
+        }
+
         fun bindValuesOnly(entry: DailyEntry) {
             isBinding = true
             binding.apply {
                 textProductCode.text = entry.product.brandCode
+                bindObRowColor(entry)
                 // Opening
                 textOpeningQQ.text = if (entry.opening.qq == 0) "–" else entry.opening.qq.toString()
                 textOpeningPP.text = if (entry.opening.pp == 0) "–" else entry.opening.pp.toString()
@@ -691,7 +699,8 @@ class DailyEntryAdapter(
             val valuesChanged    = o.opening  != n.opening  ||
                                    o.purchase != n.purchase ||
                                    o.closing  != n.closing  ||
-                                   o.sale     != n.sale
+                                   o.sale     != n.sale     ||
+                                   o.isBaseline != n.isBaseline
             // If both values AND product changed, force a full bind (return null).
             // If only values changed, use VALUES_CHANGED payload — bindValuesOnly() runs.
             // If product metadata changed (e.g. dirty indicator embedded in product),

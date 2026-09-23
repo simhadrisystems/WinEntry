@@ -94,7 +94,8 @@
     <color name="reports_quick_sale_light">#F0FDFA</color>    <!-- Teal-50      -->
 
     <!-- ── Daily stock row backgrounds ─────────────────────────── -->
-    <color name="daily_ob_row">#FFFBEB</color>               <!-- Amber-50  — Opening Balance row  -->
+    <color name="daily_ob_row">#FFFBEB</color>
+    <color name="daily_ob_row_baseline">#FFD54F</color>               <!-- Amber-50  — Opening Balance row  -->
     <color name="daily_pq_row">#ECFDF5</color>               <!-- Emerald-50 — Purchase row        -->
 
     <!-- ── Daily stock CB bar ───────────────────────────────────── -->

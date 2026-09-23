@@ -1,0 +1,1 @@
+15 (1.4.3) — Removed the incorrect "baseline date has recorded sales" block on Opening Stock save, which prevented correcting OB mistakes on a re-baseline date after normal trading had occurred that same day

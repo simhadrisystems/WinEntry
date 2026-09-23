@@ -38,6 +38,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_recalculate_next_day"
+        android:title="Recalculate Next Day's OB"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_danger_divider"
         android:title="──────────────────"
         android:enabled="false"

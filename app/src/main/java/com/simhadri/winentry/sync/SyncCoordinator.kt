@@ -13,6 +13,7 @@ import com.simhadri.winentry.data.entity.DayReconciliation
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -155,6 +156,12 @@ class SyncCoordinator(private val context: Context) {
             prefs.edit().putLong(PREF_LAST_SYNC, System.currentTimeMillis()).apply()
             SyncResult.Success(0, purchasesCount, stockCount)
 
+        } catch (e: CancellationException) {
+            // The caller's scope (Activity/Fragment lifecycleScope, or the
+            // WorkManager CoroutineWorker job) was cancelled mid-sync — e.g. a
+            // rotation, backgrounding, or the OS reclaiming the worker. Not a
+            // real failure; must propagate, not be logged as one.
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Full sync failed: ${e.message}")
             ErrorLogger.log(context, "Sync", "Full sync failed", e)
@@ -321,6 +328,8 @@ class SyncCoordinator(private val context: Context) {
             Log.d(TAG, "PurchaseImport preview: ${newRows.size} new, ${dupRows.size} dup, ${notFoundCodes.size} not found")
             SyncResult.PurchaseDownSyncPreview(newRows, dupRows, notFoundCodes)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Purchase down-sync preview failed: ${e.message}")
             ErrorLogger.log(context, "Sync/DownSync", "Purchase down-sync preview failed", e)
@@ -353,9 +362,18 @@ class SyncCoordinator(private val context: Context) {
 
             val newRows = CloudSyncManager.parsePurchasesTabRows(purchasesRows, products, existingTxnIds)
 
+            // Earlier restores dropped column AC; put the cloud ReceivedDate back on existing rows
+            var repaired = 0
+            CloudSyncManager.parseReceivedDates(purchasesRows).forEach { (txnId, rd) ->
+                if (txnId in existingTxnIds) repaired += purchaseDao.repairReceivedDate(txnId, rd)
+            }
+            if (repaired > 0) Log.d(TAG, "Purchases tab: restored ReceivedDate on $repaired row(s)")
+
             Log.d(TAG, "Purchases tab preview: ${newRows.size} new (cloud has ${purchasesRows.size})")
             SyncResult.PurchaseDownSyncPreview(newRows, emptyList(), emptySet())
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Purchases tab down-sync preview failed: ${e.message}")
             ErrorLogger.log(context, "Sync/DownSync", "Purchases tab down-sync preview failed", e)
@@ -389,6 +407,8 @@ class SyncCoordinator(private val context: Context) {
                     }
                     purchaseDao.insert(withTxnId)
                     inserted++
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Insert failed ${p.invoiceNumber}/${p.productCode}: ${e.message}")
                 }
@@ -401,6 +421,8 @@ class SyncCoordinator(private val context: Context) {
                     )
                     purchaseDao.insert(p)
                     replaced++
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "Replace failed ${p.invoiceNumber}/${p.productCode}: ${e.message}")
                 }
@@ -416,6 +438,8 @@ class SyncCoordinator(private val context: Context) {
             Log.d(TAG, "Commit: $inserted inserted, $replaced replaced")
             SyncResult.PurchaseDownSync(inserted, replaced, emptySet())
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "commitPurchaseDownSync failed: ${e.message}")
             SyncResult.Error(e.message ?: "Unknown error")
@@ -486,6 +510,8 @@ class SyncCoordinator(private val context: Context) {
 
                 database.productDao().insertProducts(merged)
                 SyncResult.Success(merged.size, 0, 0)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 SyncResult.Error(e.message ?: "Unknown error")
             }
@@ -529,6 +555,8 @@ class SyncCoordinator(private val context: Context) {
             Log.d(TAG, "Daily stock down-sync: restored ${rows.size} rows")
             SyncResult.DailyStockDownSync(rows.size)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "downloadDailyStockFromCloud failed: ${e.message}")
             SyncResult.Error(e.message ?: "Unknown error")
@@ -687,6 +715,8 @@ class SyncCoordinator(private val context: Context) {
             Log.d(TAG, "Reconciliation down-sync: restored ${rows.size} rows, marked pending for re-sync")
             SyncResult.ReconciliationDownSync(rows.size)
 
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "downloadReconciliationFromCloud failed: ${e.message}")
             SyncResult.Error(e.message ?: "Unknown error")
@@ -855,6 +885,11 @@ class SyncWorker(
                 }
                 else -> Result.success()
             }
+        } catch (e: CancellationException) {
+            // WorkManager cancelled this job itself (constraints no longer met,
+            // stop requested, timed out, or superseded) — it already knows the
+            // outcome; rethrow instead of masking it as a retry-able error.
+            throw e
         } catch (e: Exception) {
             Log.e("SyncWorker", "Background sync error: ${e.message}")
             ErrorLogger.log(applicationContext, "Sync/Background",

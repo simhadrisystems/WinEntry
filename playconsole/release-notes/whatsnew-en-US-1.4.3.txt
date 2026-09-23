@@ -1,0 +1,1 @@
+Fixed: correcting a mistake in Opening Stock could be blocked with "Cannot Save" once the baseline date had any recorded sales — which happens routinely in normal, continuous business use. Corrections to the opening balance now save normally regardless of same-day trading activity.

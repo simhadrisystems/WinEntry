@@ -175,6 +175,14 @@ interface PurchaseDao {
     @Query("SELECT txnId FROM purchases WHERE isDeleted = 0")
     suspend fun getAllTxnIds(): List<String>
 
+    /** Restores a cloud ReceivedDate onto a local row that has no unsynced edits. */
+    @Query("""
+        UPDATE purchases SET receivedDate = :receivedDate
+        WHERE txnId = :txnId AND syncStatus = 'SYNCED' AND isDeleted = 0
+          AND receivedDate != :receivedDate
+    """)
+    suspend fun repairReceivedDate(txnId: String, receivedDate: String): Int
+
     /**
      * Hard-delete any soft-deleted (PENDING_DELETE) tombstone that shares the given txnId.
      * Called when restoring a purchase from cloud: if a matching tombstone exists it would

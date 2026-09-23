@@ -1,0 +1,7 @@
+Fixed: a v1.4.1 regression where a recent "Start New Opening Balance" re-baseline could be wrongly forgotten if you also traded normally that same day, causing Opening Stock Setup to fall back to an older baseline date. Your Daily Stock data was never affected — only which date the app considered "active" was wrong.
+
+New: "Fix Active Baseline Date" option in Opening Stock Setup (⋮ menu) — lets you re-mark an existing date as the active baseline without changing any quantities, for recovering from exactly this situation.
+
+New: Opening Stock Setup now shows any previous baseline dates alongside the active one, so you always know which baseline you're working in.
+
+New: Daily Stock highlights the date a new baseline started (🆕, amber) so it's visually clear that day doesn't continue an opening balance from the day before.

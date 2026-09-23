@@ -76,10 +76,8 @@ class DailyStockRepository(
         dailyStockDao.getLatestOpeningStockDate()
 
     /**
-     * Active opening stock date, with a one-time self-heal for legacy data that
-     * predates the isOpeningStock column (e.g. restored from an old cloud sheet).
-     * If recovered via the heuristic fallback, the flag is persisted so future
-     * calls hit the fast path and the correction syncs back to the cloud.
+     * Active opening stock date. Only when no date carries the marker at all (data that
+     * predates the isOpeningStock column) is the heuristic fallback used and persisted.
      */
     suspend fun getLatestOpeningStockDateOrHeal(): String? {
         dailyStockDao.getLatestOpeningStockDate()?.let { return it }
@@ -88,8 +86,28 @@ class DailyStockRepository(
         return likely
     }
 
-    suspend fun getOpeningStockDateCounts() =
-        dailyStockDao.getOpeningStockDateCounts()
+    /** All dates ever marked as an opening-stock baseline, most recent (active) first. */
+    suspend fun getAllOpeningStockDates(): List<String> =
+        dailyStockDao.getAllOpeningStockDates()
+
+    suspend fun getBaselineCandidates(): List<DailyStockDao.BaselineCandidate> =
+        dailyStockDao.getBaselineCandidates()
+
+    /** Makes [date] the only active baseline without touching any quantities; changed rows are queued for sync. */
+    suspend fun setActiveBaseline(date: String) =
+        dailyStockDao.setActiveBaseline(date)
+
+    /**
+     * OB for [productCode] on [date]: the baseline row's own OB when [date] is a baseline for it,
+     * otherwise the previous committed CB (zeros when there is no history).
+     */
+    suspend fun getOpeningFor(productCode: String, date: String): IntArray {
+        val today = dailyStockDao.getDailyStock(date, productCode)
+        if (today != null && today.isCommitted && today.isOpeningStock) return BaselineMath.open(today)
+        val prev = dailyStockDao.getLastCommittedBeforeDate(productCode, date)
+            ?: return IntArray(4)
+        return BaselineMath.close(prev)
+    }
 
     /**
      * Total committed sale amount for [date].
@@ -133,6 +151,56 @@ class DailyStockRepository(
 
     suspend fun saveDailyStocks(rows: List<DailyStock>) =
         dailyStockDao.upsertCommittedBatch(rows)
+
+    /** One product's change as shown in the Opening Stock confirmation. */
+    data class BaselineChange(val before: DailyStock?, val after: DailyStock) {
+        val cbKept: Boolean get() = before != null && BaselineMath.hasClosing(before)
+    }
+
+    /**
+     * Rows an Opening Stock save would write on [date]. [newOb] maps stockCode to [qq,pp,nn,dd];
+     * products absent from it keep their current value. [pq] is the live purchase qty per stockCode.
+     * New baseline: every active product. Correction: only products whose OB differs.
+     */
+    suspend fun planOpeningStockSave(
+        date:          String,
+        products:      List<Product>,
+        newOb:         Map<String, IntArray>,
+        pq:            Map<String, IntArray>,
+        isNewBaseline: Boolean
+    ): List<BaselineChange> {
+        val existing = dailyStockDao.getAllDailyStockForDate(date)
+            .filter { it.isCommitted }.associateBy { it.productCode }
+        return products.mapNotNull { p ->
+            val code = p.stockCode
+            val purchase = pq[code] ?: IntArray(4)
+            val old = existing[code]
+            if (isNewBaseline || old == null) {
+                val ob = newOb[code] ?: if (isNewBaseline) IntArray(4) else return@mapNotNull null
+                if (!isNewBaseline && ob.all { it == 0 }) return@mapNotNull null
+                BaselineChange(old, BaselineMath.newBaselineRow(date, code, ob, purchase))
+            } else {
+                val ob = newOb[code] ?: return@mapNotNull null
+                if (ob.contentEquals(BaselineMath.open(old))) return@mapNotNull null
+                BaselineChange(old, BaselineMath.correctRow(old, ob, purchase))
+            }
+        }
+    }
+
+    /** Writes a plan from [planOpeningStockSave]; only rows whose CB moved cascade into the next day. */
+    suspend fun applyOpeningStockSave(
+        date:     String,
+        changes:  List<BaselineChange>,
+        products: List<Product>
+    ): CascadeResult {
+        if (changes.isEmpty()) return CascadeResult(0, emptySet())
+        dailyStockDao.upsertCommittedBatch(changes.map { it.after })
+        dailyStockDao.setActiveBaseline(date)
+        val cbMoved = changes.filter { c ->
+            c.before == null || !BaselineMath.close(c.before).contentEquals(BaselineMath.close(c.after))
+        }.map { it.after }
+        return cascadeRecalculate(cbMoved, products)
+    }
 
     // ── Cascade recalculation ─────────────────────────────────────────────────
 
@@ -179,6 +247,7 @@ class DailyStockRepository(
         for (row in rows) {
             val next = dailyStockDao.getSubsequentCommittedRows(row.productCode, row.date)
                 .firstOrNull() ?: continue
+            if (next.isOpeningStock) continue
 
             cal.time = sdf.parse(row.date)!!
             cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
@@ -281,20 +350,21 @@ class DailyStockRepository(
                 val newOpenQq = prevClose[0]; val newOpenPp = prevClose[1]
                 val newOpenNn = prevClose[2]; val newOpenDd = prevClose[3]
 
-                val rawQq = newOpenQq - next.closeQq
-                val rawPp = newOpenPp - next.closePp
-                val rawNn = newOpenNn - next.closeNn
-                val rawDd = newOpenDd - next.closeDd
+                // stored sale already includes that day's purchases: shift it by the OB delta
+                val rawQq = next.saleQq + newOpenQq - next.openQq
+                val rawPp = next.salePp + newOpenPp - next.openPp
+                val rawNn = next.saleNn + newOpenNn - next.openNn
+                val rawDd = next.saleDd + newOpenDd - next.openDd
 
                 val hasNegative = rawQq < 0 || rawPp < 0 || rawNn < 0 || rawDd < 0
                 if (hasNegative) negativeSaleDates.add(next.date)
 
                 val saleQq = rawQq; val salePp = rawPp
                 val saleNn = rawNn; val saleDd = rawDd
-                val amtQq  = saleQq * product.qqSalePrice
-                val amtPp  = salePp * product.ppSalePrice
-                val amtNn  = saleNn * product.nnSalePrice
-                val amtDd  = saleDd * product.ddSalePrice
+                val amtQq  = saleQq * (if (next.priceQq > 0) next.priceQq else product.qqSalePrice)
+                val amtPp  = salePp * (if (next.pricePp > 0) next.pricePp else product.ppSalePrice)
+                val amtNn  = saleNn * (if (next.priceNn > 0) next.priceNn else product.nnSalePrice)
+                val amtDd  = saleDd * (if (next.priceDd > 0) next.priceDd else product.ddSalePrice)
                 val newSaleAmount = amtQq + amtPp + amtNn + amtDd
 
                 val unchanged = newOpenQq == next.openQq && newOpenPp == next.openPp &&
@@ -354,14 +424,18 @@ class DailyStockRepository(
         cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
         val nextDate = sdf.format(cal.time)
         // Only return the immediate next day if it exists and is committed
+        // History stops just before a baseline: its OB belongs to Opening Stock
         val next = all.firstOrNull { it.date == nextDate }
-        return if (next != null) listOf(next) else emptyList()
+        return if (next != null && !next.isOpeningStock) listOf(next) else emptyList()
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
     suspend fun deleteDailyStock(date: String, productCode: String) =
         dailyStockDao.deleteDailyStock(date, productCode)
+
+    suspend fun deleteDraft(date: String, productCode: String) =
+        dailyStockDao.deleteDraft(date, productCode)
 
     suspend fun hasNonZeroClosingBalance(productCode: String): Boolean =
         dailyStockDao.hasNonZeroClosingBalance(productCode) > 0
@@ -375,6 +449,13 @@ class DailyStockRepository(
      * >= the old OB, so the next day's sale can only stay the same or increase.
      */
     suspend fun clearEntryWithCascade(date: String, productCode: String, products: List<Product>) {
+        val today = dailyStockDao.getDailyStock(date, productCode)
+        if (today != null && today.isCommitted && today.isOpeningStock) {
+            val reset = BaselineMath.resetRow(today)
+            dailyStockDao.upsertCommittedBatch(listOf(reset))
+            cascadeRecalculate(listOf(reset), products)
+            return
+        }
         val prevRow = dailyStockDao.getLastCommittedBeforeDate(productCode, date)
         dailyStockDao.deleteDailyStock(date, productCode)
 
@@ -392,8 +473,20 @@ class DailyStockRepository(
         cascadeRecalculate(listOf(virtualRow), products)
     }
 
-    suspend fun clearDateData(date: String) =
-        dailyStockDao.deleteAllForDate(date)
+    /** Clears a date. On a baseline date the rows are reset (OB and marker kept) instead of deleted. */
+    suspend fun clearDateData(date: String) {
+        val rows = dailyStockDao.getAllDailyStockForDate(date)
+        if (rows.any { it.isCommitted && it.isOpeningStock }) {
+            val reset = rows.filter { it.isCommitted }.map { BaselineMath.resetRow(it) }
+            dailyStockDao.upsertCommittedBatch(reset)
+            cascadeRecalculate(reset, productDao.getAllProductsSync())
+        } else {
+            dailyStockDao.deleteAllForDate(date)
+        }
+    }
+
+    suspend fun isBaselineDate(date: String): Boolean =
+        date in dailyStockDao.getAllOpeningStockDates()
 
     /**
      * Delete the active opening stock date, then cascade-correct the next committed

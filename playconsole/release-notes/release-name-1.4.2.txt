@@ -1,0 +1,1 @@
+14 (1.4.2) — Critical fix: isOpeningStock self-heal was wrongly clearing a legitimate recent re-baseline that also had same-day trading activity; added manual "Fix Active Baseline Date" recovery tool and baseline-history display

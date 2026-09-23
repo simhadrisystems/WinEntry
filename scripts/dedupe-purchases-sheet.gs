@@ -41,15 +41,24 @@ function dedupePurchases() {
   });
 
   const keep = new Set(blankTxn);   // rows without a TxnId are left alone
-  const report = [["Date", "Product", "Invoice", "Copies", "Kept TxnId", "Values differ", "ReceivedDate carried over"]];
+  const report = [["Date", "Product", "Invoice", "Copies", "Kept TxnId", "Columns that differ", "ReceivedDate carried over"]];
+  const colName = c => c < 26 ? String.fromCharCode(65 + c) : "A" + String.fromCharCode(65 + c - 26);
+  // Numbers compare with rounding so 1234.5 and 1234.4999999 count as the same
+  const sameValue = (a, b) => {
+    const na = Number(a), nb = Number(b);
+    if (cell(a) !== "" && cell(b) !== "" && !isNaN(na) && !isNaN(nb)) return Math.abs(na - nb) < 0.005;
+    return cell(a) === cell(b);
+  };
   groups.forEach((idx, key) => {
     idx.sort((a, b) => cell(rows[b][COL_TXN]).localeCompare(cell(rows[a][COL_TXN])));
     const kept = idx[0];
     keep.add(kept);
     if (idx.length === 1) return;
 
-    const sig = r => rows[r].slice(FIRST_DATA_COL, LAST_DATA_COL + 1).map(cell).join("\u0001");
-    const differ = idx.some(r => sig(r) !== sig(kept));
+    const differCols = [];
+    for (let c = FIRST_DATA_COL; c <= COL_RECEIVED; c++) {
+      if (idx.some(r => sameValue(rows[r][c], rows[kept][c]) === false)) differCols.push(colName(c));
+    }
 
     let carried = "";
     if (!cell(rows[kept][COL_RECEIVED])) {
@@ -57,7 +66,7 @@ function dedupePurchases() {
       if (other !== undefined) { rows[kept][COL_RECEIVED] = other; carried = cell(other); }
     }
     const [d, code, inv] = key.split("|");
-    report.push([d, code, inv, idx.length, cell(rows[kept][COL_TXN]), differ ? "YES" : "", carried]);
+    report.push([d, code, inv, idx.length, cell(rows[kept][COL_TXN]), differCols.join(" "), carried]);
   });
 
   const reportSheet = ss.getSheetByName("DupReport") || ss.insertSheet("DupReport");
@@ -67,7 +76,10 @@ function dedupePurchases() {
 
   const kept = rows.filter((_, i) => keep.has(i));
   const summary = `${rows.length} rows -> ${kept.length} kept, ${rows.length - kept.length} duplicates` +
-    `, ${report.length - 1} lines had copies, ${report.filter(r => r[5] === "YES").length} with differing values`;
+    `, ${report.length - 1} lines had copies, ${report.slice(1).filter(r => r[5]).length} with differing values`;
+  const byCol = {};
+  report.slice(1).forEach(r => String(r[5]).split(" ").filter(Boolean).forEach(c => byCol[c] = (byCol[c] || 0) + 1));
+  Logger.log("Lines differing per column: " + JSON.stringify(byCol));
   Logger.log((DRY_RUN ? "DRY RUN: " : "") + summary);
 
   if (DRY_RUN) {

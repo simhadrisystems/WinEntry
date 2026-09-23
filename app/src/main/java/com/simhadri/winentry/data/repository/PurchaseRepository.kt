@@ -31,9 +31,9 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
         )
     }
 
-    /** Delete alias-coded row before inserting normalised primary-coded row. */
-    suspend fun deleteByProductIdInvoiceDate(productId: Long, invoice: String, date: String) =
-        purchaseDao.deleteByProductIdInvoiceDate(productId, invoice, date)
+    /** Insert or replace the line for this product + invoice + date, keeping its cloud txnId. */
+    suspend fun saveLine(purchase: Purchase): Long =
+        purchaseDao.replaceLine(purchase.copy(txnId = "", syncStatus = SyncStatus.PENDING_INSERT))
 
     /** Soft-delete: marks row as deleted + PENDING_DELETE for sync. */
     suspend fun delete(purchase: Purchase) {

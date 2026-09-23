@@ -134,6 +134,14 @@ All cloud sync flows through:
 
 Purchases use a stable `txnId` (format: `yyyyMMdd-HHmmss-XXXX`) as the cloud lookup key — never change this after creation.
 
+**One active row per purchase line.** A line is product + invoice number + invoice date. Every path that saves a line (Excel import, manual entry, Import from cloud, Restore) goes through `PurchaseDao.replaceLine()`. It:
+- reuses the replaced line's `txnId`, so the Cloud Function upsert updates that sheet row
+- tombstones other already-synced copies (`PENDING_DELETE`), so sync deletes them from the cloud
+
+Import from cloud (the PurchaseImport tab) takes the TxnId the line already has in the Purchases tab (`CloudSyncManager.cloudLineIndex`). Restore keeps the newest copy per line (`newestPerLine`) and skips lines already on the device.
+
+Before this (up to vc16), each re-import hard-deleted the local row and inserted a new `txnId`. That appended a full copy to the sheet: one user sheet reached 3,736 rows for 1,003 lines, and Restore swapped between the copies. `scripts/dedupe-purchases-sheet.gs` cleans such a sheet (dry run first, backup tab).
+
 ### Cloud Infrastructure & Billing (GCP project `winentry-a87f2`, `functions/`)
 
 Cloud Functions (`functions/index.js`, region `asia-south1`) back the invite/sheet-provisioning flow: `createUserSheet`, `registerUserOnly`, `syncUserSheet`, `deleteUserRegistration`, `getMasterProducts` (HTTPS), plus `onAdminRequestCreated` / `onInvitedUserAdded` (Firestore triggers). `CloudFunctionClient.kt` calls these for every sync — this means Cloud Functions/Firestore usage genuinely scales with active users, unlike Secret Manager (below).

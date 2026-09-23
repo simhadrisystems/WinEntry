@@ -280,6 +280,46 @@ object CloudSyncManager {
         return out
     }
 
+    /** One purchase line: the same product, invoice and invoice date. */
+    internal fun lineKey(productCode: String, invoice: String, date: String) =
+        "$productCode|$invoice|$date"
+
+    /** [lineKey] with the stored code resolved to the product's stockCode (aliases included). */
+    internal fun Purchase.lineKey(productMap: Map<String, Product>) =
+        lineKey(productMap[productCode]?.stockCode ?: productCode, invoiceNumber, purchaseDate)
+
+    internal data class CloudLine(val txnId: String, val receivedDate: String)
+
+    /**
+     * Newest Purchases-tab row per line. The tab can hold several copies of a line under
+     * different TxnIds (left by older app versions); TxnIds start with a yyyyMMdd-HHmmss
+     * timestamp, so the largest one is the most recent copy.
+     */
+    internal fun cloudLineIndex(rows: List<List<Any>>, products: List<Product>): Map<String, CloudLine> {
+        val productMap = buildProductLookupMap(products)
+        val receivedDates = parseReceivedDates(rows)
+        val out = mutableMapOf<String, CloudLine>()
+        for (row in rows) {
+            val txnId = row.getOrNull(0)?.toString()?.trim().orEmpty()
+            if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
+            val code = row.getOrNull(2)?.toString()?.trim().orEmpty()
+            if (code.isBlank()) continue
+            val key = lineKey(
+                productMap[code]?.stockCode ?: code,
+                row.getOrNull(4)?.toString()?.trim().orEmpty(),
+                parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty())
+            )
+            val current = out[key]
+            if (current == null || txnId > current.txnId)
+                out[key] = CloudLine(txnId, receivedDates[txnId].orEmpty())
+        }
+        return out
+    }
+
+    /** Keeps only the newest copy (largest txnId) of each line. */
+    internal fun newestPerLine(purchases: List<Purchase>, productMap: Map<String, Product>): List<Purchase> =
+        purchases.groupBy { it.lineKey(productMap) }.values.map { copies -> copies.maxBy { it.txnId } }
+
     internal fun parsePurchasesTabRows(
         rows: List<List<Any>>,
         products: List<Product>,

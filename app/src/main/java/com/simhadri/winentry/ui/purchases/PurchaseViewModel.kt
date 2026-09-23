@@ -704,16 +704,10 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 return false
             }
             val normalised = normalisePurchaseCode(purchase)
-            if (normalised.productId > 0 && normalised.invoiceNumber.isNotBlank()) {
-                try {
-                    repository.deleteByProductIdInvoiceDate(
-                        normalised.productId,
-                        normalised.invoiceNumber,
-                        normalised.purchaseDate
-                    )
-                } catch (_: Exception) {}
-            }
-            repository.insert(normalised)
+            if (normalised.productId > 0 && normalised.invoiceNumber.isNotBlank())
+                repository.saveLine(normalised)
+            else
+                repository.insert(normalised)
             android.util.Log.d("PurchaseViewModel",
                 "Saved purchase: ${normalised.productName} " +
                 "code=${normalised.productCode} date=${normalised.purchaseDate}")

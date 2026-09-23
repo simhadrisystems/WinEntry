@@ -184,8 +184,9 @@ class SyncCoordinator(private val context: Context) {
 
         Log.d(TAG, "Syncing ${pending.size} pending purchase operations")
 
-        val toWrite  = pending.filter { it.syncStatus != SyncStatus.PENDING_DELETE }
-        val toDelete = pending.filter { it.syncStatus == SyncStatus.PENDING_DELETE }
+        // By isDeleted, not status: a failed delete is SYNC_ERROR and must retry as a delete
+        val toWrite  = pending.filter { !it.isDeleted }
+        val toDelete = pending.filter { it.isDeleted }
         var successCount = 0
 
         if (toWrite.isNotEmpty()) {
@@ -299,6 +300,7 @@ class SyncCoordinator(private val context: Context) {
             val cfClient = CloudFunctionClient()
             val sheetResult = cfClient.syncUserSheet("read_all")
 
+            val allRead = sheetResult as? SyncSheetResult.AllRead
             val importRows = when (sheetResult) {
                 is SyncSheetResult.AllRead -> sheetResult.purchaseImport
                 is SyncSheetResult.NoSheet -> return@withContext SyncResult.Error(
@@ -315,8 +317,18 @@ class SyncCoordinator(private val context: Context) {
                 "${it.invoiceNumber}|${it.productCode}|${it.purchaseDate}"
             }.toHashSet()
 
-            val (allRows, notFoundCodes) =
+            val (parsedRows, notFoundCodes) =
                 CloudSyncManager.parseImportSheetRows(importRows, products, emptySet())
+
+            // A line already in the Purchases tab keeps its TxnId, so syncing the import updates
+            // that row instead of appending another copy (re-imports after a reinstall used to
+            // add a full copy each time). Its ReceivedDate wins because it carries in-app edits.
+            val cloudLines = CloudSyncManager.cloudLineIndex(allRead?.purchases.orEmpty(), products)
+            val allRows = parsedRows.map { p ->
+                val cloud = cloudLines[CloudSyncManager.lineKey(p.productCode, p.invoiceNumber, p.purchaseDate)]
+                    ?: return@map p
+                p.copy(txnId = cloud.txnId, receivedDate = cloud.receivedDate.ifBlank { p.receivedDate })
+            }
 
             val newRows = allRows.filter {
                 "${it.invoiceNumber}|${it.productCode}|${it.purchaseDate}" !in existingKeys
@@ -360,7 +372,16 @@ class SyncCoordinator(private val context: Context) {
             val purchaseDao = database.purchaseDao()
             val existingTxnIds = purchaseDao.getAllTxnIds().toHashSet()
 
-            val newRows = CloudSyncManager.parsePurchasesTabRows(purchasesRows, products, existingTxnIds)
+            val productMap = CloudSyncManager.buildProductLookupMap(products)
+            val localLines = purchaseDao.getAllPurchasesSync()
+                .filter { !it.isDeleted }
+                .map { with(CloudSyncManager) { it.lineKey(productMap) } }
+                .toHashSet()
+            val newRows = CloudSyncManager.newestPerLine(
+                CloudSyncManager.parsePurchasesTabRows(purchasesRows, products, existingTxnIds)
+                    .filter { with(CloudSyncManager) { it.lineKey(productMap) } !in localLines },
+                productMap
+            )
 
             // Earlier restores dropped column AC; put the cloud ReceivedDate back on existing rows
             var repaired = 0
@@ -392,20 +413,7 @@ class SyncCoordinator(private val context: Context) {
 
             for (p in toInsert) {
                 try {
-                    purchaseDao.deleteByProductIdInvoiceDate(
-                        p.productId, p.invoiceNumber, p.purchaseDate
-                    )
-                    // Preserve txnId from cloud (Purchases tab restore); generate one only
-                    // if blank (PurchaseImport admin import path).
-                    val withTxnId = if (p.txnId.isBlank())
-                        p.copy(txnId = Purchase.generateTxnId())
-                    else p
-                    // If a soft-deleted tombstone exists with the same txnId, cancel it so
-                    // the next sync does not delete the just-restored cloud row.
-                    if (withTxnId.txnId.isNotBlank()) {
-                        purchaseDao.cancelPendingDeleteByTxnId(withTxnId.txnId)
-                    }
-                    purchaseDao.insert(withTxnId)
+                    purchaseDao.replaceLine(p)
                     inserted++
                 } catch (e: CancellationException) {
                     throw e
@@ -416,10 +424,7 @@ class SyncCoordinator(private val context: Context) {
 
             for (p in toReplace) {
                 try {
-                    purchaseDao.deleteByInvoiceProductDate(
-                        p.invoiceNumber, p.productCode, p.purchaseDate
-                    )
-                    purchaseDao.insert(p)
+                    purchaseDao.replaceLine(p)
                     replaced++
                 } catch (e: CancellationException) {
                     throw e

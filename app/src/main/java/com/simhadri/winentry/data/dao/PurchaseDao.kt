@@ -191,6 +191,60 @@ interface PurchaseDao {
     @Query("DELETE FROM purchases WHERE txnId = :txnId AND isDeleted = 1")
     suspend fun cancelPendingDeleteByTxnId(txnId: String)
 
+    @Query("""SELECT * FROM purchases
+              WHERE productId = :productId AND invoiceNumber = :invoice
+                AND purchaseDate = :date AND isDeleted = 0
+              ORDER BY txnId DESC""")
+    suspend fun getActiveLines(productId: Long, invoice: String, date: String): List<Purchase>
+
+    @Query("""SELECT * FROM purchases
+              WHERE productCode = :productCode AND invoiceNumber = :invoice
+                AND purchaseDate = :date AND isDeleted = 0
+              ORDER BY txnId DESC""")
+    suspend fun getActiveLinesByCode(productCode: String, invoice: String, date: String): List<Purchase>
+
+    /**
+     * Saves [purchase] as the only active line for its product + invoice + date.
+     *
+     * The line keeps [purchase].txnId if set, otherwise the txnId of the line it replaces,
+     * so the cloud upsert (keyed by TxnId) updates that row instead of appending a copy.
+     * Other copies that already reached the cloud are tombstoned so the next sync deletes
+     * them there too. Hard-deleting them here is what used to leave duplicates in the sheet.
+     */
+    @Transaction
+    suspend fun replaceLine(purchase: Purchase): Long {
+        val existing = if (purchase.productId > 0)
+            getActiveLines(purchase.productId, purchase.invoiceNumber, purchase.purchaseDate)
+        else
+            getActiveLinesByCode(purchase.productCode, purchase.invoiceNumber, purchase.purchaseDate)
+
+        val reusedTxnId = existing.firstOrNull { it.txnId.isNotBlank() }?.txnId
+        val txnId = purchase.txnId.ifBlank { reusedTxnId ?: Purchase.generateTxnId() }
+        val status = when {
+            purchase.syncStatus == SyncStatus.SYNCED -> SyncStatus.SYNCED
+            existing.any { it.txnId == txnId }      -> SyncStatus.PENDING_UPDATE
+            else                                    -> SyncStatus.PENDING_INSERT
+        }
+
+        for (old in existing) {
+            val neverSynced = old.txnId.isBlank() || old.syncStatus == SyncStatus.PENDING_INSERT
+            if (old.txnId == txnId || neverSynced) delete(old)
+            else update(old.copy(
+                isDeleted  = true,
+                syncStatus = SyncStatus.PENDING_DELETE,
+                updatedAt  = System.currentTimeMillis()
+            ))
+        }
+        cancelPendingDeleteByTxnId(txnId)
+        return insert(purchase.copy(
+            id         = 0,
+            txnId      = txnId,
+            syncStatus = status,
+            isDeleted  = false,
+            updatedAt  = System.currentTimeMillis()
+        ))
+    }
+
 
     /**
      * Lightweight projection for import-sheet dedup.

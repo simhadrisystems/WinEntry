@@ -22,17 +22,17 @@
  *   Firebase Admin SDK (Firestore writes): firebase-admin initialised below, which
  *   automatically uses the runtime service account — no keyFile needed.
  *
- *   UserRegistry sheet (Sheets API only, existing file): service-account.json keyFile.
- *   The registry sheet was shared with the SA as Editor so values.append works fine.
+ *   Sheets API (UserRegistry, user sheets, master sheet): every function runs as
+ *   SHEETS_SA, so GoogleAuth picks up its credentials from the runtime — no key file.
+ *   The sheets are shared with this SA, so the identity must stay the same.
  */
 
 const functions   = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
 const admin       = require("firebase-admin");
 const { google }  = require("googleapis");
-const path        = require("path");
 
-const SERVICE_ACCOUNT_KEY_PATH = path.join(__dirname, "service-account.json");
+const SHEETS_SA = "firebase-adminsdk-fbsvc@winentry-a87f2.iam.gserviceaccount.com";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -319,7 +319,7 @@ async function createUserSheetForUser(uid, email, displayName, extraData = {}) {
 
 async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_created", forceWriteRegistry = false) {
   try {
-    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+    const auth   = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
     const sheets = google.sheets({ version: "v4", auth });
 
     const spreadsheet  = await sheets.spreadsheets.get({ spreadsheetId: REGISTRY_SHEET_ID });
@@ -427,7 +427,7 @@ async function appendToRegistry(uid, data, sheetId, sheetUrl, status = "sheet_cr
 // Called from deleteUserRegistration before the Firebase Auth account is removed.
 
 async function softDeleteRegistryRows(uid) {
-  const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+  const auth   = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
   const sheets = google.sheets({ version: "v4", auth });
   const deletedAt = new Date().toLocaleString("en-IN", {
     timeZone: "Asia/Kolkata", day: "2-digit", month: "short",
@@ -728,6 +728,7 @@ async function clearAll(sheets, spreadsheetId) {
 exports.createUserSheet = functions
   .region("asia-south1")
   .runWith({
+    serviceAccount: SHEETS_SA,
     timeoutSeconds: 60,
     memory: "256MB",
     secrets: ["ADMIN_OAUTH_CLIENT_ID", "ADMIN_OAUTH_CLIENT_SECRET", "ADMIN_OAUTH_REFRESH_TOKEN"]
@@ -820,7 +821,7 @@ exports.createUserSheet = functions
 
 exports.registerUserOnly = functions
   .region("asia-south1")
-  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .runWith({ serviceAccount: SHEETS_SA, timeoutSeconds: 30, memory: "256MB" })
   .https.onRequest(async (req, res) => {
 
     res.set("Access-Control-Allow-Origin", "*");
@@ -919,6 +920,7 @@ exports.registerUserOnly = functions
 exports.onAdminRequestCreated = functions
   .region("asia-south1")
   .runWith({
+    serviceAccount: SHEETS_SA,
     timeoutSeconds: 60,
     memory: "256MB",
     secrets: ["ADMIN_OAUTH_CLIENT_ID", "ADMIN_OAUTH_CLIENT_SECRET", "ADMIN_OAUTH_REFRESH_TOKEN"]
@@ -1002,6 +1004,7 @@ exports.onAdminRequestCreated = functions
 exports.onInvitedUserAdded = functions
   .region("asia-south1")
   .runWith({
+    serviceAccount: SHEETS_SA,
     timeoutSeconds: 120,
     memory: "256MB",
     secrets: ["ADMIN_OAUTH_CLIENT_ID", "ADMIN_OAUTH_CLIENT_SECRET", "ADMIN_OAUTH_REFRESH_TOKEN"]
@@ -1158,7 +1161,7 @@ exports.onInvitedUserAdded = functions
 
 exports.syncUserSheet = functions
   .region("asia-south1")
-  .runWith({ timeoutSeconds: 120, memory: "512MB" })
+  .runWith({ serviceAccount: SHEETS_SA, timeoutSeconds: 120, memory: "512MB" })
   .https.onRequest(async (req, res) => {
 
     res.set("Access-Control-Allow-Origin", "*");
@@ -1195,7 +1198,7 @@ exports.syncUserSheet = functions
     }
 
     // Service account auth — the SA has writer access to user sheets
-    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
+    const auth   = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
     const sheets = google.sheets({ version: "v4", auth });
 
     console.log(`syncUserSheet [${operation}] — uid=${uid}, spreadsheetId=${spreadsheetId}`);
@@ -1234,7 +1237,7 @@ exports.syncUserSheet = functions
 
 exports.deleteUserRegistration = functions
   .region("asia-south1")
-  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .runWith({ serviceAccount: SHEETS_SA, timeoutSeconds: 30, memory: "256MB" })
   .https.onRequest(async (req, res) => {
 
     res.set("Access-Control-Allow-Origin", "*");
@@ -1291,7 +1294,7 @@ exports.deleteUserRegistration = functions
 
 exports.getMasterProducts = functions
   .region("asia-south1")
-  .runWith({ timeoutSeconds: 30, memory: "256MB" })
+  .runWith({ serviceAccount: SHEETS_SA, timeoutSeconds: 30, memory: "256MB" })
   .https.onRequest(async (req, res) => {
 
     res.set("Access-Control-Allow-Origin", "*");
@@ -1319,7 +1322,7 @@ exports.getMasterProducts = functions
       return res.status(403).json({ error: "not_registered", message: "Complete app registration first." });
     }
 
-    const auth   = new google.auth.GoogleAuth({ keyFile: SERVICE_ACCOUNT_KEY_PATH, scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const auth   = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
     const sheets = google.sheets({ version: "v4", auth });
 
     try {

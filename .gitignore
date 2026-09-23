@@ -23,3 +23,7 @@ app/release/
 
 # Firebase / Node dependencies
 functions/node_modules/
+
+# Service account keys — never commit
+service-account*.json
+*-adminsdk-*.json

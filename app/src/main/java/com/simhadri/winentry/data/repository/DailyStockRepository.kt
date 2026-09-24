@@ -93,9 +93,25 @@ class DailyStockRepository(
     suspend fun getBaselineCandidates(): List<DailyStockDao.BaselineCandidate> =
         dailyStockDao.getBaselineCandidates()
 
-    /** Makes [date] the only active baseline without touching any quantities; changed rows are queued for sync. */
-    suspend fun setActiveBaseline(date: String) =
+    /**
+     * Makes [date] the only active baseline; changed rows are queued for sync. Existing quantities
+     * are untouched, but every product in [products] without a committed row there gets a zero-OB
+     * baseline row (CB = [pq]) so nothing from before [date] carries past it.
+     */
+    suspend fun setActiveBaseline(
+        date:     String,
+        products: List<Product>,
+        pq:       Map<String, IntArray>
+    ): CascadeResult {
+        val have = dailyStockDao.getAllDailyStockForDate(date).filter { it.isCommitted }
+            .mapTo(HashSet()) { it.productCode }
+        val filled = products.filter { it.stockCode !in have }.map {
+            BaselineMath.newBaselineRow(date, it.stockCode, IntArray(4), pq[it.stockCode] ?: IntArray(4))
+        }
+        dailyStockDao.upsertCommittedBatch(filled)
         dailyStockDao.setActiveBaseline(date)
+        return cascadeRecalculate(filled, products)
+    }
 
     /**
      * OB for [productCode] on [date]: the baseline row's own OB when [date] is a baseline for it,
@@ -160,7 +176,8 @@ class DailyStockRepository(
     /**
      * Rows an Opening Stock save would write on [date]. [newOb] maps stockCode to [qq,pp,nn,dd];
      * products absent from it keep their current value. [pq] is the live purchase qty per stockCode.
-     * New baseline: every active product. Correction: only products whose OB differs.
+     * New baseline: every active product. Correction: products whose OB differs, plus every
+     * product with no row on [date] yet, which gets one (zero OB when none is entered).
      */
     suspend fun planOpeningStockSave(
         date:          String,
@@ -176,8 +193,7 @@ class DailyStockRepository(
             val purchase = pq[code] ?: IntArray(4)
             val old = existing[code]
             if (isNewBaseline || old == null) {
-                val ob = newOb[code] ?: if (isNewBaseline) IntArray(4) else return@mapNotNull null
-                if (!isNewBaseline && ob.all { it == 0 }) return@mapNotNull null
+                val ob = newOb[code] ?: IntArray(4)
                 BaselineChange(old, BaselineMath.newBaselineRow(date, code, ob, purchase))
             } else {
                 val ob = newOb[code] ?: return@mapNotNull null

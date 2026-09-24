@@ -9,6 +9,7 @@ import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.ProductSizeQty
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
+import com.simhadri.winentry.data.repository.CascadeResult
 import com.simhadri.winentry.data.repository.PurchaseRepository
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -467,7 +468,10 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         date: String, changes: List<DailyStockRepository.BaselineChange>, products: List<Product>
     ) = repository.applyOpeningStockSave(date, changes, products)
 
-    suspend fun setActiveBaseline(date: String) = repository.setActiveBaseline(date)
+    suspend fun setActiveBaseline(date: String): CascadeResult {
+        val products = repository.getActiveProductsSortedSync()
+        return repository.setActiveBaseline(date, products, getPurchaseQtyByStockCode(date, products))
+    }
 
     suspend fun isBaselineDate(date: String) = repository.isBaselineDate(date)
 

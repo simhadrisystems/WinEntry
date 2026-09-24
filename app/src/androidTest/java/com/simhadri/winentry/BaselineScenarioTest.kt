@@ -182,11 +182,11 @@ class BaselineScenarioTest {
         assertEquals(listOf(d, b1), c.map { it.date })
         assertEquals(2, c[0].markedCount); assertEquals(3, c[0].committedCount)
 
-        repo.setActiveBaseline(d)
+        repo.setActiveBaseline(d, products, emptyMap())
         assertTrue(dao.getAllDailyStockForDate(d).all { it.isOpeningStock })
         assertTrue(dao.getPendingSyncStock().any { it.date == d && it.productCode == "W2" })
 
-        repo.setActiveBaseline(b1)
+        repo.setActiveBaseline(b1, products, emptyMap())
         assertEquals(b1, dao.getLatestOpeningStockDate())
         assertTrue(dao.getAllDailyStockForDate(d).none { it.isOpeningStock })
     }
@@ -196,5 +196,78 @@ class BaselineScenarioTest {
         repo.clearOpeningStockWithCascade(d, products)
         assertEquals(b1, dao.getLatestOpeningStockDate())
         assertEquals(40, row(d1, "W1").openQq)
+    }
+
+    /** W4 traded before baseline D but has no row on D; a leaked OB of 40 was saved on D+1. */
+    private suspend fun addProductMissingFromBaseline(): List<Product> {
+        db.productDao().insertProducts(listOf(product("4")))
+        dao.upsertCommittedBatch(listOf(dailyRow(dm1, "W4", 50, 0, 40)))
+        dao.upsertCommittedBatch(listOf(dailyRow(d1, "W4", 40, 0, 40)))
+        return db.productDao().getAllProductsSync()
+    }
+
+    @Test
+    fun productWithoutBaselineRow_startsFromZero() = runBlocking {
+        addProductMissingFromBaseline()
+        assertArrayEquals(IntArray(4), repo.getOpeningFor("W4", d))
+        assertTrue(repo.getPreviousRow("W4", d1) == null)
+        assertTrue("W4" !in repo.getBulkPreviousRows(listOf("W1", "W4"), d1))
+        assertEquals(d, repo.getBulkPreviousRows(listOf("W1", "W4"), d1)["W1"]?.date)
+    }
+
+    @Test
+    fun correction_zeroForProductWithoutRow_writesRowAndCascades() = runBlocking {
+        val all = addProductMissingFromBaseline()
+        val plan = repo.planOpeningStockSave(
+            d, all,
+            mapOf("W1" to q(20), "W2" to q(30), "W3" to q(10), "W4" to q(0)),
+            mapOf("W1" to q(5)), isNewBaseline = false
+        )
+        assertEquals(listOf("W4"), plan.map { it.after.productCode })
+        val result = repo.applyOpeningStockSave(d, plan, all)
+
+        val w4 = row(d, "W4")
+        assertTrue(w4.isOpeningStock)
+        assertArrayEquals(IntArray(4), BaselineMath.open(w4))
+        assertArrayEquals(IntArray(4), BaselineMath.close(w4))
+        val next = row(d1, "W4")
+        assertEquals(0, next.openQq)
+        assertEquals(40, next.closeQq)       // user's CB kept
+        assertEquals(-40, next.saleQq)
+        assertTrue(d1 in result.negativeSaleDates)
+
+        assertTrue(repo.planOpeningStockSave(
+            d, all, mapOf("W1" to q(20), "W2" to q(30), "W3" to q(10), "W4" to q(0)),
+            mapOf("W1" to q(5)), false
+        ).isEmpty())
+    }
+
+    @Test
+    fun correction_productAddedAfterBaseline_canSetOb() = runBlocking {
+        db.productDao().insertProducts(listOf(product("5")))
+        val all = db.productDao().getAllProductsSync()
+        assertArrayEquals(IntArray(4), repo.getOpeningFor("W5", d1))
+
+        val plan = repo.planOpeningStockSave(d, all, mapOf("W5" to q(7)), mapOf("W5" to q(2)), false)
+        assertEquals(1, plan.size)
+        repo.applyOpeningStockSave(d, plan, all)
+        val w5 = row(d, "W5")
+        assertEquals(7, w5.openQq); assertEquals(9, w5.closeQq); assertEquals(0, w5.saleQq)
+        assertArrayEquals(q(9), repo.getOpeningFor("W5", d1))
+    }
+
+    @Test
+    fun picker_fillsProductsMissingFromBaseline() = runBlocking {
+        val all = addProductMissingFromBaseline()
+        val result = repo.setActiveBaseline(d, all, mapOf("W4" to q(3)))
+        val w4 = row(d, "W4")
+        assertTrue(w4.isOpeningStock)
+        assertEquals(0, w4.openQq); assertEquals(3, w4.closeQq)
+        assertEquals(3, row(d1, "W4").openQq)
+        assertEquals(1, result.updatedCount)
+        assertEquals(4, dao.getAllDailyStockForDate(d).size)
+
+        assertEquals(0, repo.setActiveBaseline(d, all, emptyMap()).updatedCount)
+        assertEquals(3, row(d, "W4").closeQq)
     }
 }

@@ -689,7 +689,7 @@ class OpeningStockFragment : Fragment() {
         ) { idx ->
             val chosen = candidates[idx]
             if (idx == 0) {
-                useBaseline(chosen, repair = chosen.markedCount < chosen.committedCount)
+                useBaseline(chosen)
             } else {
                 val later = candidates.take(idx).joinToString(", ") { formatDisplay(it.date) }
                 AppDialogs.destructive(
@@ -699,15 +699,21 @@ class OpeningStockFragment : Fragment() {
                     "$later will no longer be a baseline. Its quantities are kept as ordinary " +
                     "Daily Stock days, so a change on the day before may then carry into it.",
                     "Use ${formatDisplay(chosen.date)}"
-                ) { useBaseline(chosen, repair = true) }
+                ) { useBaseline(chosen) }
             }
         }
     }
 
-    private fun useBaseline(c: DailyStockDao.BaselineCandidate, repair: Boolean) {
+    private fun useBaseline(c: DailyStockDao.BaselineCandidate) {
         lifecycleScope.launch {
-            if (repair) dataViewModel.setActiveBaseline(c.date)
+            val cascade = dataViewModel.setActiveBaseline(c.date)
             if (!isAdded) return@launch
+            if (cascade.hasNegatives) {
+                Toast.makeText(requireContext(),
+                    "⚠ ${cascade.negativeSaleDates.joinToString(", ")} now shows " +
+                    "negative sales — please review and correct manually.",
+                    Toast.LENGTH_LONG).show()
+            }
             selectedDate      = c.date
             isEditMode        = false
             hasUnsavedChanges = false
@@ -1188,7 +1194,8 @@ class OpeningStockFragment : Fragment() {
     private fun correctionSummary(changes: List<DailyStockRepository.BaselineChange>): String {
         val names = products.associate { it.stockCode to it.displayName }
         val sizes = arrayOf("QQ", "PP", "NN", "DD")
-        val lines = changes.map { c ->
+        val zeroFills = changes.count { c -> c.before == null && BaselineMath.open(c.after).all { it == 0 } }
+        val lines = changes.filterNot { c -> c.before == null && BaselineMath.open(c.after).all { it == 0 } }.map { c ->
             val after = c.after
             val obA = c.before?.let { BaselineMath.open(it) } ?: IntArray(4)
             val cbA = c.before?.let { BaselineMath.close(it) } ?: IntArray(4)
@@ -1209,6 +1216,10 @@ class OpeningStockFragment : Fragment() {
             appendLine()
             lines.take(15).forEach { appendLine(it) }
             if (lines.size > 15) appendLine("…and ${lines.size - 15} more")
+            if (zeroFills > 0) {
+                appendLine()
+                appendLine("$zeroFills product(s) with no entry on this date start from a zero opening balance.")
+            }
             if (cascades > 0) {
                 appendLine()
                 appendLine("Products without a closing entry move their CB with the OB; the next day's opening follows.")

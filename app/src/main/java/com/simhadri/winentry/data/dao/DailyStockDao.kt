@@ -28,26 +28,32 @@ interface DailyStockDao {
 
     /**
      * Previous day's closing for a product — all 4 sizes in one row.
-     * Returns most recent committed row before [date].
+     * Returns most recent committed row before [date], never one from before the baseline
+     * in force on [date] — a product with no row since that baseline starts from zero.
      */
     @Query("""
         SELECT * FROM daily_stock
         WHERE productCode = :productCode
           AND date < :date
           AND isCommitted = 1
+          AND date >= COALESCE((SELECT MAX(b.date) FROM daily_stock b
+                                WHERE b.isOpeningStock = 1 AND b.isCommitted = 1 AND b.date <= :date), '')
         ORDER BY date DESC LIMIT 1
     """)
     suspend fun getLastCommittedBeforeDate(productCode: String, date: String): DailyStock?
 
     /**
      * Bulk previous-day closings — one DB round-trip for all products.
-     * Returns one row per productCode (most recent committed before [date]).
+     * Returns one row per productCode (most recent committed before [date]), with the same
+     * baseline floor as [getLastCommittedBeforeDate].
      */
     @Query("""
         SELECT * FROM daily_stock d1
         WHERE productCode IN (:codes)
           AND isCommitted = 1
           AND date < :date
+          AND date >= COALESCE((SELECT MAX(b.date) FROM daily_stock b
+                                WHERE b.isOpeningStock = 1 AND b.isCommitted = 1 AND b.date <= :date), '')
           AND date = (
               SELECT MAX(d2.date) FROM daily_stock d2
               WHERE d2.productCode = d1.productCode

@@ -235,6 +235,51 @@ class BusinessInfoFragment : Fragment() {
 
     private fun showClearLocalDataOnly() {
         val ctx = context ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val pending = SyncCoordinator(ctx).pendingChangeCount()
+            if (_binding == null) return@launch
+            if (pending == 0) confirmClearLocalData(ctx)
+            else AppDialogs.confirm(
+                context     = requireContext(),
+                title       = "Unsynced Changes",
+                message     = "$pending change(s) on this device have not reached the cloud yet. " +
+                    "Clearing local data now loses them.\n\nSync first?",
+                actionLabel = "Sync Now",
+                onCancel    = { confirmClearLocalDataTyped(ctx, pending) }
+            ) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = SyncCoordinator(ctx).performFullSync()
+                    val left = SyncCoordinator(ctx).pendingChangeCount()
+                    if (_binding == null) return@launch
+                    if (result is SyncCoordinator.SyncResult.Success && left == 0) confirmClearLocalData(ctx)
+                    else AppDialogs.info(requireContext(), "Sync Incomplete",
+                        "$left change(s) are still not synced" +
+                            ((result as? SyncCoordinator.SyncResult.Error)?.let { " (${it.message})" } ?: "") +
+                            ". Local data was not cleared.")
+                }
+            }
+        }
+    }
+
+    private fun confirmClearLocalDataTyped(ctx: Context, pending: Int) {
+        if (_binding == null) return
+        AppDialogs.withTextInput(
+            context      = requireContext(),
+            title        = "Discard $pending Unsynced Change(s)?",
+            message      = "Type DISCARD to clear local data without syncing. These changes will be lost.",
+            actionLabel  = "Clear Local Data",
+            requiredText = "DISCARD"
+        ) { clearLocalData(ctx) }
+    }
+
+    private fun clearLocalData(ctx: Context) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            SyncCoordinator(ctx).wipeLocalInventory("clear-local")
+            if (_binding != null) Toast.makeText(ctx, "Local data cleared.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun confirmClearLocalData(ctx: Context) {
         AppDialogs.destructive(
             context     = requireContext(),
             title       = "Clear Local Data",
@@ -245,17 +290,7 @@ class BusinessInfoFragment : Fragment() {
                 "Your exported Excel files are not affected.\n\n" +
                 "This cannot be undone.",
             actionLabel = "Clear Local Data"
-        ) {
-            viewLifecycleOwner.lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getInstance(ctx)
-                    db.dailyStockDao().deleteAll()
-                    db.purchaseDao().deleteAll()
-                    db.dayReconciliationDao().deleteAll()
-                }
-                if (_binding != null) Toast.makeText(ctx, "Local data cleared.", Toast.LENGTH_SHORT).show()
-            }
-        }
+        ) { clearLocalData(ctx) }
     }
 
     // ── Field population ───────────────────────────────────────────────────
@@ -453,8 +488,15 @@ class BusinessInfoFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             // 1. Clear cloud sheet rows (DailyStock, Purchases, DaySummary)
-            withContext(Dispatchers.IO) {
-                SyncCoordinator(ctx).deleteAllCloudData()
+            val cloudCleared = SyncCoordinator(ctx).deleteAllCloudData()
+            if (!cloudCleared) {
+                if (_binding != null) {
+                    binding.buttonSave.isEnabled = true
+                    AppDialogs.info(requireContext(), "Account Not Deleted",
+                        "Your cloud data could not be cleared (check your internet connection). " +
+                            "Nothing was deleted. Please try again.")
+                }
+                return@launch
             }
 
             // 1.5. Soft-delete PII from admin registry sheet rows + log deletion event.
@@ -576,12 +618,7 @@ class BusinessInfoFragment : Fragment() {
             }
         ) {
             viewLifecycleOwner.lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    val db = AppDatabase.getInstance(ctx)
-                    db.dailyStockDao().deleteAll()
-                    db.purchaseDao().deleteAll()
-                    db.dayReconciliationDao().deleteAll()
-                }
+                SyncCoordinator(ctx).wipeLocalInventory("account-deleted")
                 (activity as? MainActivity)?.signOut()
             }
         }

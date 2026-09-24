@@ -167,7 +167,10 @@ class CloudFunctionClient {
     suspend fun syncUserSheet(
         operation: String,
         rows: List<List<Any>> = emptyList(),
-        txnIds: List<String> = emptyList()
+        txnIds: List<String> = emptyList(),
+        keys: List<String> = emptyList(),
+        dates: List<String> = emptyList(),
+        ranges: List<Pair<String, String>> = emptyList()
     ): SyncSheetResult {
         return try {
             val idToken = getFirebaseIdToken() ?: return SyncSheetResult.Error
@@ -186,6 +189,11 @@ class CloudFunctionClient {
                 if (txnIds.isNotEmpty()) {
                     put("txnIds", JSONArray(txnIds))
                 }
+                if (keys.isNotEmpty()) put("keys", JSONArray(keys))
+                if (dates.isNotEmpty()) put("dates", JSONArray(dates))
+                if (ranges.isNotEmpty()) put("ranges", JSONArray().also { arr ->
+                    ranges.forEach { (from, to) -> arr.put(JSONObject().put("from", from).put("to", to)) }
+                })
             }.toString()
 
             val (statusCode, responseBody) = withContext(Dispatchers.IO) {
@@ -210,7 +218,7 @@ class CloudFunctionClient {
                         json.optInt("updated"),
                         json.optInt("inserted")
                     )
-                "delete_purchases" ->
+                "delete_purchases", "delete_daily_stock", "delete_day_summary" ->
                     SyncSheetResult.Deleted(json.optInt("deleted"))
                 "clear_all" ->
                     SyncSheetResult.Deleted(0)

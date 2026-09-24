@@ -1384,9 +1384,9 @@ class OpeningStockFragment : Fragment() {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Restore Opening Stock from Cloud")
             .setMessage(
-                "This will download your opening stock from Google Sheets and " +
+                "This will download the stock for $selectedDate from Google Sheets and " +
                 "restore it to this device.\n\n" +
-                "Existing local data for the same date will be overwritten.\n\n" +
+                "Rows on this device with changes not yet synced are kept.\n\n" +
                 "Continue?"
             )
             .setPositiveButton("Restore") { _, _ ->
@@ -1395,7 +1395,7 @@ class OpeningStockFragment : Fragment() {
                 toast.show()
                 lifecycleScope.launch {
                     val result = try {
-                        SyncCoordinator(requireContext()).downloadDailyStockFromCloud()
+                        SyncCoordinator(requireContext()).downloadDailyStockFromCloud(selectedDate, selectedDate)
                     } catch (e: Exception) {
                         toast.cancel()
                         if (isAdded) {
@@ -1408,9 +1408,9 @@ class OpeningStockFragment : Fragment() {
                     if (!isAdded) return@launch
                     when (result) {
                         is SyncCoordinator.SyncResult.DailyStockDownSync -> {
-                            if (result.count > 0) {
+                            if (result.count > 0 || result.kept > 0) {
                                 Toast.makeText(requireContext(),
-                                    "✓ Restored ${result.count} row(s) from cloud.",
+                                    "✓ Restored ${result.count} row(s) from cloud${if (result.kept > 0) ", ${result.kept} kept (unsynced changes on this device)" else ""}.",
                                     Toast.LENGTH_LONG).show()
                                 initialiseScreen()
                             } else {

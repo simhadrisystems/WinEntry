@@ -11,7 +11,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.simhadri.winentry.BuildConfig
+import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.sync.CloudFunctionClient
+import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.utils.UserRegistrationManager
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -22,6 +24,8 @@ sealed class AuthState {
     object Idle : AuthState()
     data class Loading(val message: String) : AuthState()
     object Success : AuthState()
+    /** Local data belongs to a different account; [pending] of it has not been synced. */
+    data class DataOwnerMismatch(val pending: Int) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -37,6 +41,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         const val KEY_USER_SHEET_ID        = "user_sheet_id"
         const val KEY_USER_EMAIL           = "user_email"
         const val KEY_USER_UID             = "user_uid"
+        // Account whose inventory is in the local DB; survives sign-out
+        const val KEY_DATA_OWNER_UID       = "data_owner_uid"
         const val KEY_USER_ROLE            = "user_role"             // "editor" | "viewer"
         const val KEY_SHEET_ID_MISSING     = "sheet_id_missing"      // true = doc exists but sheetId not set by admin
         const val KEY_LAST_REPORTED_VERSION = "last_reported_version" // last app version sent to registry
@@ -65,6 +71,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 val prefs = getApplication<Application>()
                     .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+                val owner = prefs.getString(KEY_DATA_OWNER_UID, null)
+                if (owner != null && owner != user.uid) {
+                    if (hasLocalInventory()) {
+                        _authState.value = AuthState.DataOwnerMismatch(
+                            SyncCoordinator(getApplication()).pendingChangeCount())
+                        return@launch
+                    }
+                    clearPreviousOwnerPrefs()
+                }
+                prefs.edit().putString(KEY_DATA_OWNER_UID, user.uid).apply()
 
                 // Persist basic identity from the Firebase token immediately
                 prefs.edit()
@@ -213,6 +230,34 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * registration state, and business info — so a different user
      * logging in on the same device starts with a clean slate.
      */
+    private suspend fun hasLocalInventory(): Boolean = withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val db = AppDatabase.getInstance(getApplication())
+        db.dailyStockDao().getEarliestCommittedDate() != null ||
+            db.purchaseDao().getCount() > 0 ||
+            db.dayReconciliationDao().getCount() > 0
+    }
+
+    private fun clearPreviousOwnerPrefs() {
+        val app = getApplication<Application>()
+        app.getSharedPreferences("business_info", Context.MODE_PRIVATE).edit().clear().apply()
+        UserRegistrationManager.clearOnSignOut(app)
+        app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_USER_SHEET_ID).remove(KEY_USER_ROLE).apply()
+        app.getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    /** Account switch: wipes the previous account's inventory from this device, then signs in. */
+    fun wipeLocalDataAndContinue(user: FirebaseUser) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading("Clearing previous account's data…")
+            SyncCoordinator(getApplication()).wipeLocalInventory("account-switch")
+            clearPreviousOwnerPrefs()
+            getApplication<Application>().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putString(KEY_DATA_OWNER_UID, user.uid).apply()
+            handleSignedInUser(user)
+        }
+    }
+
     fun signOut() {
         val app = getApplication<Application>()
 

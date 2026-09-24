@@ -2,6 +2,7 @@ package com.simhadri.winentry.data.dao
 
 import androidx.room.*
 import com.simhadri.winentry.data.entity.DailyStock
+import com.simhadri.winentry.data.entity.PendingCloudDelete
 import com.simhadri.winentry.data.entity.SyncStatus
 
 /**
@@ -160,10 +161,63 @@ interface DailyStockDao {
     // ── Delete ────────────────────────────────────────────────────────────────
 
     @Query("DELETE FROM daily_stock WHERE date = :date AND productCode = :productCode")
-    suspend fun deleteDailyStock(date: String, productCode: String)
+    suspend fun deleteDailyStockLocalOnly(date: String, productCode: String)
 
     @Query("DELETE FROM daily_stock WHERE date = :date")
-    suspend fun deleteAllForDate(date: String)
+    suspend fun deleteAllForDateLocalOnly(date: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun queueCloudDeletes(rows: List<PendingCloudDelete>)
+
+    @Query("SELECT * FROM pending_cloud_deletes")
+    suspend fun getQueuedCloudDeletes(): List<PendingCloudDelete>
+
+    /** Deletes the row and, if it was committed, queues the same delete for the cloud sheet. */
+    @Transaction
+    suspend fun deleteDailyStock(date: String, productCode: String) {
+        val row = getDailyStock(date, productCode) ?: return
+        if (row.isCommitted) queueCloudDeletes(listOf(
+            PendingCloudDelete(PendingCloudDelete.STOCK, date, productCode)))
+        deleteDailyStockLocalOnly(date, productCode)
+    }
+
+    /** Deletes every row on [date] and queues the cloud delete when any was committed. */
+    @Transaction
+    suspend fun deleteAllForDate(date: String) {
+        if (getAllDailyStockForDate(date).any { it.isCommitted }) queueCloudDeletes(listOf(
+            PendingCloudDelete(PendingCloudDelete.STOCK_DATE, date)))
+        deleteAllForDateLocalOnly(date)
+    }
+
+    /** Clear All Daily Stock with "also remove from cloud". */
+    @Transaction
+    suspend fun deleteAllAndQueueCloud() {
+        queueCloudDeletes(listOf(PendingCloudDelete(
+            PendingCloudDelete.STOCK_RANGE, "0000-01-01", dateTo = "9999-12-31")))
+        deleteAll()
+    }
+
+    /** Sample data is local-only practice data: never uploaded over a real cloud sheet. */
+    @Query("UPDATE daily_stock SET syncStatus = 'SYNCED'")
+    suspend fun markAllAsLocalOnly()
+
+    @Query("SELECT date || '|' || productCode FROM daily_stock WHERE syncStatus != 'SYNCED'")
+    suspend fun getUnsyncedKeys(): List<String>
+
+    /**
+     * Restore merge: writes cloud rows except those whose local row has unsynced changes
+     * or whose delete is still queued for the cloud. Returns how many were kept local.
+     */
+    @Transaction
+    suspend fun mergeFromCloud(rows: List<DailyStock>): Int {
+        val unsynced = getUnsyncedKeys().toHashSet()
+        val queued = getQueuedCloudDeletes()
+        val keep = rows.filter { r ->
+            "${r.date}|${r.productCode}" !in unsynced && queued.none { it.coversStock(r.date, r.productCode) }
+        }
+        if (keep.isNotEmpty()) insertOrReplaceAll(keep)
+        return rows.size - keep.size
+    }
 
     /** Removes an auto-created draft; never touches a committed row. */
     @Query("DELETE FROM daily_stock WHERE date = :date AND productCode = :productCode AND isCommitted = 0")
@@ -190,6 +244,15 @@ interface DailyStockDao {
 
     @Query("UPDATE daily_stock SET syncStatus = 'SYNCED' WHERE date = :date AND productCode = :productCode")
     suspend fun markStockAsSynced(date: String, productCode: String)
+
+    /** Marks only rows that still match what was sent; a row edited during the upload stays pending. */
+    @Transaction
+    suspend fun markStockSyncedIfUnchanged(sent: List<DailyStock>) {
+        for (s in sent) {
+            val cur = getDailyStock(s.date, s.productCode) ?: continue
+            if (cur.copy(syncStatus = s.syncStatus) == s) markStockAsSynced(s.date, s.productCode)
+        }
+    }
 
     @Query("UPDATE daily_stock SET syncStatus = 'SYNC_ERROR' WHERE date = :date AND productCode = :productCode")
     suspend fun markStockSyncError(date: String, productCode: String)

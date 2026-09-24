@@ -236,6 +236,11 @@ class LoginFragment : Fragment() {
                         findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
                     }
                 }
+                is AuthState.DataOwnerMismatch -> {
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStatus.visibility = View.GONE
+                    showOwnerMismatch(state.pending)
+                }
                 is AuthState.Error -> {
                     binding.progressBar.visibility = View.GONE
                     binding.btnSignIn.isEnabled = true
@@ -248,6 +253,36 @@ class LoginFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun showOwnerMismatch(pending: Int) {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return
+        val unsynced = if (pending > 0)
+            "$pending change(s) from that account have NOT been synced and will be lost.\n\n" else ""
+        AppDialogs.confirm(
+            context     = requireContext(),
+            title       = "Data From Another Account",
+            message     = "This device holds inventory data from a different Google account. " +
+                "It cannot be uploaded to ${user.email}.\n\n$unsynced" +
+                "To keep it, cancel and sign in with the previous account to sync it first. " +
+                "Or clear it from this device and continue.",
+            actionLabel = "Clear and Continue",
+            onCancel    = { signOutToRetry() }
+        ) {
+            AppDialogs.withTextInput(
+                context      = requireContext(),
+                title        = "Clear Previous Account's Data",
+                message      = "Type CLEAR to remove the other account's data from this device.",
+                requiredText = "CLEAR",
+                actionLabel  = "Clear"
+            ) { authViewModel.wipeLocalDataAndContinue(user) }
+        }
+    }
+
+    private fun signOutToRetry() {
+        com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(requireContext(),
+            com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
+        authViewModel.signOut()
     }
 
     private fun showError(message: String) {

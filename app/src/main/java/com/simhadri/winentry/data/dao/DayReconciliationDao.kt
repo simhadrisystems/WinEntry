@@ -3,12 +3,16 @@ package com.simhadri.winentry.data.dao
 import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.simhadri.winentry.data.entity.DayReconciliation
+import com.simhadri.winentry.data.entity.PendingCloudDelete
 import com.simhadri.winentry.data.entity.SyncStatus
 
 @Dao
 abstract class DayReconciliationDao {
 
     // ── Read ──────────────────────────────────────────────────────────────────
+
+    @Query("SELECT COUNT(*) FROM day_reconciliation")
+    abstract suspend fun getCount(): Int
 
     @Query("SELECT * FROM day_reconciliation WHERE date = :date")
     abstract suspend fun getByDate(date: String): DayReconciliation?
@@ -93,10 +97,41 @@ abstract class DayReconciliationDao {
     abstract suspend fun insertOrReplaceAll(rows: List<DayReconciliation>)
 
     @Query("DELETE FROM day_reconciliation WHERE date = :date")
-    abstract suspend fun deleteByDate(date: String)
+    abstract suspend fun deleteByDateLocalOnly(date: String)
 
     @Query("DELETE FROM day_reconciliation WHERE date BETWEEN :startDate AND :endDate")
-    abstract suspend fun deleteByDateRange(startDate: String, endDate: String)
+    abstract suspend fun deleteByDateRangeLocalOnly(startDate: String, endDate: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun queueCloudDeletes(rows: List<PendingCloudDelete>)
+
+    @Query("SELECT * FROM pending_cloud_deletes")
+    abstract suspend fun getQueuedCloudDeletes(): List<PendingCloudDelete>
+
+    @Transaction
+    open suspend fun deleteByDate(date: String) {
+        queueCloudDeletes(listOf(PendingCloudDelete(PendingCloudDelete.SUMMARY, date)))
+        deleteByDateLocalOnly(date)
+    }
+
+    @Transaction
+    open suspend fun deleteByDateRange(startDate: String, endDate: String) {
+        queueCloudDeletes(listOf(PendingCloudDelete(PendingCloudDelete.SUMMARY_RANGE, startDate, dateTo = endDate)))
+        deleteByDateRangeLocalOnly(startDate, endDate)
+    }
+
+    @Query("SELECT date FROM day_reconciliation WHERE syncStatus != '${SyncStatus.SYNCED}'")
+    abstract suspend fun getUnsyncedDates(): List<String>
+
+    /** Restore merge: skips dates with unsynced local changes or a queued cloud delete. */
+    @Transaction
+    open suspend fun mergeFromCloud(rows: List<DayReconciliation>): Int {
+        val unsynced = getUnsyncedDates().toHashSet()
+        val queued = getQueuedCloudDeletes()
+        val keep = rows.filter { r -> r.date !in unsynced && queued.none { it.coversSummary(r.date) } }
+        if (keep.isNotEmpty()) insertOrReplaceAll(keep)
+        return rows.size - keep.size
+    }
 
     @Query("DELETE FROM day_reconciliation")
     abstract suspend fun deleteAll()
@@ -115,6 +150,15 @@ abstract class DayReconciliationDao {
 
     @Query("UPDATE day_reconciliation SET syncStatus = '${SyncStatus.SYNCED}' WHERE date = :date")
     abstract suspend fun markAsSynced(date: String)
+
+    /** Marks only rows that still match what was sent; a row edited during the upload stays pending. */
+    @Transaction
+    open suspend fun markSyncedIfUnchanged(sent: List<DayReconciliation>) {
+        for (s in sent) {
+            val cur = getByDate(s.date) ?: continue
+            if (cur.copy(syncStatus = s.syncStatus) == s) markAsSynced(s.date)
+        }
+    }
 
     @Query("UPDATE day_reconciliation SET syncStatus = '${SyncStatus.SYNC_ERROR}' WHERE date = :date")
     abstract suspend fun markSyncError(date: String)

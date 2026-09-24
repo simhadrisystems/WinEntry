@@ -162,6 +162,8 @@ class DailyStockRepository(
 
     // ── Write — explicit user commit ──────────────────────────────────────────
 
+    suspend fun markAllAsLocalOnly() = dailyStockDao.markAllAsLocalOnly()
+
     suspend fun saveAllEntries(rows: List<DailyStock>) =
         dailyStockDao.upsertCommittedBatch(rows)
 
@@ -525,8 +527,9 @@ class DailyStockRepository(
         cascadeRecalculate(virtualRows, products)
     }
 
-    suspend fun clearAllData() =
-        dailyStockDao.deleteAll()
+    /** [alsoCloud] queues removal of the whole DailyStock tab on the next sync. */
+    suspend fun clearAllData(alsoCloud: Boolean = false) =
+        if (alsoCloud) dailyStockDao.deleteAllAndQueueCloud() else dailyStockDao.deleteAll()
 
     // ── Sync ──────────────────────────────────────────────────────────────────
 

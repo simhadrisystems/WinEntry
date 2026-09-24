@@ -610,7 +610,7 @@ class MonthlySummaryFragment : Fragment() {
                 is SyncCoordinator.SyncResult.ReconciliationDownSync -> {
                     android.widget.Toast.makeText(
                         requireContext(),
-                        "Imported ${result.count} reconciliation rows",
+                        "Imported ${result.count} reconciliation rows${if (result.kept > 0) ", ${result.kept} kept (unsynced changes on this device)" else ""}",
                         android.widget.Toast.LENGTH_LONG
                     ).show()
                     viewModel.refresh()   // reload table with newly imported data

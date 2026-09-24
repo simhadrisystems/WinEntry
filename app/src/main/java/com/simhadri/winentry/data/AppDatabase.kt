@@ -9,10 +9,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.simhadri.winentry.data.dao.DailyStockDao
 import com.simhadri.winentry.data.dao.DayReconciliationDao
 import com.simhadri.winentry.data.dao.ProductDao
+import com.simhadri.winentry.data.dao.PendingCloudDeleteDao
 import com.simhadri.winentry.data.dao.PurchaseDao
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.DayReconciliation
 import com.simhadri.winentry.data.entity.Product
+import com.simhadri.winentry.data.entity.PendingCloudDelete
 import com.simhadri.winentry.data.entity.Purchase
 
 /**
@@ -47,10 +49,11 @@ import com.simhadri.winentry.data.entity.Purchase
         Product::class,
         Purchase::class,
         DailyStock::class,
-        DayReconciliation::class
+        DayReconciliation::class,
+        PendingCloudDelete::class
     ],
-    version = 6,
-    exportSchema = false
+    version = 7,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -58,8 +61,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun purchaseDao(): PurchaseDao
     abstract fun dailyStockDao(): DailyStockDao
     abstract fun dayReconciliationDao(): DayReconciliationDao
+    abstract fun pendingCloudDeleteDao(): PendingCloudDeleteDao
 
     companion object {
+
+        const val DB_NAME = "inventory_database"
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -69,7 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
                 Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "inventory_database"
+                    DB_NAME
                 )
                 // Fresh installs with a v1 database (previous test install)
                 // are allowed to migrate destructively — v1→v2 was a full
@@ -77,10 +83,22 @@ abstract class AppDatabase : RoomDatabase() {
                 // since all real data lives in Google Sheets.
                 // v2 → future versions must use explicit addMigrations().
                 .fallbackToDestructiveMigrationFrom(1)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
                 .also { INSTANCE = it }
             }
+
+        /** v6 → v7: outbox of local deletes the cloud sheet has not applied yet. */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `pending_cloud_deletes` (
+                        `kind` TEXT NOT NULL, `date` TEXT NOT NULL, `productCode` TEXT NOT NULL,
+                        `dateTo` TEXT NOT NULL, `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`kind`, `date`, `productCode`))
+                """)
+            }
+        }
 
         /**
          * v5 → v6: add isOpeningStock marker column to daily_stock, replacing the

@@ -144,7 +144,25 @@ function saDrive() {
   return google.drive({ version: "v3", auth });
 }
 
-/** Most recently modified, non-trashed sheet with the user's title, or null. */
+/** Data rows in the Purchases and DailyStock tabs; -1 when the sheet can't be read. */
+async function sheetDataRowCount(spreadsheetId) {
+  try {
+    const auth   = new google.auth.GoogleAuth({ scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"] });
+    const sheets = google.sheets({ version: "v4", auth });
+    const res = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId, ranges: ["Purchases!A2:A", "DailyStock!A2:A"]
+    });
+    return (res.data.valueRanges || []).reduce((n, r) => n + ((r.values || []).length), 0);
+  } catch (err) {
+    console.warn(`sheetDataRowCount(${spreadsheetId}) failed: ${err.message}`);
+    return -1;
+  }
+}
+
+/**
+ * Non-trashed sheet with the user's title, or null. With several, the one holding the most
+ * data wins (newest on a tie), so a blank duplicate never replaces a sheet with history.
+ */
 async function findUserSheetByTitle(email, uid) {
   const title = userSheetTitle(email, uid).replace(/'/g, "\\'");
   const res = await saDrive().files.list({
@@ -154,8 +172,12 @@ async function findUserSheetByTitle(email, uid) {
     pageSize: 5,
   });
   const files = res.data.files || [];
-  if (files.length > 1) console.warn(`findUserSheetByTitle: ${files.length} sheets titled "${title}" — using newest ${files[0].id}`);
-  return files.length ? files[0].id : null;
+  if (files.length <= 1) return files.length ? files[0].id : null;
+  const counts = await Promise.all(files.map(f => sheetDataRowCount(f.id)));
+  let best = 0;
+  counts.forEach((c, i) => { if (c > counts[best]) best = i; });
+  console.warn(`findUserSheetByTitle: ${files.length} sheets titled "${title}" — rows ${JSON.stringify(counts)}; using ${files[best].id}`);
+  return files[best].id;
 }
 
 /**
@@ -772,6 +794,45 @@ async function readAll(sheets, spreadsheetId) {
   };
 }
 
+/** Deletes every data row of `tab` for which match(row) is true. Reads A:B unformatted. */
+async function deleteRowsWhere(sheets, spreadsheetId, tab, match) {
+  const [existingRes, metaRes] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${tab}!A:B`, valueRenderOption: "UNFORMATTED_VALUE" }),
+    sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" })
+  ]);
+  const tabMeta = metaRes.data.sheets.find(s => s.properties.title === tab);
+  if (!tabMeta) return { deleted: 0 };
+  const existing = existingRes.data.values || [];
+  const rowIndices = [];
+  for (let i = 1; i < existing.length; i++) {
+    const row = existing[i] || [];
+    if (row[0] == null || row[0] === "") continue;
+    if (match(normalizeDate(row[0]), String(row[1] == null ? "" : row[1]).trim())) rowIndices.push(i);
+  }
+  if (!rowIndices.length) return { deleted: 0 };
+  rowIndices.sort((a, b) => b - a);
+  const requests = rowIndices.map(idx => ({
+    deleteDimension: { range: { sheetId: tabMeta.properties.sheetId, dimension: "ROWS", startIndex: idx, endIndex: idx + 1 } }
+  }));
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  return { deleted: rowIndices.length };
+}
+
+// keys: ["yyyy-MM-dd|CODE"], dates: whole dates, ranges: [{from, to}] inclusive
+async function deleteDailyStock(sheets, spreadsheetId, keys, dates, ranges) {
+  const keySet  = new Set(keys);
+  const dateSet = new Set(dates);
+  return deleteRowsWhere(sheets, spreadsheetId, "DailyStock", (date, code) =>
+    keySet.has(`${date}|${code}`) || dateSet.has(date) ||
+    ranges.some(r => date >= r.from && date <= r.to));
+}
+
+async function deleteDaySummary(sheets, spreadsheetId, dates, ranges) {
+  const dateSet = new Set(dates);
+  return deleteRowsWhere(sheets, spreadsheetId, "DaySummary", date =>
+    dateSet.has(date) || ranges.some(r => date >= r.from && date <= r.to));
+}
+
 async function clearAll(sheets, spreadsheetId) {
   await Promise.all([
     sheets.spreadsheets.values.clear({ spreadsheetId, range: "Purchases!A2:ZZ",  requestBody: {} }),
@@ -1215,6 +1276,8 @@ exports.onInvitedUserAdded = functions
 //   delete_purchases — delete rows by TxnId array
 //   write_daily_stock — upsert rows by Date+ProductCode (cols A+B)
 //   write_day_summary — upsert rows by Date (col A)
+//   delete_daily_stock — delete rows by keys ("date|code"), whole dates, or date ranges
+//   delete_day_summary — delete rows by dates or date ranges
 //   read_all          — return all rows from Purchases, DailyStock, DaySummary
 
 exports.syncUserSheet = functions
@@ -1241,7 +1304,7 @@ exports.syncUserSheet = functions
     }
 
     const uid = decodedToken.uid;
-    const { operation, rows, txnIds } = req.body;
+    const { operation, rows, txnIds, keys, dates, ranges } = req.body;
 
     // Resolve user's sheet from Firestore
     let spreadsheetId;
@@ -1251,6 +1314,10 @@ exports.syncUserSheet = functions
         return res.status(404).json({ error: "no_sheet", message: "User sheet not found. Complete registration first." });
       }
       spreadsheetId = userDoc.data().userSheetId;
+      if (userDoc.data().role === "viewer" && operation !== "read_all") {
+        console.warn(`syncUserSheet [${operation}] rejected — viewer uid=${uid}`);
+        return res.status(403).json({ error: "viewer_read_only", message: "Viewers cannot change cloud data." });
+      }
     } catch (err) {
       return res.status(500).json({ error: "Firestore lookup failed: " + err.message });
     }
@@ -1267,6 +1334,8 @@ exports.syncUserSheet = functions
         case "delete_purchases":  return deletePurchases(sheets, id, txnIds || []);
         case "write_daily_stock": return writeDailyStock(sheets, id, rows || []);
         case "write_day_summary": return writeDaySummary(sheets, id, rows || []);
+        case "delete_daily_stock": return deleteDailyStock(sheets, id, keys || [], dates || [], ranges || []);
+        case "delete_day_summary": return deleteDaySummary(sheets, id, dates || [], ranges || []);
         case "read_all":          return readAll(sheets, id);
         case "clear_all":         return clearAll(sheets, id);
         default:                  return null;

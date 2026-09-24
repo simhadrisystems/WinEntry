@@ -95,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                     is SyncCoordinator.SyncResult.DailyStockDownSync ->
                         Toast.makeText(
                             this@MainActivity,
-                            "Data refreshed — ${result.count} rows",
+                            "Data refreshed — ${result.count} rows${if (result.kept > 0) ", ${result.kept} kept (unsynced changes on this device)" else ""}",
                             Toast.LENGTH_LONG
                         ).show()
                     is SyncCoordinator.SyncResult.Error -> {
@@ -218,7 +218,9 @@ class MainActivity : AppCompatActivity() {
         getSharedPreferences("SyncPrefs", Context.MODE_PRIVATE)
             .edit()
             .remove("spreadsheet_id")
+            .remove("workspace_requested")
             .apply()
+        com.simhadri.winentry.utils.UserRegistrationManager.clearOnSignOut(this)
 
         navigateToLogin()
     }

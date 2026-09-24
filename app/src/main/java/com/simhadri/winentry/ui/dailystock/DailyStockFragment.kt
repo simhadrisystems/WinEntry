@@ -40,6 +40,7 @@ import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.sync.SyncHelper
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
 import com.simhadri.winentry.utils.AppDialogs
+import com.simhadri.winentry.ui.auth.UserRole
 import com.simhadri.winentry.utils.DailyStockExcelHelper
 import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.utils.exportToDownloadsAndShare
@@ -1819,12 +1820,22 @@ class DailyStockFragment : Fragment() {
 
         confirmBtn.setOnClickListener {
             dialog.dismiss()
-            lifecycleScope.launch {
-                dataViewModel.clearAllDataAwait()
-                viewModel.clearDirty()
-                viewModel.loadEntriesForDate()
-                Toast.makeText(requireContext(), "All daily stock data cleared", Toast.LENGTH_SHORT).show()
+            val clear = { alsoCloud: Boolean ->
+                lifecycleScope.launch {
+                    dataViewModel.clearAllDataAwait(alsoCloud)
+                    viewModel.clearDirty()
+                    viewModel.loadEntriesForDate()
+                    Toast.makeText(requireContext(),
+                        if (alsoCloud) "All daily stock data cleared; cloud copy is removed on next sync"
+                        else "All daily stock data cleared on this device",
+                        Toast.LENGTH_LONG).show()
+                }
             }
+            if (SyncCoordinator(requireContext()).isUserSheetReady() && UserRole.isEditor(requireContext())) {
+                AppDialogs.choice(requireContext(), "Also remove from cloud?",
+                    arrayOf("This device only (cloud copy kept)", "This device and cloud")
+                ) { which -> clear(which == 1) }
+            } else clear(false)
         }
     }
 

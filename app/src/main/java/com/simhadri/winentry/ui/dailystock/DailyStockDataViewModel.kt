@@ -488,7 +488,7 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     }
 
     /** Suspend version — caller awaits DB completion before reloading UI. */
-    suspend fun clearAllDataAwait() = repository.clearAllData()
+    suspend fun clearAllDataAwait(alsoCloud: Boolean) = repository.clearAllData(alsoCloud)
 
     suspend fun clearProductDataAwait(date: String, productCode: String) =
         repository.deleteDailyStock(date, productCode)

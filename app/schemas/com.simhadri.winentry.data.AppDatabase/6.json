@@ -1,0 +1,685 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "9002747e2b9d98fabe062ed665c7ac35",
+    "entities": [
+      {
+        "tableName": "products",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `productName` TEXT NOT NULL, `productType` TEXT NOT NULL, `category` TEXT NOT NULL, `brandCode` TEXT NOT NULL, `qqCode` TEXT NOT NULL, `ppCode` TEXT NOT NULL, `nnCode` TEXT NOT NULL, `ddCode` TEXT NOT NULL, `qqPurchasePrice` REAL NOT NULL, `qqSalePrice` REAL NOT NULL, `ppPurchasePrice` REAL NOT NULL, `ppSalePrice` REAL NOT NULL, `nnPurchasePrice` REAL NOT NULL, `nnSalePrice` REAL NOT NULL, `ddPurchasePrice` REAL NOT NULL, `ddSalePrice` REAL NOT NULL, `qqUnitsPerBox` INTEGER NOT NULL, `ppUnitsPerBox` INTEGER NOT NULL, `nnUnitsPerBox` INTEGER NOT NULL, `ddUnitsPerBox` INTEGER NOT NULL, `displayName` TEXT NOT NULL, `serialNo` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `dailySortKey` INTEGER NOT NULL, `aliases` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productName",
+            "columnName": "productName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productType",
+            "columnName": "productType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brandCode",
+            "columnName": "brandCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqCode",
+            "columnName": "qqCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppCode",
+            "columnName": "ppCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnCode",
+            "columnName": "nnCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddCode",
+            "columnName": "ddCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqPurchasePrice",
+            "columnName": "qqPurchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqSalePrice",
+            "columnName": "qqSalePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppPurchasePrice",
+            "columnName": "ppPurchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppSalePrice",
+            "columnName": "ppSalePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnPurchasePrice",
+            "columnName": "nnPurchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnSalePrice",
+            "columnName": "nnSalePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddPurchasePrice",
+            "columnName": "ddPurchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddSalePrice",
+            "columnName": "ddSalePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqUnitsPerBox",
+            "columnName": "qqUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppUnitsPerBox",
+            "columnName": "ppUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnUnitsPerBox",
+            "columnName": "nnUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddUnitsPerBox",
+            "columnName": "ddUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serialNo",
+            "columnName": "serialNo",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dailySortKey",
+            "columnName": "dailySortKey",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aliases",
+            "columnName": "aliases",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_products_brandCode",
+            "unique": true,
+            "columnNames": [
+              "brandCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_products_brandCode` ON `${TABLE_NAME}` (`brandCode`)"
+          }
+        ]
+      },
+      {
+        "tableName": "purchases",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `txnId` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `isDeleted` INTEGER NOT NULL, `purchaseDate` TEXT NOT NULL, `productId` INTEGER NOT NULL, `productCode` TEXT NOT NULL, `productName` TEXT NOT NULL, `qqBoxes` INTEGER NOT NULL, `qqLoose` INTEGER NOT NULL, `qqUnitsPerBox` INTEGER NOT NULL, `qqTotalUnits` INTEGER NOT NULL, `qqUnitPrice` REAL NOT NULL, `qqTotalCost` REAL NOT NULL, `ppBoxes` INTEGER NOT NULL, `ppLoose` INTEGER NOT NULL, `ppUnitsPerBox` INTEGER NOT NULL, `ppTotalUnits` INTEGER NOT NULL, `ppUnitPrice` REAL NOT NULL, `ppTotalCost` REAL NOT NULL, `nnBoxes` INTEGER NOT NULL, `nnLoose` INTEGER NOT NULL, `nnUnitsPerBox` INTEGER NOT NULL, `nnTotalUnits` INTEGER NOT NULL, `nnUnitPrice` REAL NOT NULL, `nnTotalCost` REAL NOT NULL, `ddBoxes` INTEGER NOT NULL, `ddLoose` INTEGER NOT NULL, `ddUnitsPerBox` INTEGER NOT NULL, `ddTotalUnits` INTEGER NOT NULL, `ddUnitPrice` REAL NOT NULL, `ddTotalCost` REAL NOT NULL, `totalCost` REAL NOT NULL, `supplierName` TEXT NOT NULL, `invoiceNumber` TEXT NOT NULL, `receivedDate` TEXT NOT NULL, `notes` TEXT NOT NULL, `isProcessed` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "txnId",
+            "columnName": "txnId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseDate",
+            "columnName": "purchaseDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productCode",
+            "columnName": "productCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productName",
+            "columnName": "productName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqBoxes",
+            "columnName": "qqBoxes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqLoose",
+            "columnName": "qqLoose",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqUnitsPerBox",
+            "columnName": "qqUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqTotalUnits",
+            "columnName": "qqTotalUnits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqUnitPrice",
+            "columnName": "qqUnitPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qqTotalCost",
+            "columnName": "qqTotalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppBoxes",
+            "columnName": "ppBoxes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppLoose",
+            "columnName": "ppLoose",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppUnitsPerBox",
+            "columnName": "ppUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppTotalUnits",
+            "columnName": "ppTotalUnits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppUnitPrice",
+            "columnName": "ppUnitPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ppTotalCost",
+            "columnName": "ppTotalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnBoxes",
+            "columnName": "nnBoxes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnLoose",
+            "columnName": "nnLoose",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnUnitsPerBox",
+            "columnName": "nnUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnTotalUnits",
+            "columnName": "nnTotalUnits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnUnitPrice",
+            "columnName": "nnUnitPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nnTotalCost",
+            "columnName": "nnTotalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddBoxes",
+            "columnName": "ddBoxes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddLoose",
+            "columnName": "ddLoose",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddUnitsPerBox",
+            "columnName": "ddUnitsPerBox",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddTotalUnits",
+            "columnName": "ddTotalUnits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddUnitPrice",
+            "columnName": "ddUnitPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ddTotalCost",
+            "columnName": "ddTotalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalCost",
+            "columnName": "totalCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supplierName",
+            "columnName": "supplierName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invoiceNumber",
+            "columnName": "invoiceNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedDate",
+            "columnName": "receivedDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isProcessed",
+            "columnName": "isProcessed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "daily_stock",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `productCode` TEXT NOT NULL, `openQq` INTEGER NOT NULL, `openPp` INTEGER NOT NULL, `openNn` INTEGER NOT NULL, `openDd` INTEGER NOT NULL, `closeQq` INTEGER NOT NULL, `closePp` INTEGER NOT NULL, `closeNn` INTEGER NOT NULL, `closeDd` INTEGER NOT NULL, `saleQq` INTEGER NOT NULL, `salePp` INTEGER NOT NULL, `saleNn` INTEGER NOT NULL, `saleDd` INTEGER NOT NULL, `priceQq` REAL NOT NULL, `pricePp` REAL NOT NULL, `priceNn` REAL NOT NULL, `priceDd` REAL NOT NULL, `amountQq` REAL NOT NULL, `amountPp` REAL NOT NULL, `amountNn` REAL NOT NULL, `amountDd` REAL NOT NULL, `saleAmount` REAL NOT NULL, `isCommitted` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL, `lastModified` INTEGER NOT NULL, `isOpeningStock` INTEGER NOT NULL, PRIMARY KEY(`date`, `productCode`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productCode",
+            "columnName": "productCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openQq",
+            "columnName": "openQq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openPp",
+            "columnName": "openPp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openNn",
+            "columnName": "openNn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openDd",
+            "columnName": "openDd",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closeQq",
+            "columnName": "closeQq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closePp",
+            "columnName": "closePp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closeNn",
+            "columnName": "closeNn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closeDd",
+            "columnName": "closeDd",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saleQq",
+            "columnName": "saleQq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "salePp",
+            "columnName": "salePp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saleNn",
+            "columnName": "saleNn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saleDd",
+            "columnName": "saleDd",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priceQq",
+            "columnName": "priceQq",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pricePp",
+            "columnName": "pricePp",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priceNn",
+            "columnName": "priceNn",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priceDd",
+            "columnName": "priceDd",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountQq",
+            "columnName": "amountQq",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountPp",
+            "columnName": "amountPp",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountNn",
+            "columnName": "amountNn",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountDd",
+            "columnName": "amountDd",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "saleAmount",
+            "columnName": "saleAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCommitted",
+            "columnName": "isCommitted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "lastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOpeningStock",
+            "columnName": "isOpeningStock",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date",
+            "productCode"
+          ]
+        }
+      },
+      {
+        "tableName": "day_reconciliation",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `totalDaySales` REAL NOT NULL, `upiReceipts` REAL NOT NULL, `dayExpenses` REAL NOT NULL, `cashForDeposit` REAL NOT NULL, `deposits` REAL NOT NULL, `notes` TEXT NOT NULL, `syncStatus` TEXT NOT NULL, `lastModified` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalDaySales",
+            "columnName": "totalDaySales",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upiReceipts",
+            "columnName": "upiReceipts",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dayExpenses",
+            "columnName": "dayExpenses",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashForDeposit",
+            "columnName": "cashForDeposit",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deposits",
+            "columnName": "deposits",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "lastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9002747e2b9d98fabe062ed665c7ac35')"
+    ]
+  }
+}

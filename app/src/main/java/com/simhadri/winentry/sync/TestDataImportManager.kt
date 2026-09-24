@@ -253,6 +253,7 @@ object TestDataImportManager {
             repository.saveAllEntries(obRows)
 
             if (testData.cbRows.isEmpty()) {
+                repository.markAllAsLocalOnly()
                 return@withContext ImportResult.Success(obRows.size, 0, 0)
             }
 
@@ -309,6 +310,7 @@ object TestDataImportManager {
                 totalCbRows += stockForDay.size
             }
 
+            repository.markAllAsLocalOnly()
             Log.d(TAG, "Import done: ${obRows.size} OB, ${cbByDay.size} CB days, $totalCbRows CB entries")
             ImportResult.Success(
                 obCount = obRows.size,

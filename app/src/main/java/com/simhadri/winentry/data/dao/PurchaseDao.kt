@@ -41,6 +41,9 @@ interface PurchaseDao {
 
     // ── Suspend queries ───────────────────────────────────────────────────────
 
+    @Query("SELECT COUNT(*) FROM purchases")
+    suspend fun getCount(): Int
+
     @Query("SELECT * FROM purchases WHERE id = :id")
     suspend fun getPurchaseById(id: Long): Purchase?
 
@@ -141,6 +144,15 @@ interface PurchaseDao {
 
     @Query("UPDATE purchases SET syncStatus = '${SyncStatus.SYNCED}' WHERE id = :id")
     suspend fun markAsSynced(id: Long)
+
+    /** Marks only rows that still match what was sent; a row edited during the upload stays pending. */
+    @Transaction
+    suspend fun markSyncedIfUnchanged(sent: List<Purchase>) {
+        for (s in sent) {
+            val cur = getPurchaseById(s.id) ?: continue
+            if (cur.copy(syncStatus = s.syncStatus) == s) markAsSynced(s.id)
+        }
+    }
 
     @Query("UPDATE purchases SET syncStatus = '${SyncStatus.SYNC_ERROR}' WHERE id = :id")
     suspend fun markSyncError(id: Long)

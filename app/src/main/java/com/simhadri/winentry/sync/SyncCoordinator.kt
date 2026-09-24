@@ -7,14 +7,19 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.work.*
 import com.simhadri.winentry.ui.auth.ErrorLogger
+import com.simhadri.winentry.ui.auth.UserRole
+import com.simhadri.winentry.utils.DbSnapshot
 import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.DayReconciliation
+import com.simhadri.winentry.data.entity.PendingCloudDelete
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
@@ -48,6 +53,11 @@ class SyncCoordinator(private val context: Context) {
         private const val PREF_LAST_SYNC         = "last_sync_time"
         private const val PREF_AUTO_SYNC_ENABLED = "auto_sync_enabled"
         private const val SYNC_WORK_NAME         = "inventory_sync_work"
+
+        const val SYNC_BUSY = "Sync already running"
+
+        /** Serialises every cloud read/write in the process; the CF upserts by sheet row position. */
+        val syncLock = Mutex()
 
         // Workspace request state — set when user submits a workspace request to admin
         private const val PREF_WORKSPACE_REQUESTED = "workspace_requested"
@@ -140,16 +150,24 @@ class SyncCoordinator(private val context: Context) {
      */
     suspend fun performFullSync(): SyncResult = withContext(Dispatchers.IO) {
 
+        if (UserRole.isViewer(context))
+            return@withContext SyncResult.Success(0, 0, 0)
+
         if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
         if (getSpreadsheetId().isNullOrBlank())
             return@withContext SyncResult.Error("User sheet not configured. Please sign in again.")
 
+        if (!syncLock.tryLock()) return@withContext SyncResult.Error(SYNC_BUSY)
+
         val cfClient = CloudFunctionClient()
 
         try {
             val purchasesCount = syncPendingPurchases(cfClient)
+            // Deletes go first: a queued date/range delete sent after a re-entered row's write would remove it
+            if (!syncCloudDeletes(cfClient))
+                return@withContext SyncResult.Error("Cloud delete failed — will retry on next sync")
             val stockCount     = syncDailyStock(cfClient)
             syncDaySummary(cfClient)
 
@@ -166,7 +184,26 @@ class SyncCoordinator(private val context: Context) {
             Log.e(TAG, "Full sync failed: ${e.message}")
             ErrorLogger.log(context, "Sync", "Full sync failed", e)
             SyncResult.Error(e.message ?: "Unknown error")
+        } finally {
+            syncLock.unlock()
         }
+    }
+
+    /** Local changes (including queued deletes) the cloud has not received yet. */
+    suspend fun pendingChangeCount(): Int = withContext(Dispatchers.IO) {
+        database.purchaseDao().getPendingSyncPurchases().size +
+            database.dailyStockDao().getPendingSyncStock().size +
+            database.dayReconciliationDao().getPendingSync().size +
+            database.pendingCloudDeleteDao().count()
+    }
+
+    /** Deletes all inventory data on this device (products are kept). The cloud is not touched. */
+    suspend fun wipeLocalInventory(reason: String) = withContext(Dispatchers.IO) {
+        DbSnapshot.take(context, reason)
+        database.dailyStockDao().deleteAll()
+        database.purchaseDao().deleteAll()
+        database.dayReconciliationDao().deleteAll()
+        database.pendingCloudDeleteDao().clear()
     }
 
     // Alias called by HomeFragment via MainActivity.performSyncPublic()
@@ -193,7 +230,7 @@ class SyncCoordinator(private val context: Context) {
             val rows = toWrite.map { it.toSheetRow() }
             when (cfClient.syncUserSheet("write_purchases", rows = rows)) {
                 is SyncSheetResult.Written -> {
-                    toWrite.forEach { purchaseDao.markAsSynced(it.id) }
+                    purchaseDao.markSyncedIfUnchanged(toWrite)
                     successCount += toWrite.size
                     Log.d(TAG, "CF wrote ${toWrite.size} purchase rows")
                 }
@@ -230,6 +267,33 @@ class SyncCoordinator(private val context: Context) {
         return successCount
     }
 
+    // ── Queued deletes (daily stock / day summary) ────────────────────────────
+
+    /** Sends queued local deletes; true when the queue is empty afterwards. */
+    private suspend fun syncCloudDeletes(cfClient: CloudFunctionClient): Boolean {
+        val outboxDao = database.pendingCloudDeleteDao()
+        val queued = outboxDao.getAll()
+        if (queued.isEmpty()) return true
+        val stock = queued.filter { it.kind.startsWith("STOCK") }
+        val summary = queued.filter { it.kind.startsWith("SUMMARY") }
+        var ok = true
+        if (stock.isNotEmpty()) {
+            val res = cfClient.syncUserSheet("delete_daily_stock",
+                keys = stock.filter { it.kind == PendingCloudDelete.STOCK }.map { "${it.date}|${it.productCode}" },
+                dates = stock.filter { it.kind == PendingCloudDelete.STOCK_DATE }.map { it.date },
+                ranges = stock.filter { it.kind == PendingCloudDelete.STOCK_RANGE }.map { it.date to it.dateTo })
+            if (res is SyncSheetResult.Deleted) outboxDao.deleteAll(stock) else ok = false
+        }
+        if (summary.isNotEmpty()) {
+            val res = cfClient.syncUserSheet("delete_day_summary",
+                dates = summary.filter { it.kind == PendingCloudDelete.SUMMARY }.map { it.date },
+                ranges = summary.filter { it.kind == PendingCloudDelete.SUMMARY_RANGE }.map { it.date to it.dateTo })
+            if (res is SyncSheetResult.Deleted) outboxDao.deleteAll(summary) else ok = false
+        }
+        if (!ok) ErrorLogger.log(context, "Sync/Deletes", "Queued cloud deletes failed — will retry on next sync")
+        return ok
+    }
+
     // ── Daily stock sync (via CF) ─────────────────────────────────────────────
 
     private suspend fun syncDailyStock(cfClient: CloudFunctionClient): Int {
@@ -245,7 +309,7 @@ class SyncCoordinator(private val context: Context) {
 
         return when (cfClient.syncUserSheet("write_daily_stock", rows = rows)) {
             is SyncSheetResult.Written -> {
-                pending.forEach { dailyStockDao.markStockAsSynced(it.date, it.productCode) }
+                dailyStockDao.markStockSyncedIfUnchanged(pending)
                 Log.d(TAG, "CF wrote ${pending.size} daily stock rows")
                 pending.size
             }
@@ -274,7 +338,7 @@ class SyncCoordinator(private val context: Context) {
 
         when (cfClient.syncUserSheet("write_day_summary", rows = rows)) {
             is SyncSheetResult.Written -> {
-                pending.forEach { dao.markAsSynced(it.date) }
+                dao.markSyncedIfUnchanged(pending)
                 Log.d(TAG, "CF wrote ${pending.size} day summary rows")
             }
             else -> {
@@ -406,7 +470,7 @@ class SyncCoordinator(private val context: Context) {
         toInsert:  List<Purchase>,
         toReplace: List<Purchase>
     ): SyncResult = withContext(Dispatchers.IO) {
-        return@withContext try {
+        return@withContext try { syncLock.withLock {
             val purchaseDao = database.purchaseDao()
             var inserted = 0
             var replaced = 0
@@ -443,7 +507,7 @@ class SyncCoordinator(private val context: Context) {
             Log.d(TAG, "Commit: $inserted inserted, $replaced replaced")
             SyncResult.PurchaseDownSync(inserted, replaced, emptySet())
 
-        } catch (e: CancellationException) {
+        } } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "commitPurchaseDownSync failed: ${e.message}")
@@ -535,7 +599,7 @@ class SyncCoordinator(private val context: Context) {
         if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
-        try {
+        try { syncLock.withLock {
             val sheetResult = CloudFunctionClient().syncUserSheet("read_all")
 
             val rawRows = when (sheetResult) {
@@ -556,11 +620,11 @@ class SyncCoordinator(private val context: Context) {
 
             if (rows.isEmpty()) return@withContext SyncResult.DailyStockDownSync(0)
 
-            database.dailyStockDao().insertOrReplaceAll(rows)
-            Log.d(TAG, "Daily stock down-sync: restored ${rows.size} rows")
-            SyncResult.DailyStockDownSync(rows.size)
+            val kept = database.dailyStockDao().mergeFromCloud(rows)
+            Log.d(TAG, "Daily stock down-sync: restored ${rows.size - kept} rows, kept $kept local")
+            SyncResult.DailyStockDownSync(rows.size - kept, kept)
 
-        } catch (e: CancellationException) {
+        } } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "downloadDailyStockFromCloud failed: ${e.message}")
@@ -693,7 +757,7 @@ class SyncCoordinator(private val context: Context) {
         if (!isNetworkAvailable())
             return@withContext SyncResult.Error("No internet connection")
 
-        try {
+        try { syncLock.withLock {
             val sheetResult = CloudFunctionClient().syncUserSheet("read_all")
 
             val rawRows = when (sheetResult) {
@@ -714,13 +778,11 @@ class SyncCoordinator(private val context: Context) {
 
             if (rows.isEmpty()) return@withContext SyncResult.ReconciliationDownSync(0)
 
-            database.dayReconciliationDao().insertOrReplaceAll(rows)
-            // Mark all as PENDING_UPSERT so next up-sync rewrites with date in col A
-            database.dayReconciliationDao().markAllAsPending()
-            Log.d(TAG, "Reconciliation down-sync: restored ${rows.size} rows, marked pending for re-sync")
-            SyncResult.ReconciliationDownSync(rows.size)
+            val kept = database.dayReconciliationDao().mergeFromCloud(rows)
+            Log.d(TAG, "Reconciliation down-sync: restored ${rows.size - kept} rows, kept $kept local")
+            SyncResult.ReconciliationDownSync(rows.size - kept, kept)
 
-        } catch (e: CancellationException) {
+        } } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "downloadReconciliationFromCloud failed: ${e.message}")
@@ -750,7 +812,8 @@ class SyncCoordinator(private val context: Context) {
                     dayExpenses    = dbl(3),
                     cashForDeposit = dbl(4),
                     notes          = row.getOrNull(5 + colOffset)?.toString().orEmpty(),
-                    syncStatus     = SyncStatus.SYNCED,
+                    // Legacy rows (date in col B) are re-sent so the sheet gets the date in col A
+                    syncStatus     = if (colOffset == 1) SyncStatus.PENDING_UPSERT else SyncStatus.SYNCED,
                     lastModified   = System.currentTimeMillis()
                 ))
             } catch (e: Exception) {
@@ -791,9 +854,10 @@ class SyncCoordinator(private val context: Context) {
      * Clears all user inventory rows from the cloud worksheet via the syncUserSheet CF.
      * Header rows are preserved. Called during account deletion.
      */
+    /** The CF resolves the sheet from Firestore, so this runs even when no sheet id is cached locally. */
     suspend fun deleteAllCloudData(): Boolean = withContext(Dispatchers.IO) {
-        if (getSpreadsheetId().isNullOrBlank()) return@withContext true
-        return@withContext when (CloudFunctionClient().syncUserSheet("clear_all")) {
+        if (UserRole.isViewer(context)) return@withContext true
+        return@withContext when (syncLock.withLock { CloudFunctionClient().syncUserSheet("clear_all") }) {
             is SyncSheetResult.Deleted -> { Log.i(TAG, "Cloud data cleared via CF"); true }
             is SyncSheetResult.NoSheet -> { Log.i(TAG, "No sheet to clear"); true }
             else -> { Log.e(TAG, "deleteAllCloudData via CF failed"); false }
@@ -851,9 +915,9 @@ class SyncCoordinator(private val context: Context) {
 
         data class Error(val message: String) : SyncResult()
 
-        data class DailyStockDownSync(val count: Int) : SyncResult()
+        data class DailyStockDownSync(val count: Int, val kept: Int = 0) : SyncResult()
 
-        data class ReconciliationDownSync(val count: Int) : SyncResult()
+        data class ReconciliationDownSync(val count: Int, val kept: Int = 0) : SyncResult()
     }
 }
 
@@ -883,6 +947,7 @@ class SyncWorker(
                     Result.success()
                 }
                 is SyncCoordinator.SyncResult.Error -> {
+                    if (result.message == SyncCoordinator.SYNC_BUSY) return Result.retry()
                     Log.e("SyncWorker", "Background sync failed: ${result.message}")
                     ErrorLogger.log(applicationContext, "Sync/Background",
                         "Background sync failed: ${result.message}")

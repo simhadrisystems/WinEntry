@@ -542,7 +542,7 @@ object SyncHelper {
             .setMessage(
                 "This will download all daily stock records from Google Sheets " +
                 "and merge them into the local database.\n\n" +
-                "Existing local rows for the same date and product will be overwritten."
+                "Existing local rows for the same date and product will be overwritten, except rows with changes not yet synced."
             )
             .setPositiveButton("Download All") { _, _ ->
                 scope.launch {
@@ -551,7 +551,7 @@ object SyncHelper {
                     when (result) {
                         is SyncCoordinator.SyncResult.DailyStockDownSync ->
                             snack(anchorView,
-                                "✓ Restored ${result.count} daily stock record(s)",
+                                "✓ Restored ${result.count} daily stock record(s)${if (result.kept > 0) ", ${result.kept} kept (unsynced changes on this device)" else ""}",
                                 Snackbar.LENGTH_LONG).also { onRefresh() }
                         is SyncCoordinator.SyncResult.Error ->
                             snack(anchorView, "✗ Restore failed: ${result.message}", Snackbar.LENGTH_LONG)
@@ -615,7 +615,7 @@ object SyncHelper {
                                     when (result) {
                                         is SyncCoordinator.SyncResult.DailyStockDownSync ->
                                             snack(anchorView,
-                                                "✓ Restored ${result.count} record(s) for $dispFrom – $dispTo",
+                                                "✓ Restored ${result.count} record(s) for $dispFrom – $dispTo${if (result.kept > 0) ", ${result.kept} kept (unsynced changes on this device)" else ""}",
                                                 Snackbar.LENGTH_LONG).also { onRefresh() }
                                         is SyncCoordinator.SyncResult.Error ->
                                             snack(anchorView,

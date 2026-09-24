@@ -127,7 +127,8 @@ class MainActivity : AppCompatActivity() {
                 is SyncCoordinator.SyncResult.Error ->
                     Toast.makeText(
                         this@MainActivity,
-                        "Sync failed: ${result.message}",
+                        if (result.message == SyncCoordinator.SYNC_BUSY) "A sync is already running — please wait"
+                        else "Sync failed: ${result.message}",
                         Toast.LENGTH_LONG
                     ).show()
                 else -> { }

@@ -710,20 +710,23 @@ class SettingsFragment : Fragment() {
                 "Run Check Data Integrity first so corrected data is uploaded. This can take a few minutes.",
             actionLabel = "Re-upload"
         ) {
-            val ctx = requireContext()
+            val activity = requireActivity()
+            val ctx = activity.applicationContext
             binding.btnReuploadAll.isEnabled = false
-            Toast.makeText(ctx, "Re-uploading…", Toast.LENGTH_SHORT).show()
-            viewLifecycleOwner.lifecycleScope.launch {
+            Toast.makeText(ctx, "Re-uploading… you can leave this screen", Toast.LENGTH_LONG).show()
+            // Activity scope: leaving Settings must not cancel a long upload
+            activity.lifecycleScope.launch {
                 val result = SyncCoordinator(ctx).reuploadAll()
-                if (_binding == null) return@launch
-                binding.btnReuploadAll.isEnabled = true
                 val msg = when (result) {
                     is SyncCoordinator.SyncResult.Success ->
                         "Re-upload complete: ${result.purchasesCount} purchase(s), ${result.stockCount} stock row(s)."
                     is SyncCoordinator.SyncResult.Error -> "Re-upload stopped: ${result.message}. Unsent rows stay queued."
                     else -> "Re-upload finished."
                 }
-                AppDialogs.info(requireContext(), "Re-upload All Data", msg)
+                if (_binding != null) {
+                    binding.btnReuploadAll.isEnabled = true
+                    AppDialogs.info(requireContext(), "Re-upload All Data", msg)
+                } else Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
             }
         }
     }

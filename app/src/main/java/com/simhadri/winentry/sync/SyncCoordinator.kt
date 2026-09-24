@@ -543,8 +543,7 @@ class SyncCoordinator(private val context: Context) {
                 database.productDao().activateByIds(activateIds.toList())
             }
 
-            CommittedSaleRefresher(database).refresh((toInsert + toReplace)
-                .flatMap { listOf(CommittedSaleRefresher.effectiveDate(it), it.purchaseDate) })
+            CommittedSaleRefresher(database).refreshFor(toInsert + toReplace)
             Log.d(TAG, "Commit: $inserted inserted, $replaced replaced")
             SyncResult.PurchaseDownSync(inserted, replaced, emptySet())
 

@@ -14,7 +14,7 @@ import com.simhadri.winentry.util.ProductCodeResolver
 class IntegrityChecker(private val db: AppDatabase) {
 
     data class Report(
-        val staleSaleDates: List<String>,
+        val staleSales: List<String>,
         val openingMismatches: List<String>,
         val blankTxnIds: List<Purchase>,
         val duplicateLines: List<List<Purchase>>,
@@ -23,8 +23,8 @@ class IntegrityChecker(private val db: AppDatabase) {
         val orphanStockCodes: List<String>,
         val negativeSales: List<String>
     ) {
-        val repairable: Int get() = staleSaleDates.size + blankTxnIds.size + duplicateLines.size + relinkable.size
-        val isClean: Boolean get() = repairable == 0 && openingMismatches.isEmpty() &&
+        val repairable: Int get() = blankTxnIds.size + duplicateLines.size + relinkable.size
+        val isClean: Boolean get() = repairable == 0 && openingMismatches.isEmpty() && staleSales.isEmpty() &&
             orphanPurchases.isEmpty() && orphanStockCodes.isEmpty() && negativeSales.isEmpty()
 
         fun summary(): String = buildString {
@@ -35,15 +35,19 @@ class IntegrityChecker(private val db: AppDatabase) {
             }
             if (isClean) { append("No problems found."); return@buildString }
             if (repairable > 0) append("Can be repaired:\n")
-            line(staleSaleDates.size, "date(s) whose sale no longer matches the purchases")
             line(blankTxnIds.size, "purchase(s) with no cloud id")
             line(duplicateLines.size, "purchase line(s) saved more than once")
             line(relinkable.size, "purchase(s) linked to a missing product that can be re-linked")
-            if (openingMismatches.isNotEmpty() || orphanPurchases.isNotEmpty() ||
+            if (openingMismatches.isNotEmpty() || orphanPurchases.isNotEmpty() || staleSales.isNotEmpty() ||
                 orphanStockCodes.isNotEmpty() || negativeSales.isNotEmpty()) append("\nCheck yourself:\n")
             if (openingMismatches.isNotEmpty()) {
                 append("• ${openingMismatches.size} opening balance(s) differ from the previous closing\n")
                 list(openingMismatches)
+            }
+            if (staleSales.isNotEmpty()) {
+                append("• ${staleSales.size} sale(s) differ from opening + purchases − closing " +
+                    "(a purchase may have changed after the day was saved; re-save that day to update it)\n")
+                list(staleSales)
             }
             if (negativeSales.isNotEmpty()) {
                 append("• ${negativeSales.size} negative sale(s)\n"); list(negativeSales)
@@ -99,13 +103,13 @@ class IntegrityChecker(private val db: AppDatabase) {
 
         val stale = CommittedSaleRefresher(db).findStale(db.dailyStockDao().getCommittedDates())
 
-        return Report(stale.sorted(), mismatches, blank, dupes, relink, orphans, orphanStock, negatives)
+        return Report(stale, mismatches, blank, dupes, relink, orphans, orphanStock, negatives)
     }
 
     /** Applies the automatic repairs, then returns a fresh report. */
     suspend fun repair(report: Report): Report {
         val pDao = db.purchaseDao()
-        val touched = mutableSetOf<String>()
+        val touched = mutableListOf<Purchase>()
         val now = System.currentTimeMillis()
         for (p in report.blankTxnIds) {
             val cur = pDao.getPurchaseById(p.id) ?: continue
@@ -114,16 +118,17 @@ class IntegrityChecker(private val db: AppDatabase) {
         }
         for ((p, productId) in report.relinkable) {
             val cur = pDao.getPurchaseById(p.id) ?: continue
-            pDao.update(cur.copy(productId = productId, syncStatus = SyncStatus.PENDING_UPDATE, updatedAt = now))
-            touched += CommittedSaleRefresher.effectiveDate(cur)
+            val relinked = cur.copy(productId = productId, syncStatus = SyncStatus.PENDING_UPDATE, updatedAt = now)
+            pDao.update(relinked)
+            touched += relinked
         }
         for (group in report.duplicateLines) {
             val current = group.mapNotNull { pDao.getPurchaseById(it.id) }.filter { !it.isDeleted }
             val newest = current.maxByOrNull { it.updatedAt } ?: continue
-            current.forEach { touched += CommittedSaleRefresher.effectiveDate(it) }
+            touched += current
             pDao.replaceLine(newest.copy(txnId = "", syncStatus = SyncStatus.PENDING_UPDATE))
         }
-        CommittedSaleRefresher(db).refresh(report.staleSaleDates + touched)
+        CommittedSaleRefresher(db).refreshFor(touched)
         return check()
     }
 }

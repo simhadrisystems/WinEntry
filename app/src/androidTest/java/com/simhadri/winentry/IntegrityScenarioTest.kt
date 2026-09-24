@@ -71,7 +71,7 @@ class IntegrityScenarioTest {
 
         val p = db.purchaseDao().getPurchaseById(id)!!
         db.purchaseDao().update(p.copy(isDeleted = true))
-        val negatives = refresher.refresh(listOf(d))
+        val negatives = refresher.refreshFor(listOf(p))
 
         val row = db.dailyStockDao().getDailyStock(d, "W1")!!
         assertEquals(12, row.closeQq)
@@ -87,8 +87,7 @@ class IntegrityScenarioTest {
     @Test
     fun purchaseAddedAfterCommit_increasesSaleAtStoredPrice() = runBlocking {
         db.dailyStockDao().upsertCommittedBatch(listOf(committed(d, 10, 0, 7).copy(priceQq = 8.0)))
-        db.purchaseDao().insert(purchase(d, 5))
-        refresher.refresh(listOf(d))
+        refresher.refreshFor(listOf(purchase(d, 5).also { db.purchaseDao().insert(it) }))
         val row = db.dailyStockDao().getDailyStock(d, "W1")!!
         assertEquals(8, row.saleQq)
         assertEquals(64.0, row.amountQq, 0.0)
@@ -100,7 +99,7 @@ class IntegrityScenarioTest {
         db.dailyStockDao().upsertCommittedBatch(listOf(committed(d, 10, 4, 10), committed(d1, 10, 0, 10)))
         val p = db.purchaseDao().getActiveByInvoice("INV-$d", d).first()
         db.purchaseDao().update(p.copy(receivedDate = d1))
-        refresher.refresh(listOf(d, d1))
+        refresher.refreshFor(listOf(p, p.copy(receivedDate = d1)))
         assertEquals(0, db.dailyStockDao().getDailyStock(d, "W1")!!.saleQq)
         assertEquals(4, db.dailyStockDao().getDailyStock(d1, "W1")!!.saleQq)
     }
@@ -110,8 +109,7 @@ class IntegrityScenarioTest {
         db.dailyStockDao().upsertCommittedBatch(listOf(
             BaselineMath.newBaselineRow(d, "W1", intArrayOf(10, 0, 0, 0), IntArray(4))))
         db.dailyStockDao().upsertCommittedBatch(listOf(committed(d1, 10, 0, 8)))
-        db.purchaseDao().insert(purchase(d, 5))
-        refresher.refresh(listOf(d))
+        refresher.refreshFor(listOf(purchase(d, 5).also { db.purchaseDao().insert(it) }))
         val base = db.dailyStockDao().getDailyStock(d, "W1")!!
         assertEquals(15, base.closeQq)
         assertEquals(0, base.saleQq)
@@ -174,19 +172,32 @@ class IntegrityScenarioTest {
 
         val checker = IntegrityChecker(db)
         val report = checker.check()
-        assertTrue(d in report.staleSaleDates)
+        assertTrue("W1 on $d" in report.staleSales)
         assertEquals(1, report.blankTxnIds.size)
         assertEquals(1, report.duplicateLines.size)
         assertEquals(listOf("W1 on $d1"), report.openingMismatches)
 
         val after = checker.repair(report)
-        assertTrue(after.staleSaleDates.isEmpty())
+        // A stale sale is reported, never rewritten automatically
+        assertEquals(listOf("W1 on $d"), after.staleSales)
+        assertEquals(4, db.dailyStockDao().getDailyStock(d, "W1")!!.saleQq)
         assertTrue(after.blankTxnIds.isEmpty())
         assertTrue(after.duplicateLines.isEmpty())
-        assertEquals(9, db.dailyStockDao().getDailyStock(d, "W1")!!.saleQq)
         assertEquals(1, db.purchaseDao().getActiveByInvoice("B", d1).size)
         // The tombstoned copy is queued so the cloud copy is deleted too
         assertTrue(db.purchaseDao().getPendingSyncPurchases().any { it.isDeleted })
         assertEquals(listOf("W1 on $d1"), after.openingMismatches)
+    }
+
+    @Test
+    fun purchaseChange_leavesOtherProductsOnThatDateAlone() = runBlocking {
+        db.productDao().insertProducts(listOf(product("2")))
+        // W2's stored sale disagrees with its purchases (historical); W1 gets a new purchase
+        db.purchaseDao().insert(purchase(d, 50).copy(productId = 0, productCode = "W2", invoiceNumber = "OLD"))
+        db.dailyStockDao().upsertCommittedBatch(listOf(committed(d, 10, 0, 7),
+            committed(d, 10, 0, 7).copy(productCode = "W2")))
+        refresher.refreshFor(listOf(purchase(d, 5).also { db.purchaseDao().insert(it) }))
+        assertEquals(8, db.dailyStockDao().getDailyStock(d, "W1")!!.saleQq)
+        assertEquals(3, db.dailyStockDao().getDailyStock(d, "W2")!!.saleQq)
     }
 }

@@ -1,6 +1,8 @@
 package com.simhadri.winentry.helpers
 
 import android.content.Context
+import com.simhadri.winentry.utils.ExcelCells
+import com.simhadri.winentry.utils.StrictDate
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.simhadri.winentry.data.entity.Product
@@ -54,16 +56,7 @@ class PurchaseExcelHelper(private val context: Context) {
         // Column 9 ("Qty Units") is the export-only derived total (boxes*perBox+loose) —
         // import recomputes it via Purchase.calculateTotalUnits, so it's not read here.
         const val COL_PURCHASE_PRICE = 10
-        
-        // Date formats — Indian (DD/MM) and ISO only. Never MM/DD (US format).
-        val DATE_FORMATS = listOf(
-            SimpleDateFormat("d/M/yyyy", Locale.US),
-            SimpleDateFormat("dd/MM/yyyy", Locale.US),
-            SimpleDateFormat("d/M/yy", Locale.US),
-            SimpleDateFormat("dd/MM/yy", Locale.US),
-            SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        )
-        val DB_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
         
         // Valid size codes
         val VALID_SIZE_CODES = setOf("QQ", "PP", "NN", "DD")
@@ -88,12 +81,13 @@ class PurchaseExcelHelper(private val context: Context) {
             android.util.Log.d("PurchaseExcelHelper", "=== MULTI-SHIPMENT IMPORT ===")
             
             // Detect all shipments in the sheet
-            val shipments = detectShipments(sheet)
+            val badShipments = mutableListOf<String>()
+            val shipments = detectShipments(sheet, badShipments)
             
             android.util.Log.d("PurchaseExcelHelper", "Detected ${shipments.size} shipment(s) in Excel")
             
             if (shipments.isEmpty()) {
-                return ImportResult(0, 0, 0, listOf("No valid shipments found in Excel"))
+                return ImportResult(0, badShipments.size, 0, badShipments.ifEmpty { listOf("No valid shipments found in Excel") })
             }
             
             // Create product lookup map - includes primary code AND all aliases
@@ -102,7 +96,7 @@ class PurchaseExcelHelper(private val context: Context) {
             android.util.Log.d("PurchaseExcelHelper", "Product lookup map size: ${productMap.size} (includes aliases)")
             
             val allPurchases = mutableListOf<Purchase>()
-            val allErrors = mutableListOf<String>()
+            val allErrors = badShipments.toMutableList()
             val allWarnings = mutableListOf<String>()
             var totalSkipped = 0
             
@@ -127,6 +121,12 @@ class PurchaseExcelHelper(private val context: Context) {
             
             workbook.close()
             inputStream.close()
+
+            // The same invoice + date can appear in more than one block; one line per product
+            val merged = mergeSameLine(allPurchases)
+            if (merged.size < allPurchases.size) allWarnings.add(
+                "${allPurchases.size - merged.size} product line(s) repeated under the same invoice were added together")
+            allPurchases.clear(); allPurchases.addAll(merged)
             
             android.util.Log.d("PurchaseExcelHelper", "Total: ${allPurchases.size} new, $totalSkipped skipped, ${allErrors.size} errors")
             
@@ -150,7 +150,7 @@ class PurchaseExcelHelper(private val context: Context) {
      * Detect all shipments in the sheet
      * A shipment starts with "INVOICE NUMBER" in column A
      */
-    private fun detectShipments(sheet: Sheet): List<ShipmentInfo> {
+    private fun detectShipments(sheet: Sheet, badShipments: MutableList<String>): List<ShipmentInfo> {
         val shipments = mutableListOf<ShipmentInfo>()
         val maxDate = run {
             val cal = java.util.Calendar.getInstance()
@@ -171,22 +171,28 @@ class PurchaseExcelHelper(private val context: Context) {
             // Check if this row starts a shipment
             if (cellValue?.uppercase()?.contains("INVOICE") == true) {
                 // Found shipment header
-                val invoiceNumber = getCellValue(row.getCell(1)) ?: ""
+                val invoiceNumber = ExcelCells.text(row.getCell(1)) ?: ""
                 
                 // Next row should be DATE
                 val dateRow = sheet.getRow(rowNum + 1)
                 val dateCell = dateRow?.getCell(1)
                 val dateStr = getCellValueAsDateString(dateCell)
-                val parsedDate = parseDateWithFormats(dateStr)
+                val parsedDate = ExcelCells.date(dateCell)
+                if (parsedDate == null || parsedDate > maxDate) {
+                    badShipments += "Invoice $invoiceNumber (row ${rowNum + 1}): date '$dateStr' is " +
+                        (if (parsedDate == null) "not a valid DD/MM/YYYY date" else "in the future") + " — skipped"
+                    rowNum += 3
+                    continue
+                }
 
                 // Col 3 on the DATE row = received date (col 2 is the label "RECEIVED DATE").
                 // Guard: only parse if the raw string looks like a date (contains '/' or '-').
                 // Old files have the invoice amount (e.g. "12345") at col 3 — without this
-                // guard parseDateWithFormats would fall back to today's date for those numbers.
+                // guard a plain number there could be read as a date serial.
                 val receivedDateStr = getCellValueAsDateString(dateRow?.getCell(3))
                 val looksLikeDate = receivedDateStr.contains('/') || receivedDateStr.contains('-')
                 val parsedReceivedDate = if (looksLikeDate)
-                    parseDateWithFormats(receivedDateStr) else ""
+                    StrictDate.parse(receivedDateStr).orEmpty() else ""
 
                 // Headers should be at rowNum + 2
                 // Data starts at rowNum + 3
@@ -391,23 +397,29 @@ class PurchaseExcelHelper(private val context: Context) {
         )
     }
     
-    private fun parseDateWithFormats(dateStr: String): String {
-        if (dateStr.isBlank()) return DB_DATE_FORMAT.format(Date())
-        
-        for (format in DATE_FORMATS) {
-            try {
-                val parsed = format.parse(dateStr) ?: continue
-                val cal = java.util.Calendar.getInstance()
-                cal.time = parsed
-                val year = cal.get(java.util.Calendar.YEAR)
-                if (year < 2000 || year > 2100) continue
-                return DB_DATE_FORMAT.format(parsed)
-            } catch (e: Exception) { }
+    private fun mergeSameLine(purchases: List<Purchase>): List<Purchase> =
+        purchases.groupBy { Triple(it.productId, it.invoiceNumber, it.purchaseDate) }.values.map { group ->
+            group.reduce { a, b ->
+                fun price(x: Double, y: Double) = if (x > 0) x else y
+                val m = a.copy(
+                    qqBoxes = a.qqBoxes + b.qqBoxes, qqLoose = a.qqLoose + b.qqLoose,
+                    qqTotalUnits = a.qqTotalUnits + b.qqTotalUnits, qqTotalCost = a.qqTotalCost + b.qqTotalCost,
+                    qqUnitPrice = price(a.qqUnitPrice, b.qqUnitPrice),
+                    ppBoxes = a.ppBoxes + b.ppBoxes, ppLoose = a.ppLoose + b.ppLoose,
+                    ppTotalUnits = a.ppTotalUnits + b.ppTotalUnits, ppTotalCost = a.ppTotalCost + b.ppTotalCost,
+                    ppUnitPrice = price(a.ppUnitPrice, b.ppUnitPrice),
+                    nnBoxes = a.nnBoxes + b.nnBoxes, nnLoose = a.nnLoose + b.nnLoose,
+                    nnTotalUnits = a.nnTotalUnits + b.nnTotalUnits, nnTotalCost = a.nnTotalCost + b.nnTotalCost,
+                    nnUnitPrice = price(a.nnUnitPrice, b.nnUnitPrice),
+                    ddBoxes = a.ddBoxes + b.ddBoxes, ddLoose = a.ddLoose + b.ddLoose,
+                    ddTotalUnits = a.ddTotalUnits + b.ddTotalUnits, ddTotalCost = a.ddTotalCost + b.ddTotalCost,
+                    ddUnitPrice = price(a.ddUnitPrice, b.ddUnitPrice),
+                    receivedDate = a.receivedDate.ifBlank { b.receivedDate }
+                )
+                m.copy(totalCost = m.qqTotalCost + m.ppTotalCost + m.nnTotalCost + m.ddTotalCost)
+            }
         }
-        
-        android.util.Log.w("PurchaseExcelHelper", "Could not parse date '$dateStr', using today")
-        return DB_DATE_FORMAT.format(Date())
-    }
+
     
     /**
      * Export purchases to Excel file - GROUPED BY INVOICE AND DATE
@@ -634,8 +646,8 @@ class PurchaseExcelHelper(private val context: Context) {
             createCell(3).setCellValue("7/2/26")   // example: received 2 days later
         }
         
-        val headers = arrayOf("S. NO", "Brand Code", "Product Name", "Product Type", 
-            "Product Category", "Size Code", "Size", "Qty Boxes", "Qty Units", "Purchase Price")
+        val headers = arrayOf("S. NO", "Brand Code", "Product Name", "Product Type",
+            "Product Category", "Size Code", "Size", "Qty Boxes", "Qty Loose", "Qty Units", "Purchase Price")
         sheet.createRow(currentRow++).apply {
             headers.forEachIndexed { index, header ->
                 createCell(index).apply { setCellValue(header); cellStyle = headerStyle }
@@ -652,9 +664,9 @@ class PurchaseExcelHelper(private val context: Context) {
                 createCell(4).setCellValue("G")
                 createCell(5).setCellValue("QQ")
                 createCell(6).setCellValue("750")
-                createCell(7).setCellValue(1.0)
-                createCell(8).setCellValue(0.0)
-                createCell(9).setCellValue(product.qqPurchasePrice)
+                createCell(COL_QTY_BOXES).setCellValue(1.0)
+                createCell(COL_QTY_LOOSE).setCellValue(0.0)
+                createCell(COL_PURCHASE_PRICE).setCellValue(product.qqPurchasePrice)
             }
         }
         
@@ -690,16 +702,16 @@ class PurchaseExcelHelper(private val context: Context) {
                 createCell(4).setCellValue("G")
                 createCell(5).setCellValue("NN")
                 createCell(6).setCellValue("180")
-                createCell(7).setCellValue(2.0)
-                createCell(8).setCellValue(0.0)
-                createCell(9).setCellValue(product.nnPurchasePrice)
+                createCell(COL_QTY_BOXES).setCellValue(2.0)
+                createCell(COL_QTY_LOOSE).setCellValue(0.0)
+                createCell(COL_PURCHASE_PRICE).setCellValue(product.nnPurchasePrice)
             }
         }
         
         sheet.setColumnWidth(0, 2000); sheet.setColumnWidth(1, 3500); sheet.setColumnWidth(2, 8000)
         sheet.setColumnWidth(3, 2500); sheet.setColumnWidth(4, 3000); sheet.setColumnWidth(5, 3000)
         sheet.setColumnWidth(6, 2500); sheet.setColumnWidth(7, 3000); sheet.setColumnWidth(8, 3000)
-        sheet.setColumnWidth(9, 4000)
+        sheet.setColumnWidth(9, 3000); sheet.setColumnWidth(10, 4000)
         
         val file = File(context.getExternalFilesDir(null), fileName)
         FileOutputStream(file).use { workbook.write(it) }
@@ -720,8 +732,10 @@ class PurchaseExcelHelper(private val context: Context) {
                 productCategory = getCellValue(row.getCell(COL_PRODUCT_CATEGORY)) ?: "",
                 sizeCode = getCellValue(row.getCell(COL_SIZE_CODE)) ?: "",
                 size = getCellValue(row.getCell(COL_SIZE)) ?: "",
-                qtyBoxes = getCellValueAsInt(row.getCell(COL_QTY_BOXES)),
-                qtyLoose = getCellValueAsInt(row.getCell(COL_QTY_LOOSE)),
+                qtyBoxes = ExcelCells.quantity(row.getCell(COL_QTY_BOXES))
+                    ?: throw IllegalArgumentException("Qty Boxes must be a whole number of 0 or more"),
+                qtyLoose = ExcelCells.quantity(row.getCell(COL_QTY_LOOSE))
+                    ?: throw IllegalArgumentException("Qty Loose must be a whole number of 0 or more"),
                 purchasePrice = getCellValueAsDouble(row.getCell(COL_PURCHASE_PRICE))
             )
         } catch (e: Exception) {
@@ -729,14 +743,7 @@ class PurchaseExcelHelper(private val context: Context) {
         }
     }
     
-    private fun getCellValue(cell: Cell?): String? {
-        return when (cell?.cellType) {
-            CellType.STRING -> cell.stringCellValue
-            CellType.NUMERIC -> cell.numericCellValue.toInt().toString()
-            CellType.BLANK -> null
-            else -> null
-        }
-    }
+    private fun getCellValue(cell: Cell?): String? = ExcelCells.text(cell)
     
     private fun getCellValueAsDateString(cell: Cell?): String {
         if (cell == null) return ""
@@ -767,13 +774,7 @@ class PurchaseExcelHelper(private val context: Context) {
         }
     }
     
-    private fun getCellValueAsDouble(cell: Cell?): Double {
-        return when (cell?.cellType) {
-            CellType.NUMERIC -> cell.numericCellValue
-            CellType.STRING -> cell.stringCellValue.toDoubleOrNull() ?: 0.0
-            else -> 0.0
-        }
-    }
+    private fun getCellValueAsDouble(cell: Cell?): Double = ExcelCells.number(cell) ?: 0.0
     
     /**
      * Build product lookup map that includes primary brand code AND all aliases

@@ -9,7 +9,9 @@ import androidx.work.*
 import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.ui.auth.UserRole
 import com.simhadri.winentry.utils.DbSnapshot
+import com.simhadri.winentry.utils.StrictDate
 import com.simhadri.winentry.data.AppDatabase
+import com.simhadri.winentry.data.repository.CommittedSaleRefresher
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.DayReconciliation
 import com.simhadri.winentry.data.entity.PendingCloudDelete
@@ -504,6 +506,8 @@ class SyncCoordinator(private val context: Context) {
                 database.productDao().activateByIds(activateIds.toList())
             }
 
+            CommittedSaleRefresher(database).refresh((toInsert + toReplace)
+                .flatMap { listOf(CommittedSaleRefresher.effectiveDate(it), it.purchaseDate) })
             Log.d(TAG, "Commit: $inserted inserted, $replaced replaced")
             SyncResult.PurchaseDownSync(inserted, replaced, emptySet())
 
@@ -643,64 +647,7 @@ class SyncCoordinator(private val context: Context) {
      *
      * Returns null → row is silently skipped.
      */
-    private fun parseSyncDate(raw: String): String? {
-        if (raw.isBlank()) return null
-        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-
-        fun toIso(day: Int, month: Int, year: Int): String? {
-            if (year < 2000 || year > 2099) return null
-            if (month < 1 || month > 12) return null
-            if (day < 1 || day > 31) return null
-            return String.format(java.util.Locale.US, "%04d-%02d-%02d", year, month, day)
-        }
-
-        // 1. Dash-separated: determine order by size of first part
-        if (raw.contains('-') && !raw.contains('/')) {
-            val parts = raw.split('-').map { it.trim() }
-            if (parts.size == 3) {
-                val a = parts[0].toIntOrNull() ?: return null
-                val b = parts[1].toIntOrNull() ?: return null
-                val c = parts[2].toIntOrNull() ?: return null
-                return when {
-                    a > 31  -> toIso(c, b, a)    // yyyy-MM-dd or yyyy-M-d
-                    c > 31  -> toIso(a, b, c)    // dd-MM-yyyy or d-M-yyyy
-                    else    -> toIso(a, b, if (c < 100) 2000 + c else c)  // dd-MM-yy
-                }
-            }
-        }
-
-        // 2. Slash-separated: always DD/MM (India-only — never MM/DD)
-        if (raw.contains('/')) {
-            val parts = raw.split('/').map { it.trim() }
-            if (parts.size == 3) {
-                val a = parts[0].toIntOrNull() ?: return null
-                val b = parts[1].toIntOrNull() ?: return null
-                val c = parts[2].toIntOrNull() ?: return null
-                val year = if (c < 100) 2000 + c else c
-                // Disambiguate DD/MM vs MM/DD:
-                //   first part > 12  → must be day   (DD/MM: only valid interpretation)
-                //   second part > 12 → must be day   (MM/DD: month can't be >12)
-                //   both ≤ 12        → ambiguous; Google Sheets auto-formats in MM/DD (US locale)
-                val (day, month) = when {
-                    a > 12  -> Pair(a, b)   // DD/MM confirmed: a is day
-                    b > 12  -> Pair(b, a)   // MM/DD confirmed: b is day, a is month
-                    else    -> Pair(b, a)   // ambiguous → assume MM/DD (Sheets US locale)
-                }
-                return toIso(day, month, year)
-            }
-        }
-
-        // 3. Excel / Sheets numeric date serial
-        val serial = raw.toDoubleOrNull()
-        if (serial != null && serial > 40000 && serial < 60000) {
-            val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
-            cal.set(1899, 11, 30, 0, 0, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-            cal.add(java.util.Calendar.DATE, serial.toInt())
-            return fmt.apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(cal.time)
-        }
-
-        return null
-    }
+    private fun parseSyncDate(raw: String): String? = StrictDate.parse(raw)
 
     private fun parseDailyStockRows(rawRows: List<List<Any>>): List<DailyStock> {
         val result = mutableListOf<DailyStock>()

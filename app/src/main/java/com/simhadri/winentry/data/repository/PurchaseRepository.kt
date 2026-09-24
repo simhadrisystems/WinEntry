@@ -58,6 +58,12 @@ class PurchaseRepository(private val purchaseDao: PurchaseDao) {
         receivedDate:  String
     ) = purchaseDao.updateReceivedDateForInvoice(invoiceNumber, purchaseDate, receivedDate)
 
+    suspend fun getActiveByInvoice(invoiceNumber: String, purchaseDate: String) =
+        purchaseDao.getActiveByInvoice(invoiceNumber, purchaseDate)
+
+    suspend fun getActiveLines(productId: Long, invoice: String, date: String) =
+        purchaseDao.getActiveLines(productId, invoice, date)
+
     // ── Read ──────────────────────────────────────────────────────────────────
 
     fun getPurchasesByDate(date: String): LiveData<List<Purchase>> =

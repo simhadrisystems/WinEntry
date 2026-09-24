@@ -748,7 +748,7 @@ class PurchasesListFragment : Fragment() {
             .setMessage("This action cannot be undone.")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch {
-                    selected.forEach { viewModel.deletePurchase(it) }
+                    viewModel.deletePurchases(selected)
                     Toast.makeText(
                         requireContext(),
                         "${selected.size} purchase(s) deleted",
@@ -789,7 +789,7 @@ class PurchasesListFragment : Fragment() {
             .setMessage("Delete all purchases from $startDate to $endDate?\n\nThis cannot be undone!")
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch {
-                    inRange.forEach { viewModel.deletePurchase(it) }
+                    viewModel.deletePurchases(inRange)
                     Toast.makeText(
                         requireContext(),
                         "${inRange.size} purchase(s) deleted",

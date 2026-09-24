@@ -106,6 +106,9 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchases ORDER BY purchaseDate DESC")
     suspend fun getAllPurchasesSync(): List<Purchase>
 
+    @Query("SELECT * FROM purchases WHERE invoiceNumber = :invoiceNumber AND purchaseDate = :purchaseDate AND isDeleted = 0")
+    suspend fun getActiveByInvoice(invoiceNumber: String, purchaseDate: String): List<Purchase>
+
     // ── Aggregates ────────────────────────────────────────────────────────────
 
     @Query("SELECT SUM(totalCost) FROM purchases WHERE purchaseDate BETWEEN :startDate AND :endDate AND isDeleted = 0")

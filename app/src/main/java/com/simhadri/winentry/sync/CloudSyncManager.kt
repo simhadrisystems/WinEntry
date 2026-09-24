@@ -1,5 +1,6 @@
 package com.simhadri.winentry.sync
 
+import com.simhadri.winentry.utils.StrictDate
 import android.util.Log
 import com.simhadri.winentry.data.entity.DailyStock
 import com.simhadri.winentry.data.entity.DayReconciliation
@@ -37,25 +38,8 @@ object CloudSyncManager {
 
     private const val TAG = "CloudSyncManager"
 
-    internal fun parseDateStr(raw: String): String {
-        if (raw.isBlank()) return java.text.SimpleDateFormat("yyyy-MM-dd",
-            java.util.Locale.US).format(java.util.Date())
-        // Only Indian (DD/MM) and ISO formats — never MM/DD (US format).
-        val formats = listOf("d/M/yyyy", "dd/MM/yyyy", "d/M/yy", "dd/MM/yy", "yyyy-MM-dd")
-        val out = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        for (fmt in formats) {
-            try {
-                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US)
-                sdf.isLenient = false
-                val date = sdf.parse(raw) ?: continue
-                val cal = java.util.Calendar.getInstance()
-                cal.time = date
-                if (cal.get(java.util.Calendar.YEAR) !in 2000..2100) continue
-                return out.format(date)
-            } catch (_: Exception) {}
-        }
-        return raw
-    }
+    /** yyyy-MM-dd, or null when the cell is blank or not a real date. */
+    internal fun parseDateStr(raw: String): String? = StrictDate.parse(raw)
 
     internal fun buildProductLookupMap(products: List<Product>): Map<String, Product> {
         val map = mutableMapOf<String, Product>()
@@ -116,9 +100,14 @@ object CloudSyncManager {
                 val dateRow = if (i + 1 < rows.size) rows[i + 1] else null
                 val dateRaw = dateRow?.getOrNull(1)?.toString()?.trim() ?: ""
                 val parsedDate = parseDateStr(dateRaw)
+                if (parsedDate == null || parsedDate > maxDate) {
+                    android.util.Log.w("CloudSyncManager", "PurchaseImport: invoice $invoice has no valid date ('$dateRaw') — skipped")
+                    i += 3
+                    continue
+                }
                 val recvRaw = dateRow?.getOrNull(3)?.toString()?.trim() ?: ""
                 val looksLikeDate = recvRaw.contains('/') || recvRaw.contains('-')
-                val parsedRecv = if (looksLikeDate) parseDateStr(recvRaw) else ""
+                val parsedRecv = if (looksLikeDate) parseDateStr(recvRaw).orEmpty() else ""
                 val receivedDate = if (parsedRecv.isNotBlank() && parsedRecv > parsedDate && parsedRecv <= maxDate) parsedRecv else ""
                 shipments.add(Shipment(invoice, parsedDate, receivedDate, i + 3, i + 1))
                 i += 3
@@ -258,7 +247,7 @@ object CloudSyncManager {
     private fun parseReceivedDate(row: List<Any>, purchaseDate: String, maxDate: String): String {
         val raw = row.getOrNull(28)?.toString()?.trim().orEmpty()
         if (raw.isBlank()) return ""
-        val d = parseDateStr(raw)
+        val d = parseDateStr(raw) ?: return ""
         return if (d > purchaseDate && d <= maxDate) d else ""
     }
 
@@ -273,7 +262,7 @@ object CloudSyncManager {
         for (row in rows) {
             val txnId = row.getOrNull(0)?.toString()?.trim().orEmpty()
             if (txnId.isBlank() || txnId.equals("TxnId", ignoreCase = true)) continue
-            val purchaseDate = parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty())
+            val purchaseDate = parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty()) ?: continue
             val rd = parseReceivedDate(row, purchaseDate, maxDate)
             if (rd.isNotBlank()) out[txnId] = rd
         }
@@ -307,7 +296,7 @@ object CloudSyncManager {
             val key = lineKey(
                 productMap[code]?.stockCode ?: code,
                 row.getOrNull(4)?.toString()?.trim().orEmpty(),
-                parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty())
+                parseDateStr(row.getOrNull(1)?.toString()?.trim().orEmpty()) ?: continue
             )
             val current = out[key]
             if (current == null || txnId > current.txnId)
@@ -349,6 +338,10 @@ object CloudSyncManager {
             val product = productMap[productCode]
 
             val purchaseDate = parseDateStr(row.getOrNull(1).str())
+            if (purchaseDate == null || purchaseDate > maxDate) {
+                android.util.Log.w("CloudSyncManager", "Purchases tab: $txnId has no valid date ('${row.getOrNull(1).str()}') — skipped")
+                continue
+            }
             val receivedDate = parseReceivedDate(row, purchaseDate, maxDate)
 
             result.add(Purchase(

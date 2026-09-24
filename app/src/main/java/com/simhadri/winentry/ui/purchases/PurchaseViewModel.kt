@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.simhadri.winentry.data.AppDatabase
+import com.simhadri.winentry.data.repository.CommittedSaleRefresher
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.util.ProductCodeResolver
@@ -13,6 +15,7 @@ import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.repository.PurchaseRepository
 import com.simhadri.winentry.helpers.PurchaseExcelHelper
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.simhadri.winentry.ui.auth.ErrorLogger
 import java.text.SimpleDateFormat
 import java.util.*
@@ -35,6 +38,19 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
     // Current purchase being edited
     private val _currentPurchase = MutableLiveData<PurchaseCalculation>()
     val currentPurchase: LiveData<PurchaseCalculation> = _currentPurchase
+
+    private val saleRefresher = CommittedSaleRefresher(AppDatabase.getInstance(application))
+
+    /** Recomputes committed Daily Stock sales on [dates]; warns when a sale went negative. */
+    private suspend fun refreshSales(dates: Collection<String>) {
+        val negatives = saleRefresher.refresh(dates)
+        if (negatives.isNotEmpty()) withContext(kotlinx.coroutines.Dispatchers.Main) {
+            android.widget.Toast.makeText(getApplication(),
+                "Daily Stock now shows a negative sale on ${negatives.sorted().joinToString()}. " +
+                    "Check the closing balance for that day.",
+                android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
 
     init {
         val database = AppDatabase.getInstance(application)
@@ -172,7 +188,10 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
     /** Update receivedDate for every purchase row in an invoice group (list screen). */
     fun updateInvoiceReceivedDate(invoiceNumber: String, purchaseDate: String, receivedDate: String) {
         viewModelScope.launch {
+            val before = repository.getActiveByInvoice(invoiceNumber, purchaseDate)
+                .map { CommittedSaleRefresher.effectiveDate(it) }
             repository.updateReceivedDateForInvoice(invoiceNumber, purchaseDate, receivedDate)
+            refreshSales(before + receivedDate.ifBlank { purchaseDate })
         }
     }
 
@@ -324,6 +343,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
 
                 android.util.Log.d("PurchaseViewModel", "Purchase object created with date: ${purchase.purchaseDate}")
                 repository.insert(purchase)
+                refreshSales(listOf(CommittedSaleRefresher.effectiveDate(purchase)))
                 android.util.Log.d("PurchaseViewModel", "Purchase saved to database")
 
                 // Auto-activate product if it was inactive — purchasing it means tracking it
@@ -512,8 +532,24 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
 
-                val purchase = Purchase(
-                    id = purchaseId,  // Keep the same ID to update
+                val existing = repository.getPurchaseById(purchaseId)
+                if (existing == null) {
+                    _saveStatus.value = SaveStatus.Error("This purchase no longer exists")
+                    return@launch
+                }
+                val keyChanged = existing.productId != calc.productId ||
+                    existing.invoiceNumber != calc.invoiceNumber || existing.purchaseDate != calc.purchaseDate
+                if (keyChanged && calc.invoiceNumber.isNotBlank() &&
+                    repository.getActiveLines(calc.productId, calc.invoiceNumber, calc.purchaseDate)
+                        .any { it.id != purchaseId }) {
+                    _saveStatus.value = SaveStatus.Error(
+                        "${calc.productName} is already on invoice ${calc.invoiceNumber} dated " +
+                            "${formatDateForMessage(calc.purchaseDate)}. Edit that line instead.")
+                    return@launch
+                }
+
+                // copy() keeps txnId (the cloud key), createdAt and isProcessed
+                val purchase = existing.copy(
                     purchaseDate = calc.purchaseDate,
                     productId = calc.productId,
                     productCode = calc.productCode,
@@ -555,6 +591,8 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 )
 
                 repository.update(purchase)
+                refreshSales(listOf(CommittedSaleRefresher.effectiveDate(existing),
+                    CommittedSaleRefresher.effectiveDate(purchase)))
                 android.util.Log.d("PurchaseViewModel", "Purchase updated")
                 _saveStatus.value = SaveStatus.Success()
                 resetForm()
@@ -625,9 +663,14 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 // savePurchase() fires separate coroutines (fire-and-forget) — use
                 // savePurchaseSuspend() here to keep the import sequential and atomic.
                 var skippedByBaseline = 0
-                for (purchase in result.purchases) {
-                    if (!savePurchaseSuspend(purchase)) skippedByBaseline++
+                val touched = mutableSetOf<String>()
+                // All or nothing: a failure part-way leaves no half-imported invoice
+                AppDatabase.getInstance(getApplication()).withTransaction {
+                    for (purchase in result.purchases) {
+                        if (!savePurchaseSuspend(purchase, touched)) skippedByBaseline++
+                    }
                 }
+                refreshSales(touched)
                 // Auto-activate any inactive products that appear in the imported purchases
                 val importedProductIds = result.purchases
                     .map { it.productId }.filter { it > 0 }.toSet()
@@ -672,6 +715,15 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
     fun deletePurchase(purchase: Purchase) {
         viewModelScope.launch {
             repository.delete(purchase)
+            refreshSales(listOf(CommittedSaleRefresher.effectiveDate(purchase)))
+        }
+    }
+
+    /** Bulk delete: one sale refresh for all affected dates. */
+    fun deletePurchases(purchases: List<Purchase>) {
+        viewModelScope.launch {
+            purchases.forEach { repository.delete(it) }
+            refreshSales(purchases.map { CommittedSaleRefresher.effectiveDate(it) })
         }
     }
     
@@ -687,7 +739,11 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
      * reports, sync) only ever sees primary codes.
      */
     fun savePurchase(purchase: Purchase) {
-        viewModelScope.launch { savePurchaseSuspend(purchase) }
+        viewModelScope.launch {
+            val touched = mutableSetOf<String>()
+            savePurchaseSuspend(purchase, touched)
+            refreshSales(touched)
+        }
     }
 
     /**
@@ -695,7 +751,7 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
      * Returns false (without inserting) when [purchase.purchaseDate] is before the
      * active opening-stock baseline — that period was superseded by a re-baseline.
      */
-    private suspend fun savePurchaseSuspend(purchase: Purchase): Boolean {
+    private suspend fun savePurchaseSuspend(purchase: Purchase, touchedDates: MutableSet<String>): Boolean {
         try {
             val minDate = dailyStockDao.getLatestOpeningStockDate()
             if (minDate != null && purchase.purchaseDate < minDate) {
@@ -704,10 +760,13 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
                 return false
             }
             val normalised = normalisePurchaseCode(purchase)
-            if (normalised.productId > 0 && normalised.invoiceNumber.isNotBlank())
+            if (normalised.productId > 0 && normalised.invoiceNumber.isNotBlank()) {
+                repository.getActiveLines(normalised.productId, normalised.invoiceNumber, normalised.purchaseDate)
+                    .forEach { touchedDates += CommittedSaleRefresher.effectiveDate(it) }
                 repository.saveLine(normalised)
-            else
+            } else
                 repository.insert(normalised)
+            touchedDates += CommittedSaleRefresher.effectiveDate(normalised)
             android.util.Log.d("PurchaseViewModel",
                 "Saved purchase: ${normalised.productName} " +
                 "code=${normalised.productCode} date=${normalised.purchaseDate}")

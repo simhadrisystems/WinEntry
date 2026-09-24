@@ -202,8 +202,9 @@ object CloudSyncManager {
     fun parseProductRows(rows: List<List<Any>>): List<Product> {
         return rows.mapNotNull { row ->
             fun cell(col: Int) = row.getOrNull(col)?.toString().orEmpty()
-            val productType = cell(1)
-            val brandCode   = cell(3)
+            // Codes are compared exactly elsewhere; " w1249" or "1249.0" would create a duplicate product
+            val productType = cell(1).trim().uppercase()
+            val brandCode   = cell(3).trim().uppercase().removeSuffix(".0")
             if (brandCode.isBlank()) return@mapNotNull null
             Product(
                 productName     = cell(0),

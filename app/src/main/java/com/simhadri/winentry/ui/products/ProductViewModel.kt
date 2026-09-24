@@ -10,6 +10,7 @@ import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.data.entity.Product
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.ui.auth.ErrorLogger
 
 class ProductViewModel(application: Application) : AndroidViewModel(application) {
@@ -73,11 +74,25 @@ class ProductViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun delete(product: Product) {
-        viewModelScope.launch(Dispatchers.IO) {
-            dao.deleteProduct(product)
-        }
+    /** Purchases or committed stock refer to this product; deleting it would orphan them. */
+    suspend fun hasHistory(product: Product): Boolean = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val db = com.simhadri.winentry.data.AppDatabase.getInstance(getApplication())
+        db.purchaseDao().countForProduct(product.id, product.stockCode) > 0 ||
+            db.dailyStockDao().countForProduct(product.stockCode) > 0
     }
+
+    /** Deletes products without history; returns the ones kept because they have history. */
+    suspend fun deleteProducts(products: List<Product>): List<Product> = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        val kept = products.filter { hasHistory(it) }
+        products.filterNot { it in kept }.forEach { dao.deleteProduct(it) }
+        kept
+    }
+
+    suspend fun getAllProductsSync(): List<Product> =
+        kotlinx.coroutines.withContext(Dispatchers.IO) { dao.getAllProductsSync() }
+
+    suspend fun insertAllAwait(products: List<Product>) =
+        kotlinx.coroutines.withContext(Dispatchers.IO) { dao.insertProducts(products) }
 
     fun insertAll(products: List<Product>) {
         viewModelScope.launch(Dispatchers.IO) {

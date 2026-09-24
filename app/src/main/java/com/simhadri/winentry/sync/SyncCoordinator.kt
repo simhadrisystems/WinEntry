@@ -18,6 +18,7 @@ import com.simhadri.winentry.data.entity.PendingCloudDelete
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
+import com.simhadri.winentry.data.entity.stockCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -562,13 +563,27 @@ class SyncCoordinator(private val context: Context) {
                     return@withContext SyncResult.Error("No products found in master sheet")
 
                 val existing = database.productDao().getAllProductsSync()
-                    .associateBy { it.brandCode }
+                    .associateBy { it.brandCode.trim().uppercase() }
 
                 val merged = cloudProducts.map { cloud ->
                     val local = existing[cloud.brandCode]
                     if (local != null) {
+                        // The type is part of the stock key: keep it once history exists
+                        val hasHistory = local.productType != cloud.productType && (
+                            database.purchaseDao().countForProduct(local.id, local.stockCode) > 0 ||
+                                database.dailyStockDao().countForProduct(local.stockCode) > 0)
+                        val type = if (hasHistory) local.productType else cloud.productType
+                        val aliases = (local.aliases.split(",") + cloud.aliases.split(","))
+                            .map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString(",")
                         cloud.copy(
                             id           = local.id,
+                            productType  = type,
+                            brandCode    = local.brandCode,
+                            qqCode       = "${type}${local.brandCode}QQ",
+                            ppCode       = "${type}${local.brandCode}PP",
+                            nnCode       = "${type}${local.brandCode}NN",
+                            ddCode       = "${type}${local.brandCode}DD",
+                            aliases      = aliases,
                             isActive     = if (preserveUserSettings) local.isActive     else cloud.isActive,
                             dailySortKey = if (preserveUserSettings) local.dailySortKey else cloud.dailySortKey,
                             qqSalePrice  = if (preserveUserSettings) local.qqSalePrice  else cloud.qqSalePrice,

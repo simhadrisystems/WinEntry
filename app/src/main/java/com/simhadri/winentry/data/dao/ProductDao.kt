@@ -99,4 +99,16 @@ interface ProductDao {
 
     @Query("UPDATE products SET isActive = 1 WHERE id IN (:ids)")
     suspend fun activateByIds(ids: List<Long>)
+
+    @Query("UPDATE products SET isActive = :active WHERE id = :id")
+    suspend fun setActive(id: Long, active: Boolean)
+
+    @Query("UPDATE products SET dailySortKey = :sortKey WHERE id = :id")
+    suspend fun setSortKey(id: Long, sortKey: Int)
+
+    /** Writes only the sort order, so price edits made elsewhere meanwhile are kept. */
+    @Transaction
+    suspend fun setSortKeys(keys: Map<Long, Int>) {
+        keys.forEach { (id, key) -> setSortKey(id, key) }
+    }
 }

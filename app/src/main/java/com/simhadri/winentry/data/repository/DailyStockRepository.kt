@@ -585,16 +585,16 @@ class DailyStockRepository(
     // ── Sort keys ─────────────────────────────────────────────────────────────
 
     suspend fun updateSortKeys(products: List<Product>) =
-        productDao.updateProducts(products)
+        productDao.setSortKeys(products.associate { it.id to it.dailySortKey })
 
     suspend fun getInactiveProductsSync(): List<Product> =
         productDao.getInactiveProductsSync()
 
     suspend fun deactivateProduct(product: Product) =
-        productDao.updateProduct(product.copy(isActive = false))
+        productDao.setActive(product.id, false)
 
     suspend fun activateProduct(product: Product) =
-        productDao.updateProduct(product.copy(isActive = true))
+        productDao.setActive(product.id, true)
 }
 
 // ── Supporting data classes ───────────────────────────────────────────────────

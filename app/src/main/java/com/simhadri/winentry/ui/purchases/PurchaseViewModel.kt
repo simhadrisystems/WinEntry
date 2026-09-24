@@ -785,7 +785,8 @@ class PurchaseViewModel(application: Application) : AndroidViewModel(application
      * If unrecognised, logs a warning and returns unchanged (safe fallback).
      */
     private suspend fun normalisePurchaseCode(purchase: Purchase): Purchase {
-        val products = try { productDao.getAllActiveProductsSync() }
+        // All products: an inactive product still owns its purchases (import re-activates it)
+        val products = try { productDao.getAllProductsSync() }
                        catch (e: Exception) { allProducts.value ?: emptyList() }
         val canonical = ProductCodeResolver.resolve(purchase.productCode, products)
         if (canonical == null) {

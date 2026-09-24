@@ -19,6 +19,7 @@ import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.databinding.DialogProductFormBinding
 import com.simhadri.winentry.utils.TypeLabels
 import kotlinx.coroutines.launch
+import com.simhadri.winentry.utils.AppDialogs
 
 class ProductFormDialog : DialogFragment() {
 
@@ -255,9 +256,15 @@ class ProductFormDialog : DialogFragment() {
             .setIcon(android.R.drawable.ic_dialog_alert)
             .setPositiveButton("Delete") { _, _ ->
                 editingProduct?.let { product ->
-                    viewModel.delete(product)
-                    Toast.makeText(requireContext(), "$name deleted", Toast.LENGTH_SHORT).show()
-                    dismiss()
+                    lifecycleScope.launch {
+                        if (viewModel.deleteProducts(listOf(product)).isNotEmpty()) {
+                            AppDialogs.info(requireContext(), "Not Deleted",
+                                "$name has purchases or stock history. Deactivate it instead so that history stays linked.")
+                        } else {
+                            Toast.makeText(requireContext(), "$name deleted", Toast.LENGTH_SHORT).show()
+                            dismiss()
+                        }
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -334,8 +341,18 @@ class ProductFormDialog : DialogFragment() {
                 return@launch
             }
 
-            // Warn if changing brandCode on existing product
+            // Type or brand code is part of the stock key; changing it would orphan history
             val currentProduct = editingProduct  // Capture to local variable for smart cast
+            val newType = TypeLabels.codeFromDisplay(binding.spinnerProductType.text.toString())
+            if (currentProduct != null &&
+                (currentProduct.brandCode != brandCode || currentProduct.productType != newType) &&
+                viewModel.hasHistory(currentProduct)) {
+                AppDialogs.info(requireContext(), "Cannot Change Code",
+                    "${currentProduct.displayName} has purchases or stock history under " +
+                        "${currentProduct.productType}${currentProduct.brandCode}. Changing the type or " +
+                        "brand code would separate it from that history.\n\nAdd the new code as an alias instead.")
+                return@launch
+            }
             if (currentProduct != null && currentProduct.brandCode != brandCode) {
                 MaterialAlertDialogBuilder(requireContext())
                     .setTitle("⚠️ Warning: Changing Brand Code")

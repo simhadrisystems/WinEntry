@@ -44,6 +44,9 @@ interface PurchaseDao {
     @Query("SELECT COUNT(*) FROM purchases")
     suspend fun getCount(): Int
 
+    @Query("SELECT COUNT(*) FROM purchases WHERE isDeleted = 0 AND (productId = :productId OR productCode = :productCode)")
+    suspend fun countForProduct(productId: Long, productCode: String): Int
+
     @Query("SELECT * FROM purchases WHERE id = :id")
     suspend fun getPurchaseById(id: Long): Purchase?
 

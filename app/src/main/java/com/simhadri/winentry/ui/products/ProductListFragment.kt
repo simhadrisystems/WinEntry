@@ -18,6 +18,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.simhadri.winentry.utils.AppDialogs
+import kotlinx.coroutines.withContext
 import com.simhadri.winentry.R
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.ui.util.ScrollNavigationHelper
@@ -244,9 +245,10 @@ class ProductListFragment : Fragment() {
             "Delete ${inactiveProducts.size} inactive products? This cannot be undone."
         ) {
             lifecycleScope.launch {
-                inactiveProducts.forEach { viewModel.delete(it) }
+                val kept = viewModel.deleteProducts(inactiveProducts)
                 Toast.makeText(requireContext(),
-                    "${inactiveProducts.size} inactive products deleted", Toast.LENGTH_SHORT).show()
+                    "${inactiveProducts.size - kept.size} inactive products deleted", Toast.LENGTH_SHORT).show()
+                reportKept(kept)
             }
         }
     }
@@ -269,15 +271,20 @@ class ProductListFragment : Fragment() {
     private fun importFromExcel(uri: android.net.Uri) {
         lifecycleScope.launch {
             try {
-                val products = excelHelper.importProducts(uri)
+                val existing = viewModel.getAllProductsSync()
+                val imported = withContext(kotlinx.coroutines.Dispatchers.IO) { excelHelper.importProducts(uri, existing) }
+                val products = imported.products
 
                 if (products.isNotEmpty()) {
-                    viewModel.insertAll(products)
+                    viewModel.insertAllAwait(products)
                     Toast.makeText(
                         requireContext(),
                         "Successfully imported ${products.size} products",
                         Toast.LENGTH_LONG
                     ).show()
+                    if (imported.notes.isNotEmpty()) AppDialogs.info(requireContext(), "Import Notes",
+                        imported.notes.take(20).joinToString("\n") +
+                            if (imported.notes.size > 20) "\n… and ${imported.notes.size - 20} more" else "")
                 } else {
                     Toast.makeText(
                         requireContext(),
@@ -309,9 +316,10 @@ class ProductListFragment : Fragment() {
             "Delete ${activeProducts.size} active products? This cannot be undone."
         ) {
             lifecycleScope.launch {
-                activeProducts.forEach { viewModel.delete(it) }
+                val kept = viewModel.deleteProducts(activeProducts)
                 Toast.makeText(requireContext(),
-                    "${activeProducts.size} active products deleted", Toast.LENGTH_SHORT).show()
+                    "${activeProducts.size - kept.size} active products deleted", Toast.LENGTH_SHORT).show()
+                reportKept(kept)
             }
         }
     }
@@ -338,8 +346,10 @@ class ProductListFragment : Fragment() {
                 actionLabel  = "Delete All"
             ) {
                 lifecycleScope.launch {
-                    allProducts.forEach { viewModel.delete(it) }
-                    Toast.makeText(requireContext(), "All products deleted", Toast.LENGTH_LONG).show()
+                    val kept = viewModel.deleteProducts(allProducts)
+                    Toast.makeText(requireContext(),
+                        "${allProducts.size - kept.size} products deleted", Toast.LENGTH_LONG).show()
+                    reportKept(kept)
                 }
             }
         }
@@ -399,9 +409,21 @@ class ProductListFragment : Fragment() {
             "Delete Product",
             "Delete ${product.displayName}? This cannot be undone."
         ) {
-            viewModel.delete(product)
-            Toast.makeText(requireContext(), "Product deleted", Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                val kept = viewModel.deleteProducts(listOf(product))
+                if (kept.isEmpty()) Toast.makeText(requireContext(), "Product deleted", Toast.LENGTH_SHORT).show()
+                reportKept(kept)
+            }
         }
+    }
+
+    private fun reportKept(kept: List<Product>) {
+        if (kept.isEmpty() || !isAdded) return
+        AppDialogs.info(requireContext(), "Not Deleted",
+            "${kept.size} product(s) have purchases or stock history and were kept, so that " +
+                "history stays linked. Deactivate them instead:\n\n" +
+                kept.take(15).joinToString("\n") { it.displayName } +
+                if (kept.size > 15) "\n… and ${kept.size - 15} more" else "")
     }
 
     override fun onDestroyView() {

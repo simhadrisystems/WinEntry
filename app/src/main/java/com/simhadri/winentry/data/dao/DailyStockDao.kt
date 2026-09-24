@@ -24,6 +24,9 @@ interface DailyStockDao {
     @Query("SELECT * FROM daily_stock WHERE date = :date AND productCode = :productCode")
     suspend fun getDailyStock(date: String, productCode: String): DailyStock?
 
+    @Query("SELECT COUNT(*) FROM daily_stock WHERE productCode = :productCode AND isCommitted = 1")
+    suspend fun countForProduct(productCode: String): Int
+
     @Query("SELECT * FROM daily_stock WHERE date = :date ORDER BY productCode")
     suspend fun getAllDailyStockForDate(date: String): List<DailyStock>
 

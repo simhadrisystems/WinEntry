@@ -88,8 +88,16 @@ class ExcelHelper(private val context: Context) {
      * Import products from Excel
      * Columns: Product Name, Product Type, Category, Brand Code, Quantity, Display Name, Reorder Level, Serial No, Status
      */
-    fun importProducts(uri: Uri): List<Product> {
+    data class ProductImport(val products: List<Product>, val notes: List<String>)
+
+    /**
+     * Products already on the device keep their id (purchases and stock refer to it), their
+     * product type, and any value whose cell is blank in the file.
+     */
+    fun importProducts(uri: Uri, existing: List<Product>): ProductImport {
         val products = mutableListOf<Product>()
+        val notes = mutableListOf<String>()
+        val existingByCode = existing.associateBy { it.brandCode.trim().uppercase() }
 
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -97,7 +105,8 @@ class ExcelHelper(private val context: Context) {
                 val sheet = workbook.getSheetAt(0)
 
                 // Skip header row, start from row 1
-                for (rowIndex in 1 until sheet.physicalNumberOfRows) {
+                // lastRowNum, not physicalNumberOfRows: a blank row mid-sheet would cut off the end
+                for (rowIndex in 1..sheet.lastRowNum) {
                     val row = sheet.getRow(rowIndex) ?: continue
 
                     try {
@@ -108,17 +117,20 @@ class ExcelHelper(private val context: Context) {
                         val brandCode = getCellStringValue(row.getCell(3))
                         val aliases = getCellStringValue(row.getCell(4))  // NEW: Aliases column
 
+                        val e = existingByCode[brandCode.trim().uppercase()]
+                        fun dbl(col: Int, old: Double?) = getCellStringValue(row.getCell(col)).toDoubleOrNull() ?: old ?: 0.0
+
                         // Purchase Prices (shifted by 1)
-                        val qqPurchase = getCellStringValue(row.getCell(5)).toDoubleOrNull() ?: 0.0
-                        val ppPurchase = getCellStringValue(row.getCell(6)).toDoubleOrNull() ?: 0.0
-                        val nnPurchase = getCellStringValue(row.getCell(7)).toDoubleOrNull() ?: 0.0
-                        val ddPurchase = getCellStringValue(row.getCell(8)).toDoubleOrNull() ?: 0.0
+                        val qqPurchase = dbl(5, e?.qqPurchasePrice)
+                        val ppPurchase = dbl(6, e?.ppPurchasePrice)
+                        val nnPurchase = dbl(7, e?.nnPurchasePrice)
+                        val ddPurchase = dbl(8, e?.ddPurchasePrice)
 
                         // Sale Prices (shifted by 1)
-                        val qqSale = getCellStringValue(row.getCell(9)).toDoubleOrNull() ?: 0.0
-                        val ppSale = getCellStringValue(row.getCell(10)).toDoubleOrNull() ?: 0.0
-                        val nnSale = getCellStringValue(row.getCell(11)).toDoubleOrNull() ?: 0.0
-                        val ddSale = getCellStringValue(row.getCell(12)).toDoubleOrNull() ?: 0.0
+                        val qqSale = dbl(9, e?.qqSalePrice)
+                        val ppSale = dbl(10, e?.ppSalePrice)
+                        val nnSale = dbl(11, e?.nnSalePrice)
+                        val ddSale = dbl(12, e?.ddSalePrice)
 
                         // Units Per Box (shifted by 1, with smart defaults)
                         val qqUnitsPerBoxStr = getCellStringValue(row.getCell(13))
@@ -126,10 +138,10 @@ class ExcelHelper(private val context: Context) {
                         val nnUnitsPerBoxStr = getCellStringValue(row.getCell(15))
                         val ddUnitsPerBoxStr = getCellStringValue(row.getCell(16))
                         
-                        val qqUnitsPerBox = qqUnitsPerBoxStr.toIntOrNull() ?: 12  // Default 12
-                        val ppUnitsPerBox = ppUnitsPerBoxStr.toIntOrNull() ?: 24  // Default 24
-                        val nnUnitsPerBox = nnUnitsPerBoxStr.toIntOrNull() ?: 48  // Default 48
-                        val ddUnitsPerBox = ddUnitsPerBoxStr.toIntOrNull() ?: 96  // Default 96
+                        val qqUnitsPerBox = qqUnitsPerBoxStr.toIntOrNull() ?: e?.qqUnitsPerBox ?: 12
+                        val ppUnitsPerBox = ppUnitsPerBoxStr.toIntOrNull() ?: e?.ppUnitsPerBox ?: 24
+                        val nnUnitsPerBox = nnUnitsPerBoxStr.toIntOrNull() ?: e?.nnUnitsPerBox ?: 48
+                        val ddUnitsPerBox = ddUnitsPerBoxStr.toIntOrNull() ?: e?.ddUnitsPerBox ?: 96
 
                         val displayName  = getCellStringValue(row.getCell(17))
                         val serialNoStr  = getCellStringValue(row.getCell(18))
@@ -141,21 +153,29 @@ class ExcelHelper(private val context: Context) {
                             continue
                         }
 
-                        // Parse values
-                        val serialNo = serialNoStr.toIntOrNull() ?: 1
-                        val isActive = isActiveStr.uppercase() in listOf("YES", "Y", "TRUE", "1", "ACTIVE")
-                        val position = positionStr.toIntOrNull() ?: 999
+                        // Parse values; a blank cell keeps what the device already has
+                        val serialNo = serialNoStr.toIntOrNull() ?: e?.serialNo ?: 1
+                        val isActive = if (isActiveStr.isBlank()) e?.isActive ?: true
+                            else isActiveStr.uppercase() in listOf("YES", "Y", "TRUE", "1", "ACTIVE")
+                        val position = positionStr.toIntOrNull() ?: e?.dailySortKey ?: 999
 
-                        // Auto-generate codes (Type + Brand + Size)
-                        val typeUpper = productType.uppercase()
-                        val brandUpper = brandCode.uppercase()
+                        // A type change would re-key the product's stock history
+                        var typeUpper = productType.trim().uppercase()
+                        if (e != null && e.productType != typeUpper) {
+                            notes += "${e.displayName}: type kept as ${e.productType} (file says $typeUpper)"
+                            typeUpper = e.productType
+                        }
+                        val brandUpper = e?.brandCode ?: brandCode.trim().uppercase()
 
-                        val product = Product(
+                        val product = (e ?: Product(
+                            productName = productName, productType = typeUpper, brandCode = brandUpper,
+                            qqCode = "", ppCode = "", nnCode = "", ddCode = "", displayName = ""
+                        )).copy(
                             productName = productName,
                             productType = typeUpper,
-                            category = category,
+                            category = category.ifBlank { e?.category ?: "" },
                             brandCode = brandUpper,
-                            aliases = aliases,
+                            aliases = aliases.ifBlank { e?.aliases ?: "" },
                             qqCode = "${typeUpper}${brandUpper}QQ",
                             ppCode = "${typeUpper}${brandUpper}PP",
                             nnCode = "${typeUpper}${brandUpper}NN",
@@ -172,7 +192,7 @@ class ExcelHelper(private val context: Context) {
                             ppUnitsPerBox = ppUnitsPerBox,
                             nnUnitsPerBox = nnUnitsPerBox,
                             ddUnitsPerBox = ddUnitsPerBox,
-                            displayName = displayName.ifBlank { "$productName $typeUpper" },
+                            displayName = displayName.ifBlank { e?.displayName ?: "$productName $typeUpper" },
                             serialNo = serialNo,
                             isActive = isActive,
                             dailySortKey = position
@@ -191,7 +211,7 @@ class ExcelHelper(private val context: Context) {
             throw Exception("Failed to import products: ${e.message}")
         }
 
-        return products
+        return ProductImport(products, notes)
     }
 
     private fun getCellStringValue(cell: Cell?): String {

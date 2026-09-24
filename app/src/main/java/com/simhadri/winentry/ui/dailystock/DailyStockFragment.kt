@@ -418,10 +418,11 @@ class DailyStockFragment : Fragment() {
             val productCode = products.find { it.id == productId }?.stockCode
                 ?: return@setFragmentResultListener
             lifecycleScope.launch {
-                dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
-                viewModel.clearDirty()
-                viewModel.loadEntriesForDate()
+                val result = dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
+                viewModel.discardProductEdits(productId)
+                viewModel.loadDateStatus()
                 Toast.makeText(requireContext(), "Entry cleared", Toast.LENGTH_SHORT).show()
+                reportNegativeSales(result)
             }
         }
     }
@@ -893,9 +894,11 @@ class DailyStockFragment : Fragment() {
             footerAdded = true
         }
         adapter.submitList(entries)
+        // Day totals (saved to reconciliation) cover every product, not only those the search shows
+        val totals = viewModel.allEntriesForTotals()
 
-        val committedTotal = entries.sumOf { entry -> entry.saleAmount }
-        val currentPriceTotal = entries.sumOf { entry ->
+        val committedTotal = totals.sumOf { entry -> entry.saleAmount }
+        val currentPriceTotal = totals.sumOf { entry ->
             entry.sale.qq * entry.product.qqSalePrice +
             entry.sale.pp * entry.product.ppSalePrice +
             entry.sale.nn * entry.product.nnSalePrice +
@@ -910,9 +913,9 @@ class DailyStockFragment : Fragment() {
         reconciliationViewModel.setTotalDaySales(committedTotal)
         footerSetTotalSale?.invoke(committedTotal, currentPriceTotal)
 
-        val pUnits = entries.sumOf { e ->
+        val pUnits = totals.sumOf { e ->
             e.purchase.qq + e.purchase.pp + e.purchase.nn + e.purchase.dd }
-        val pValue = entries.sumOf { e ->
+        val pValue = totals.sumOf { e ->
             e.purchase.qq * e.product.qqPurchasePrice +
             e.purchase.pp * e.product.ppPurchasePrice +
             e.purchase.nn * e.product.nnPurchasePrice +
@@ -927,14 +930,14 @@ class DailyStockFragment : Fragment() {
             }
         }
 
-        val sUnits = entries.sumOf { e ->
+        val sUnits = totals.sumOf { e ->
             e.sale.qq + e.sale.pp + e.sale.nn + e.sale.dd }
         footerTextSoldUnits?.text =
             if (sUnits > 0) "$sUnits units sold today" else "System calculated"
 
-        val cUnits = entries.sumOf { e ->
+        val cUnits = totals.sumOf { e ->
             e.closing.qq + e.closing.pp + e.closing.nn + e.closing.dd }
-        val cValue = entries.sumOf { e ->
+        val cValue = totals.sumOf { e ->
             e.closing.qq * e.product.qqSalePrice +
             e.closing.pp * e.product.ppSalePrice +
             e.closing.nn * e.product.nnSalePrice +
@@ -1001,7 +1004,8 @@ class DailyStockFragment : Fragment() {
 
         // Push current values immediately — LiveData may already have emitted
         footerSetTotalSale?.invoke(currentTotalSale, currentPriceTotalSale)
-        viewModel.dailyEntries.value?.let { entries ->
+        viewModel.dailyEntries.value?.let { _ ->
+            val entries = viewModel.allEntriesForTotals()
             val pu = entries.sumOf { it.purchase.qq + it.purchase.pp + it.purchase.nn + it.purchase.dd }
             val pv = entries.sumOf { it.purchase.qq * it.product.qqPurchasePrice +
                 it.purchase.pp * it.product.ppPurchasePrice +
@@ -1643,6 +1647,8 @@ class DailyStockFragment : Fragment() {
                     Toast.makeText(requireContext(),
                         "✓ Imported ${status.count} record(s) across ${status.dates} date(s)",
                         Toast.LENGTH_LONG).show()
+                    if (status.negativeDates.isNotEmpty()) reportNegativeSales(
+                        com.simhadri.winentry.data.repository.CascadeResult(0, status.negativeDates.toSet()))
                     viewModel.loadEntriesForDate()
                     dataViewModel.clearImportStatus()
                 }
@@ -1735,10 +1741,13 @@ class DailyStockFragment : Fragment() {
                     ) {
                         lifecycleScope.launch {
                             val products = viewModel.allProducts.value ?: emptyList()
-                            dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
-                            viewModel.clearDirty()
-                            viewModel.loadEntriesForDate()
+                            val result = dataViewModel.clearProductDataWithCascadeAwait(date, productCode, products)
+                            val productId = products.find { it.stockCode == productCode }?.id
+                            if (productId != null) viewModel.discardProductEdits(productId)
+                            else viewModel.loadEntriesForDate()
+                            viewModel.loadDateStatus()
                             Toast.makeText(requireContext(), "Cleared: $name", Toast.LENGTH_SHORT).show()
+                            reportNegativeSales(result)
                         }
                     }
                 }
@@ -1762,11 +1771,19 @@ class DailyStockFragment : Fragment() {
 
     private fun doClearCurrentDateData(date: String) {
         lifecycleScope.launch {
-            dataViewModel.clearDateDataAwait(date)
+            val result = dataViewModel.clearDateDataAwait(date)
             viewModel.clearDirty()
             viewModel.loadEntriesForDate()
             Toast.makeText(requireContext(), "Cleared data for $date", Toast.LENGTH_SHORT).show()
+            reportNegativeSales(result)
         }
+    }
+
+    private fun reportNegativeSales(result: com.simhadri.winentry.data.repository.CascadeResult) {
+        if (!result.hasNegatives || !isAdded) return
+        AppDialogs.info(requireContext(), "Check These Dates",
+            "After this change the following date(s) show a negative sale. Correct the closing " +
+                "balance there:\n\n" + result.negativeSaleDates.sorted().joinToString("\n") { formatDateForDisplay(it) })
     }
 
     private fun clearAllDailyStock() {

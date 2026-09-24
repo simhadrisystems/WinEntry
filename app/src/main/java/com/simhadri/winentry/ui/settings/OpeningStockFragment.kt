@@ -1019,8 +1019,11 @@ class OpeningStockFragment : Fragment() {
             actionLabel  = "Delete"
         ) {
             lifecycleScope.launch {
-                dataViewModel.clearOpeningStockWithCascadeAwait(date, products)
+                val result = dataViewModel.clearOpeningStockWithCascadeAwait(date, products)
                 if (!isAdded) return@launch
+                if (result.hasNegatives) Toast.makeText(requireContext(),
+                    "Negative sale now on ${result.negativeSaleDates.sorted().joinToString()} — check those days.",
+                    Toast.LENGTH_LONG).show()
                 isEditMode        = false
                 hasUnsavedChanges = false
                 Toast.makeText(requireContext(),

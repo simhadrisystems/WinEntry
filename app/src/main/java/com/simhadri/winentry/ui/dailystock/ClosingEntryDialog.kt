@@ -175,7 +175,7 @@ class ClosingEntryDialog : DialogFragment() {
         // Save — validate then fire result
         root.findViewById<MaterialButton>(R.id.btnSave).setOnClickListener {
             val errors = sizes.filter { row ->
-                row.hasStock && totals[row.label]!! > row.maxTotal
+                totals[row.label]!! > row.maxTotal
             }
             if (errors.isNotEmpty()) {
                 val msg = errors.joinToString("\n") { row ->

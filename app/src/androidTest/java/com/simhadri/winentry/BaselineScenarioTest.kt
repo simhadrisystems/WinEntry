@@ -150,7 +150,7 @@ class BaselineScenarioTest {
 
     @Test
     fun clearEntryOnBaseline_keepsObAndMarker() = runBlocking {
-        repo.clearEntryWithCascade(d, "W1", products)
+        repo.clearEntryWithCascade(d, "W1", products, q(5))
         val w1 = row(d, "W1")
         assertTrue(w1.isOpeningStock)
         assertEquals(20, w1.openQq); assertEquals(25, w1.closeQq); assertEquals(0, w1.saleQq)
@@ -160,7 +160,7 @@ class BaselineScenarioTest {
 
     @Test
     fun clearDateOnBaseline_resetsRows() = runBlocking {
-        repo.clearDateData(d)
+        repo.clearDateData(d, mapOf("W1" to q(5)))
         val rows = dao.getAllDailyStockForDate(d)
         assertEquals(3, rows.size)
         assertTrue(rows.all { it.isOpeningStock && it.saleQq == 0 })
@@ -193,9 +193,10 @@ class BaselineScenarioTest {
 
     @Test
     fun deleteBaseline_previousBecomesActive() = runBlocking {
-        repo.clearOpeningStockWithCascade(d, products)
+        repo.clearOpeningStockWithCascade(d, products, mapOf("W1" to q(5)))
         assertEquals(b1, dao.getLatestOpeningStockDate())
-        assertEquals(40, row(d1, "W1").openQq)
+        assertEquals(45, row(d1, "W1").openQq)   // D-1 closing 40 + the 5 purchased on D
+        assertEquals(40, row(d1, "W2").openQq)
     }
 
     /** W4 traded before baseline D but has no row on D; a leaked OB of 40 was saved on D+1. */

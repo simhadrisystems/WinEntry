@@ -116,6 +116,19 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
     override fun onCleared() {
         super.onCleared()
         purchaseRepository.allPurchases.removeObserver(purchaseChangeObserver)
+        // A next-day prompt left unanswered (screen closed first) is applied as Update OB,
+        // so the next day's opening never silently disagrees with this day's closing
+        val rows = pendingCascadeRows ?: return
+        val products = allProducts.value ?: return
+        pendingCascadeRows = null
+        @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                repository.cascadeRecalculate(rows, products)
+            } catch (e: Exception) {
+                ErrorLogger.log(getApplication(), "DailyStock", "Deferred cascade failed", e)
+            }
+        }
     }
 
     // ── Date navigation ───────────────────────────────────────────────────────
@@ -159,6 +172,9 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
 
     fun isCacheEmpty(): Boolean = entriesCache.isEmpty()
 
+    /** Every product for the loaded date, ignoring the search filter. */
+    fun allEntriesForTotals(): List<DailyEntry> = entriesCache.values.toList()
+
     /** Called when product list changes — re-filter without hitting the DB. */
     fun refreshActiveProducts() = filterAndUpdateEntries()
 
@@ -170,32 +186,52 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         loadJob = viewModelScope.launch {
             val products = allProducts.value ?: return@launch
             if (products.isEmpty()) return@launch
-            initializeEntries(products)
+            loadEntries(products)
             loadDateStatus()
         }
     }
 
+    /** Shown when the day's data could not be read; nothing is built or saved in that case. */
+    private val _loadError = MutableLiveData<String?>()
+    val loadError: LiveData<String?> = _loadError
+    fun clearLoadError() { _loadError.value = null }
+
     fun initializeEntries(products: List<Product>) {
-        viewModelScope.launch {
-            val date = _selectedDate.value ?: return@launch
-            if (products.isEmpty()) return@launch
+        // Rotation or a product-list refresh must not rebuild over unsaved edits
+        if (dirtyProducts.isNotEmpty() && entriesCache.isNotEmpty()) { filterAndUpdateEntries(); return }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { loadEntries(products) }
+    }
+
+    private suspend fun loadEntries(products: List<Product>) {
+        run {
+            val date = _selectedDate.value ?: return
+            if (products.isEmpty()) return
 
             // Product-level codes (brand-level, e.g. "W1249")
             val productCodes = products.map { it.stockCode }
 
-            // One query returns all previous rows (all 4 sizes each)
-            val prevRowMap  = runCatching { repository.getBulkPreviousRows(productCodes, date) }
-                .getOrDefault(emptyMap())
-            // Purchase quantities keyed by primary size code
-            val purchaseMap = runCatching {
-                purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
-            }.getOrDefault(emptyMap())
-            // Current stock rows for the selected date (product-level)
-            val stockMap    = runCatching { repository.getAllDailyStockForDate(date) }
-                .getOrDefault(emptyList()).associateBy { it.productCode }
+            // A failed read must not look like zero stock: saving that would commit zeros
+            val prevRowMap: Map<String, DailyStock>
+            val purchaseMap: Map<String, Int>
+            val stockMap: Map<String, DailyStock>
+            try {
+                prevRowMap  = repository.getBulkPreviousRows(productCodes, date)
+                purchaseMap = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(date, products)
+                stockMap    = repository.getAllDailyStockForDate(date).associateBy { it.productCode }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ErrorLogger.log(getApplication(), "DailyStock", "Load failed date=$date", e)
+                _loadError.value = "Could not read stock for $date. Nothing was changed. Please reopen the screen."
+                return
+            }
+            // A slower load for a date the user already left must not overwrite the current one
+            if (_selectedDate.value != date) return
 
             val dao = AppDatabase.getInstance(getApplication()).purchaseDao()
             val entries = products.map { buildEntry(it, date, prevRowMap, purchaseMap, stockMap, dao) }
+            if (_selectedDate.value != date) return
 
             // Update cache in-place — only replace entries whose values changed.
             // This lets DiffUtil do minimal rebinding: card backgrounds and row
@@ -389,9 +425,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
     fun saveProductEntry(productId: Long) {
         viewModelScope.launch {
             try {
-                val date  = _selectedDate.value ?: return@launch
                 val entry = entriesCache[productId] ?: return@launch
-                val rows  = buildRows(date, entry)
+                val rows  = buildRows(entry)
                 // Save unconditionally — downstream negative sales are handled by
                 // the cascade system (CascadeWithWarnings) so the user can correct
                 // dates one at a time without being blocked by downstream issues.
@@ -418,7 +453,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 entriesCache.values
                     .distinctBy { it.product.id }
                     .filter { dirtyProducts.contains(it.product.id) }
-                    .forEach { entry -> rowsToSave.addAll(buildRows(date, entry)) }
+                    .filter { it.date == date }
+                    .forEach { entry -> rowsToSave.addAll(buildRows(entry)) }
 
                 if (rowsToSave.isNotEmpty()) {
                     // Save unconditionally — downstream issues handled by cascade warnings.
@@ -480,15 +516,22 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
      * Build ONE DailyStock row per product — all 4 sizes, all snapshots.
      * Called at commit time; values are locked permanently.
      */
-    private fun buildRows(date: String, entry: DailyEntry): List<DailyStock> {
+    private suspend fun buildRows(entry: DailyEntry): List<DailyStock> {
+        val date = entry.date
         val p  = entry.product
         val sq = entry.sale
         val ob = entry.opening
         val cb = entry.closing
-        val amtQq = sq.qq * p.qqSalePrice
-        val amtPp = sq.pp * p.ppSalePrice
-        val amtNn = sq.nn * p.nnSalePrice
-        val amtDd = sq.dd * p.ddSalePrice
+        // A committed day keeps the prices it was sold at; only new days take the master price
+        val stored = repository.getDailyStockRaw(date, p.stockCode)?.takeIf { it.isCommitted }
+        val prQq = stored?.priceQq ?: p.qqSalePrice
+        val prPp = stored?.pricePp ?: p.ppSalePrice
+        val prNn = stored?.priceNn ?: p.nnSalePrice
+        val prDd = stored?.priceDd ?: p.ddSalePrice
+        val amtQq = sq.qq * prQq
+        val amtPp = sq.pp * prPp
+        val amtNn = sq.nn * prNn
+        val amtDd = sq.dd * prDd
         return listOf(
             DailyStock(
                 date        = date,
@@ -496,8 +539,8 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
                 openQq  = ob.qq, openPp  = ob.pp, openNn  = ob.nn, openDd  = ob.dd,
                 closeQq = cb.qq, closePp = cb.pp, closeNn = cb.nn, closeDd = cb.dd,
                 saleQq  = sq.qq, salePp  = sq.pp, saleNn  = sq.nn, saleDd  = sq.dd,
-                priceQq = p.qqSalePrice, pricePp = p.ppSalePrice,
-                priceNn = p.nnSalePrice, priceDd = p.ddSalePrice,
+                priceQq = prQq, pricePp = prPp,
+                priceNn = prNn, priceDd = prDd,
                 amountQq = amtQq, amountPp = amtPp,
                 amountNn = amtNn, amountDd = amtDd,
                 saleAmount  = amtQq + amtPp + amtNn + amtDd,
@@ -520,9 +563,12 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
 
     private suspend fun checkAndRequestCascade(rows: List<DailyStock>) {
         try {
-            val preview = repository.previewCascade(rows)
+            // Two quick saves must not drop the first one's pending next-day update
+            val keys = rows.map { it.date to it.productCode }.toSet()
+            val combined = pendingCascadeRows.orEmpty().filter { (it.date to it.productCode) !in keys } + rows
+            val preview = repository.previewCascade(combined)
             if (!preview.isNeeded) return
-            pendingCascadeRows   = rows
+            pendingCascadeRows   = combined
             _cascadeRequest.postValue(CascadeRequest(preview))
         } catch (e: Exception) {
             android.util.Log.e("DailyStock", "Cascade preview: ${e.message}", e)
@@ -541,17 +587,21 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
         if (choice == CascadeChoice.CLEAR_NEXT) {
             viewModelScope.launch {
                 try {
-                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                    val cal = Calendar.getInstance()
-                    for (row in rows) {
-                        cal.time = sdf.parse(row.date) ?: continue
-                        cal.add(Calendar.DAY_OF_MONTH, 1)
-                        val nextDate = sdf.format(cal.time)
-                        if (repository.getDailyStockRaw(nextDate, row.productCode)?.isOpeningStock == true) continue
-                        repository.deleteDailyStock(nextDate, row.productCode)
+                    val products = allProducts.value ?: emptyList()
+                    val result = repository.clearNextDayWithCascade(rows, products) { d ->
+                        val bySize = purchaseRepository.getAllPurchaseQuantitiesByCodeForDate(d, products)
+                        products.associate { p -> p.stockCode to intArrayOf(
+                            bySize[p.qqCode] ?: 0, bySize[p.ppCode] ?: 0,
+                            bySize[p.nnCode] ?: 0, bySize[p.ddCode] ?: 0) }
                     }
                     loadEntriesForDate()
                     loadDateStatus()
+                    if (result.hasNegatives) {
+                        _negativeSaleDates.value = result.negativeSaleDates.sorted()
+                        _saveStatus.value = SaveStatus.CascadeWithWarnings(
+                            updatedCount = result.updatedCount,
+                            problemDates = result.negativeSaleDates.sorted())
+                    }
                 } catch (e: Exception) {
                     ErrorLogger.log(getApplication(), "DailyStock", "Clear next day failed", e)
                 }

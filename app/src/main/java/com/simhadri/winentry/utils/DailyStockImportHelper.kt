@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.getAllBrandCodes
-import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.InputStream
@@ -114,6 +113,7 @@ class DailyStockImportHelper(private val context: Context) {
             val closingData     = mutableMapOf<String, ClosingImport>()
             val unknownProducts = mutableListOf<String>() // non-zero CB, not found
             var skippedBlank    = 0
+            val badRows         = mutableListOf<String>()
             var skippedUnknown  = 0
 
             // Detect header row — scan first 3 rows for "DATE_CLOSING"
@@ -138,9 +138,7 @@ class DailyStockImportHelper(private val context: Context) {
 
                 val parsedDate = parseDate(rawDate)
                 if (parsedDate.isEmpty()) {
-                    android.util.Log.w("ImportClosing",
-                        "Row $rowIndex: unparseable date '$rawDate' — skipped")
-                    skippedBlank++
+                    badRows += "row ${rowIndex + 1}: date '$rawDate'"
                     continue
                 }
 
@@ -155,10 +153,15 @@ class DailyStockImportHelper(private val context: Context) {
                 // Column 3: PRODUCT_NAME — intentionally ignored
 
                 // Columns 4-7: closing quantities
-                val qqClosing = getCellInt(row, 4)
-                val ppClosing = getCellInt(row, 5)
-                val nnClosing = getCellInt(row, 6)
-                val ddClosing = getCellInt(row, 7)
+                val qty = (4..7).map { getQuantity(row, it) }
+                if (qty.any { it == null }) {
+                    badRows += "row ${rowIndex + 1}: closing must be whole numbers of 0 or more"
+                    continue
+                }
+                val qqClosing = qty[0]!!
+                val ppClosing = qty[1]!!
+                val nnClosing = qty[2]!!
+                val ddClosing = qty[3]!!
 
                 // ── Resolve product — try all three key variants ──
                 // Note: zero CB rows are valid (product sold out) and are NOT skipped.
@@ -207,13 +210,16 @@ class DailyStockImportHelper(private val context: Context) {
             if (closingData.isEmpty() && unknownProducts.isEmpty()) {
                 return ImportResult(false,
                     "No valid closing records found. " +
-                    "Check DATE_CLOSING, PRODUCT_TYPE and BRAND_CODE columns.")
+                    "Check DATE_CLOSING, PRODUCT_TYPE and BRAND_CODE columns." +
+                    (if (badRows.isNotEmpty()) " Invalid: " + badRows.take(5).joinToString("; ") else ""))
             }
 
             val msg = buildString {
                 append("Found ${closingData.size} closing record(s)")
                 if (skippedBlank   > 0) append(", $skippedBlank blank row(s) skipped")
                 if (skippedUnknown > 0) append(", $skippedUnknown unknown product(s) skipped")
+                if (badRows.isNotEmpty()) append(", ${badRows.size} invalid row(s) skipped (" +
+                    badRows.take(5).joinToString("; ") + (if (badRows.size > 5) "; …" else "") + ")")
             }
 
             return ImportResult(
@@ -379,15 +385,8 @@ class DailyStockImportHelper(private val context: Context) {
     }
 
     /** Standard reader — numeric cells → Int → String (loses leading zeros, fine for non-code cols) */
-    private fun getCellString(row: Row, colIndex: Int): String {
-        if (colIndex < 0) return ""
-        val cell = row.getCell(colIndex) ?: return ""
-        return when (cell.cellType) {
-            CellType.STRING  -> cell.stringCellValue.trim()
-            CellType.NUMERIC -> cell.numericCellValue.toLong().toString()
-            else             -> ""
-        }
-    }
+    private fun getCellString(row: Row, colIndex: Int): String =
+        if (colIndex < 0) "" else ExcelCells.text(row.getCell(colIndex)).orEmpty()
 
     /**
      * Raw reader for BRAND_CODE column.
@@ -395,58 +394,23 @@ class DailyStockImportHelper(private val context: Context) {
      * Leading zeros were already lost by Excel saving as numeric; the lookup map
      * compensates by registering stripped variants of each product's brand code.
      */
-    private fun getCellStringRaw(row: Row, colIndex: Int): String {
-        if (colIndex < 0) return ""
-        val cell = row.getCell(colIndex) ?: return ""
-        return when (cell.cellType) {
-            CellType.STRING  -> cell.stringCellValue.trim()
-            CellType.NUMERIC -> cell.numericCellValue.toLong().toString()
-            else             -> ""
-        }
-    }
+    private fun getCellStringRaw(row: Row, colIndex: Int): String = getCellString(row, colIndex)
 
-    private fun getCellInt(row: Row, colIndex: Int): Int {
+    private fun getCellInt(row: Row, colIndex: Int): Int = getQuantity(row, colIndex) ?: 0
+
+    /** Blank or "-" = 0; null when the cell is not a whole, non-negative number. */
+    private fun getQuantity(row: Row, colIndex: Int): Int? {
         if (colIndex < 0) return 0
         val cell = row.getCell(colIndex) ?: return 0
-        return when (cell.cellType) {
-            CellType.NUMERIC -> cell.numericCellValue.toInt()
-            CellType.STRING  -> {
-                val s = cell.stringCellValue.trim()
-                if (s.isEmpty() || s == "-") 0 else s.toIntOrNull() ?: 0
-            }
-            else -> 0
-        }
+        if (ExcelCells.text(cell) == "-") return 0
+        return ExcelCells.quantity(cell)
     }
 
     // ─────────────────────────────────────────────────────────────
     // Date parser — supports yyyy-MM-dd, dd/MM/yyyy, dd-MM-yyyy,
     //               and Excel numeric date serials
     // ─────────────────────────────────────────────────────────────
-    private fun parseDate(dateStr: String): String {
-        if (dateStr.isBlank()) return ""
-        try {
-            if (dateStr.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return dateStr
-            if (dateStr.matches(Regex("\\d{1,2}/\\d{1,2}/\\d{4}"))) {
-                val p = dateStr.split("/")
-                return "${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}"
-            }
-            if (dateStr.matches(Regex("\\d{1,2}-\\d{1,2}-\\d{4}"))) {
-                val p = dateStr.split("-")
-                return "${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}"
-            }
-            val num = dateStr.toDoubleOrNull()
-            if (num != null && num > 40000 && num < 60000) {
-                val cal = java.util.Calendar.getInstance().apply {
-                    set(1899, 11, 30, 0, 0, 0)
-                    set(java.util.Calendar.MILLISECOND, 0)
-                }
-                cal.add(java.util.Calendar.DATE, num.toInt())
-                return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                    .format(cal.time)
-            }
-        } catch (_: Exception) {}
-        return ""
-    }
+    private fun parseDate(dateStr: String): String = StrictDate.parse(dateStr).orEmpty()
 
     // ─────────────────────────────────────────────────────────────
     // Template generators

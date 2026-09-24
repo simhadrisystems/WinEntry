@@ -11,6 +11,7 @@ import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.entity.SyncStatus
 import com.simhadri.winentry.data.repository.BaselineMath
 import com.simhadri.winentry.data.repository.CommittedSaleRefresher
+import com.simhadri.winentry.data.repository.DailyStockRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -28,6 +29,8 @@ class IntegrityScenarioTest {
 
     private val d = "2026-09-10"
     private val d1 = "2026-09-11"
+    private val d2 = "2026-09-12"
+    private val dm1 = "2026-09-09"
 
     private fun product(code: String) = Product(
         productName = code, productType = "W", brandCode = code,
@@ -115,5 +118,44 @@ class IntegrityScenarioTest {
         val next = db.dailyStockDao().getDailyStock(d1, "W1")!!
         assertEquals(15, next.openQq)
         assertEquals(7, next.saleQq)
+    }
+
+    private fun repo() = DailyStockRepository(db.productDao(), db.dailyStockDao())
+    private fun q(n: Int) = intArrayOf(n, 0, 0, 0)
+
+    @Test
+    fun clearEntry_nextDayOpeningKeepsThatDaysPurchases() = runBlocking {
+        val products = db.productDao().getAllProductsSync()
+        db.dailyStockDao().upsertCommittedBatch(listOf(
+            committed(dm1, 10, 0, 10), committed(d, 10, 5, 12), committed(d1, 12, 0, 9)))
+        val result = repo().clearEntryWithCascade(d, "W1", products, q(5))
+        val next = db.dailyStockDao().getDailyStock(d1, "W1")!!
+        assertEquals(15, next.openQq)
+        assertEquals(6, next.saleQq)
+        assertTrue(result.negativeSaleDates.isEmpty())
+        assertEquals(1, db.pendingCloudDeleteDao().count())
+    }
+
+    @Test
+    fun clearDate_cascadesToNextDay() = runBlocking {
+        db.dailyStockDao().upsertCommittedBatch(listOf(
+            committed(dm1, 10, 0, 10), committed(d, 10, 0, 4), committed(d1, 4, 0, 4)))
+        repo().clearDateData(d, mapOf("W1" to q(2)))
+        val next = db.dailyStockDao().getDailyStock(d1, "W1")!!
+        assertEquals(12, next.openQq)
+        assertEquals(8, next.saleQq)
+    }
+
+    @Test
+    fun clearNextDay_updatesDayAfter() = runBlocking {
+        val products = db.productDao().getAllProductsSync()
+        db.dailyStockDao().upsertCommittedBatch(listOf(
+            committed(d, 10, 0, 8), committed(d1, 8, 3, 6), committed(d2, 6, 0, 6)))
+        val today = db.dailyStockDao().getDailyStock(d, "W1")!!
+        repo().clearNextDayWithCascade(listOf(today), products) { mapOf("W1" to q(3)) }
+        assertEquals(null, db.dailyStockDao().getDailyStock(d1, "W1"))
+        val after = db.dailyStockDao().getDailyStock(d2, "W1")!!
+        assertEquals(11, after.openQq)
+        assertEquals(5, after.saleQq)
     }
 }

@@ -459,48 +459,87 @@ class DailyStockRepository(
         dailyStockDao.hasNonZeroClosingBalance(productCode) > 0
 
     /**
-     * Delete today's committed entry for [productCode] on [date], then cascade-update
-     * the next committed day's opening balance so it reflects the new effective CB
-     * (= previous committed row's CB, or zero if no prior history).
-     *
-     * Clearing can never create negative sales on the next day — the new OB will be
-     * >= the old OB, so the next day's sale can only stay the same or increase.
+     * The stock a product really has at the end of [date] once that day's entry is gone:
+     * the previous committed CB plus the day's purchases, with nothing sold. Used as the
+     * cascade "from" row so the next day's opening keeps that day's purchases.
+     * Call after the day's rows are deleted: a baseline on [date] floors the lookup.
      */
-    suspend fun clearEntryWithCascade(date: String, productCode: String, products: List<Product>) {
+    private suspend fun clearedDayRow(date: String, productCode: String, pq: IntArray): DailyStock {
+        val prev = dailyStockDao.getLastCommittedBeforeDate(productCode, date)
+        return DailyStock(
+            date        = date,
+            productCode = productCode,
+            closeQq = (prev?.closeQq ?: 0) + pq[0],
+            closePp = (prev?.closePp ?: 0) + pq[1],
+            closeNn = (prev?.closeNn ?: 0) + pq[2],
+            closeDd = (prev?.closeDd ?: 0) + pq[3],
+            isCommitted = true
+        )
+    }
+
+    /**
+     * Delete today's committed entry for [productCode] on [date], then cascade-update the
+     * next committed day's opening to the stock left without that entry (see [clearedDayRow]).
+     * [pq] is that day's purchase quantity for the product.
+     */
+    suspend fun clearEntryWithCascade(
+        date: String, productCode: String, products: List<Product>, pq: IntArray
+    ): CascadeResult {
         val today = dailyStockDao.getDailyStock(date, productCode)
         if (today != null && today.isCommitted && today.isOpeningStock) {
             val reset = BaselineMath.resetRow(today)
             dailyStockDao.upsertCommittedBatch(listOf(reset))
-            cascadeRecalculate(listOf(reset), products)
-            return
+            return cascadeRecalculate(listOf(reset), products)
         }
-        val prevRow = dailyStockDao.getLastCommittedBeforeDate(productCode, date)
         dailyStockDao.deleteDailyStock(date, productCode)
-
-        // Virtual "from" row: today's new effective CB = previous committed CB (or zeros)
-        val virtualRow = DailyStock(
-            date        = date,
-            productCode = productCode,
-            openQq  = 0, openPp  = 0, openNn  = 0, openDd  = 0,
-            closeQq = prevRow?.closeQq ?: 0,
-            closePp = prevRow?.closePp ?: 0,
-            closeNn = prevRow?.closeNn ?: 0,
-            closeDd = prevRow?.closeDd ?: 0,
-            isCommitted = true
-        )
-        cascadeRecalculate(listOf(virtualRow), products)
+        return cascadeRecalculate(listOf(clearedDayRow(date, productCode, pq)), products)
     }
 
-    /** Clears a date. On a baseline date the rows are reset (OB and marker kept) instead of deleted. */
-    suspend fun clearDateData(date: String) {
+    /**
+     * Clears a date and cascades to the next day. On a baseline date the rows are reset
+     * (OB and marker kept) instead of deleted. [pq]: stockCode to that day's purchases.
+     */
+    suspend fun clearDateData(date: String, pq: Map<String, IntArray>): CascadeResult {
         val rows = dailyStockDao.getAllDailyStockForDate(date)
+        val products = productDao.getAllProductsSync()
         if (rows.any { it.isCommitted && it.isOpeningStock }) {
             val reset = rows.filter { it.isCommitted }.map { BaselineMath.resetRow(it) }
             dailyStockDao.upsertCommittedBatch(reset)
-            cascadeRecalculate(reset, productDao.getAllProductsSync())
-        } else {
-            dailyStockDao.deleteAllForDate(date)
+            return cascadeRecalculate(reset, products)
         }
+        dailyStockDao.deleteAllForDate(date)
+        val from = rows.filter { it.isCommitted }
+            .map { clearedDayRow(it.date, it.productCode, pq[it.productCode] ?: IntArray(4)) }
+        return cascadeRecalculate(from, products)
+    }
+
+    /**
+     * Clear Next Day: deletes the rows on the day after [rows]' date and cascades from the
+     * stock left on that day (this CB + that day's purchases) to the day after it.
+     */
+    suspend fun clearNextDayWithCascade(
+        rows: List<DailyStock>, products: List<Product>, pqNext: suspend (String) -> Map<String, IntArray>
+    ): CascadeResult {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val from = mutableListOf<DailyStock>()
+        for ((date, group) in rows.groupBy { it.date }) {
+            val cal = java.util.Calendar.getInstance().apply { time = sdf.parse(date) ?: return@apply }
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            val nextDate = sdf.format(cal.time)
+            val pq = pqNext(nextDate)
+            for (row in group) {
+                val next = dailyStockDao.getDailyStock(nextDate, row.productCode) ?: continue
+                if (next.isOpeningStock) continue
+                dailyStockDao.deleteDailyStock(nextDate, row.productCode)
+                val p = pq[row.productCode] ?: IntArray(4)
+                from += DailyStock(
+                    date = nextDate, productCode = row.productCode,
+                    closeQq = row.closeQq + p[0], closePp = row.closePp + p[1],
+                    closeNn = row.closeNn + p[2], closeDd = row.closeDd + p[3],
+                    isCommitted = true)
+            }
+        }
+        return if (from.isEmpty()) CascadeResult(0, emptySet()) else cascadeRecalculate(from, products)
     }
 
     suspend fun isBaselineDate(date: String): Boolean =
@@ -511,20 +550,14 @@ class DailyStockRepository(
      * day's opening balance for every product that was on [date] — mirrors
      * [clearEntryWithCascade]'s per-product pattern, batched over the whole date.
      */
-    suspend fun clearOpeningStockWithCascade(date: String, products: List<Product>) {
+    suspend fun clearOpeningStockWithCascade(
+        date: String, products: List<Product>, pq: Map<String, IntArray>
+    ): CascadeResult {
         val rowsToday = dailyStockDao.getAllDailyStockForDate(date).filter { it.isCommitted }
+        // After the delete, so the previous-CB lookup is no longer floored at this baseline
         dailyStockDao.deleteAllForDate(date)
-        val virtualRows = rowsToday.map { row ->
-            val prevRow = dailyStockDao.getLastCommittedBeforeDate(row.productCode, date)
-            DailyStock(
-                date        = date,
-                productCode = row.productCode,
-                closeQq = prevRow?.closeQq ?: 0, closePp = prevRow?.closePp ?: 0,
-                closeNn = prevRow?.closeNn ?: 0, closeDd = prevRow?.closeDd ?: 0,
-                isCommitted = true
-            )
-        }
-        cascadeRecalculate(virtualRows, products)
+        val virtualRows = rowsToday.map { clearedDayRow(date, it.productCode, pq[it.productCode] ?: IntArray(4)) }
+        return cascadeRecalculate(virtualRows, products)
     }
 
     /** [alsoCloud] queues removal of the whole DailyStock tab on the next sync. */

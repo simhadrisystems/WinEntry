@@ -10,6 +10,8 @@ import com.simhadri.winentry.data.entity.ProductSizeQty
 import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.data.repository.CascadeResult
+import com.simhadri.winentry.data.repository.BaselineMath
+import androidx.room.withTransaction
 import com.simhadri.winentry.data.repository.PurchaseRepository
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -202,7 +204,7 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     sealed class ImportStatus {
         object Idle                                        : ImportStatus()
         data class Running(val message: String)            : ImportStatus()
-        data class Success(val count: Int, val dates: Int) : ImportStatus()
+        data class Success(val count: Int, val dates: Int, val negativeDates: List<String> = emptyList()) : ImportStatus()
         data class Error(val message: String)              : ImportStatus()
     }
 
@@ -222,7 +224,11 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             try {
                 var updatedRecords = 0
+                val negatives = sortedSetOf<String>()
+                val written = mutableListOf<DailyStock>()
                 val sortedRecords = result.closingData.values.sortedBy { it.date }
+                // All or nothing; each day's OB reads the previous day's CB written just before it
+                AppDatabase.getInstance(getApplication()).withTransaction {
                 for (ci in sortedRecords) {
                     val product = products.find {
                         it.productType == ci.productType && it.brandCode == ci.brandCode
@@ -230,31 +236,29 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
                     val ob      = repository.getOpeningFor(product.stockCode, ci.date)
                     val pqRaw   = purchaseRepository.getPurchaseQuantitiesForDateAndProduct(
                         ci.date, product.id)
-                    val obQq = ob[0]; val obPp = ob[1]; val obNn = ob[2]; val obDd = ob[3]
-                    val cbQq = ci.qqClosing; val cbPp = ci.ppClosing
-                    val cbNn = ci.nnClosing; val cbDd = ci.ddClosing
-                    val pqQq = pqRaw.qqTotalUnits; val pqPp = pqRaw.ppTotalUnits
-                    val pqNn = pqRaw.nnTotalUnits; val pqDd = pqRaw.ddTotalUnits
-                    val sqQq = if (obQq==0&&pqQq==0) 0 else (obQq+pqQq-cbQq).coerceAtLeast(0)
-                    val sqPp = if (obPp==0&&pqPp==0) 0 else (obPp+pqPp-cbPp).coerceAtLeast(0)
-                    val sqNn = if (obNn==0&&pqNn==0) 0 else (obNn+pqNn-cbNn).coerceAtLeast(0)
-                    val sqDd = if (obDd==0&&pqDd==0) 0 else (obDd+pqDd-cbDd).coerceAtLeast(0)
-                    val amtQq = sqQq*product.qqSalePrice; val amtPp = sqPp*product.ppSalePrice
-                    val amtNn = sqNn*product.nnSalePrice; val amtDd = sqDd*product.ddSalePrice
-                    repository.saveAllEntries(listOf(DailyStock(
+                    val stored  = repository.getDailyStockRaw(ci.date, product.stockCode)?.takeIf { it.isCommitted }
+                    val cb = intArrayOf(ci.qqClosing, ci.ppClosing, ci.nnClosing, ci.ddClosing)
+                    val pq = intArrayOf(pqRaw.qqTotalUnits, pqRaw.ppTotalUnits, pqRaw.nnTotalUnits, pqRaw.ddTotalUnits)
+                    val sale = IntArray(4) { ob[it] + pq[it] - cb[it] }
+                    if (sale.any { it < 0 }) negatives += ci.date
+                    val row = BaselineMath.withSale(DailyStock(
                         date=ci.date, productCode=product.stockCode,
-                        openQq=obQq, openPp=obPp, openNn=obNn, openDd=obDd,
-                        closeQq=cbQq, closePp=cbPp, closeNn=cbNn, closeDd=cbDd,
-                        saleQq=sqQq, salePp=sqPp, saleNn=sqNn, saleDd=sqDd,
-                        priceQq=product.qqSalePrice, pricePp=product.ppSalePrice,
-                        priceNn=product.nnSalePrice, priceDd=product.ddSalePrice,
-                        amountQq=amtQq, amountPp=amtPp, amountNn=amtNn, amountDd=amtDd,
-                        saleAmount=amtQq+amtPp+amtNn+amtDd, isCommitted=true
-                    )))
+                        openQq=ob[0], openPp=ob[1], openNn=ob[2], openDd=ob[3],
+                        closeQq=cb[0], closePp=cb[1], closeNn=cb[2], closeDd=cb[3],
+                        priceQq=stored?.priceQq ?: product.qqSalePrice, pricePp=stored?.pricePp ?: product.ppSalePrice,
+                        priceNn=stored?.priceNn ?: product.nnSalePrice, priceDd=stored?.priceDd ?: product.ddSalePrice,
+                        isCommitted=true
+                    ), sale)
+                    repository.saveAllEntries(listOf(row))
+                    written += row
                     updatedRecords++
                 }
+                // The day after the last imported date takes its opening from the imported closing
+                val lastPerProduct = written.groupBy { it.productCode }.values.map { rows -> rows.maxBy { it.date } }
+                negatives += repository.cascadeRecalculate(lastPerProduct, products).negativeSaleDates
+                }
                 val dateCount = result.closingData.values.map{it.date}.toSortedSet().size
-                _importStatus.postValue(ImportStatus.Success(updatedRecords, dateCount))
+                _importStatus.postValue(ImportStatus.Success(updatedRecords, dateCount, negatives.toList()))
             } catch (e: Exception) {
                 _importStatus.postValue(ImportStatus.Error(e.message ?: "Import failed"))
             }
@@ -475,12 +479,9 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
 
     suspend fun isBaselineDate(date: String) = repository.isBaselineDate(date)
 
-    fun clearDateData(date: String) {
-        viewModelScope.launch { repository.clearDateData(date) }
-    }
-
     /** Suspend version — caller awaits DB completion before reloading UI. */
-    suspend fun clearDateDataAwait(date: String) = repository.clearDateData(date)
+    suspend fun clearDateDataAwait(date: String): CascadeResult =
+        repository.clearDateData(date, getPurchaseQtyByStockCode(date, repository.getAllProductsSync()))
 
     /** Clear the entire daily_stock table. */
     fun clearAllData() {
@@ -497,13 +498,15 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
         date:        String,
         productCode: String,
         products:    List<com.simhadri.winentry.data.entity.Product>
-    ) = repository.clearEntryWithCascade(date, productCode, products)
+    ): CascadeResult = repository.clearEntryWithCascade(date, productCode, products,
+        getPurchaseQtyByStockCode(date, products)[productCode] ?: IntArray(4))
 
     /** Deletes the active opening stock date and cascade-corrects the next committed day. */
     suspend fun clearOpeningStockWithCascadeAwait(
         date:     String,
         products: List<Product>
-    ) = repository.clearOpeningStockWithCascade(date, products)
+    ): CascadeResult = repository.clearOpeningStockWithCascade(date, products,
+        getPurchaseQtyByStockCode(date, repository.getAllProductsSync()))
 
     /** Force all committed rows to re-sync to Google Sheets. */
     fun forceFullResync() {

@@ -217,6 +217,24 @@ class SyncCoordinator(private val context: Context) {
         return performFullSync()
     }
 
+    /**
+     * Why sample data must not be loaded now, or null when it is safe. Loading it wipes local
+     * stock, so unsynced changes block it; a cloud sheet that already holds stock means the
+     * user should restore instead.
+     */
+    suspend fun sampleDataBlocker(): String? = withContext(Dispatchers.IO) {
+        val pending = pendingChangeCount()
+        if (pending > 0) return@withContext "$pending change(s) on this device are not synced yet. " +
+            "Sync first; loading sample data replaces the stock on this device."
+        if (!isUserSheetReady()) return@withContext null
+        when (val r = syncLock.withLock { CloudFunctionClient().syncUserSheet("read_all") }) {
+            is SyncSheetResult.AllRead -> if (r.dailyStock.isNotEmpty())
+                "Your cloud sheet already has daily stock. Use Restore from Cloud instead of sample data." else null
+            is SyncSheetResult.NoSheet -> null
+            else -> "Could not check your cloud sheet (no internet?). Try again when online."
+        }
+    }
+
     /** Deletes all inventory data on this device (products are kept). The cloud is not touched. */
     suspend fun wipeLocalInventory(reason: String) = withContext(Dispatchers.IO) {
         DbSnapshot.take(context, reason)

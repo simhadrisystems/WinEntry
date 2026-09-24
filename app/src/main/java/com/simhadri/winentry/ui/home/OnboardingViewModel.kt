@@ -88,6 +88,8 @@ class OnboardingViewModel(app: Application) : AndroidViewModel(app) {
                 if (products.isEmpty()) return@withContext "Download products first, then retry."
                 val fetch = TestDataImportManager.fetchTestData(app)
                 if (fetch.isFailure) return@withContext fetch.exceptionOrNull()?.message ?: "Download failed."
+                com.simhadri.winentry.sync.SyncCoordinator(app).sampleDataBlocker()?.let { return@withContext it }
+                com.simhadri.winentry.utils.DbSnapshot.take(app, "sample-data")
                 val repo = DailyStockRepository(db.productDao(), db.dailyStockDao())
                 repo.clearAllData()
                 val result = TestDataImportManager.importTestData(fetch.getOrThrow(), startDate, products, repo)

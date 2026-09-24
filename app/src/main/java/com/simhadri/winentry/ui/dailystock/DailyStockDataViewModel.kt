@@ -391,11 +391,6 @@ class DailyStockDataViewModel(application: Application) : AndroidViewModel(appli
     suspend fun clearDateDataAwait(date: String): CascadeResult =
         repository.clearDateData(date, getPurchaseQtyByStockCode(date, repository.getAllProductsSync()))
 
-    /** Clear the entire daily_stock table. */
-    fun clearAllData() {
-        viewModelScope.launch { repository.clearAllData() }
-    }
-
     /** Suspend version — caller awaits DB completion before reloading UI. */
     suspend fun clearAllDataAwait(alsoCloud: Boolean) = repository.clearAllData(alsoCloud)
 

@@ -56,7 +56,13 @@ class TestDataViewModel(application: Application) : AndroidViewModel(application
                     return@launch
                 }
 
+                val coordinator = com.simhadri.winentry.sync.SyncCoordinator(getApplication())
+                coordinator.sampleDataBlocker()?.let {
+                    state.value = State.Done(success = false, message = it)
+                    return@launch
+                }
                 // Clear all existing daily stock before loading test data
+                com.simhadri.winentry.utils.DbSnapshot.take(getApplication(), "sample-data")
                 repo.clearAllData()
 
                 val result = TestDataImportManager.importTestData(

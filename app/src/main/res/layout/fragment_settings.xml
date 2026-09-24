@@ -377,6 +377,24 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- ── Data safety ─────────────────────────────────────── -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCheckIntegrity"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Check Data Integrity"
+                android:layout_marginTop="8dp"
+                style="@style/Widget.Material3.Button.OutlinedButton"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReuploadAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Re-upload All Data to Cloud"
+                android:visibility="gone"
+                android:layout_marginTop="4dp"
+                style="@style/Widget.Material3.Button.OutlinedButton"/>
+
             <!-- ── Error Log — only visible when errors exist ───────── -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnShareErrorLog"

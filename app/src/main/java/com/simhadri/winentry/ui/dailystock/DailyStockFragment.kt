@@ -1669,41 +1669,6 @@ class DailyStockFragment : Fragment() {
     }
 
 
-    // ═══════════════════════════════════════════════════════════════
-    // IMPORT — PURCHASE / SALE (generic)
-    // ═══════════════════════════════════════════════════════════════
-    private fun performImport(uri: Uri, importType: String) {
-        val products = viewModel.allProducts.value
-        if (products.isNullOrEmpty()) {
-            Toast.makeText(requireContext(), "No products available.", Toast.LENGTH_LONG).show()
-            return
-        }
-        try {
-            val result = when (importType) {
-                "purchase" -> importHelper.importPurchaseOnly(uri, products)
-                "sale"     -> importHelper.importSaleOnly(uri, products)
-                else       -> importHelper.importFromExcel(uri, products)
-            }
-            if (!result.success) {
-                Toast.makeText(requireContext(), result.message, Toast.LENGTH_LONG).show()
-                return
-            }
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Import Daily Stock")
-                .setMessage("${result.message}\n\nThis will update the current date's data. Continue?")
-                .setPositiveButton("Import") { _, _ -> applyImportedData(result) }
-                .setNegativeButton("Cancel", null)
-                .show()
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun applyImportedData(result: DailyStockImportHelper.ImportResult) {
-        // Observer already registered in setupImportObserver() — just trigger the work
-        val products = viewModel.allProducts.value ?: emptyList()
-        dataViewModel.applyImportedData(result, products)
-    }
 
 
     // ═══════════════════════════════════════════════════════════════

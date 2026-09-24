@@ -19,11 +19,19 @@ class CommittedSaleRefresher(private val db: AppDatabase) {
     private val purchaseRepo = PurchaseRepository(db.purchaseDao())
 
     /** Returns the dates that now hold a negative sale. */
-    suspend fun refresh(dates: Collection<String>): Set<String> {
+    suspend fun refresh(dates: Collection<String>): Set<String> = run(dates, dryRun = false).negatives
+
+    /** Dates whose committed rows disagree with their purchases; nothing is written. */
+    suspend fun findStale(dates: Collection<String>): Set<String> = run(dates, dryRun = true).changed
+
+    private class Outcome(val changed: Set<String>, val negatives: Set<String>)
+
+    private suspend fun run(dates: Collection<String>, dryRun: Boolean): Outcome {
         val todo = dates.filter { it.isNotBlank() }.toSortedSet()
-        if (todo.isEmpty()) return emptySet()
+        if (todo.isEmpty()) return Outcome(emptySet(), emptySet())
         val products = db.productDao().getAllProductsSync()
         val negatives = mutableSetOf<String>()
+        val changed = mutableSetOf<String>()
         for (date in todo) {
             val rows = db.dailyStockDao().getAllDailyStockForDate(date).filter { it.isCommitted }
             if (rows.isEmpty()) continue
@@ -45,11 +53,13 @@ class CommittedSaleRefresher(private val db: AppDatabase) {
                 if (!sale.contentEquals(BaselineMath.sale(r))) saleFixed += BaselineMath.withSale(r, sale)
             }
             if (saleFixed.isEmpty() && cbMoved.isEmpty()) continue
+            changed += date
+            if (dryRun) continue
             db.dailyStockDao().upsertCommittedBatch(saleFixed + cbMoved)
             if (cbMoved.isNotEmpty()) negatives += stockRepo.cascadeRecalculate(cbMoved, products).negativeSaleDates
             refreshDayTotal(date)
         }
-        return negatives
+        return Outcome(changed, negatives)
     }
 
     /** Re-snapshots the day total on an existing reconciliation row so reports match the stock. */

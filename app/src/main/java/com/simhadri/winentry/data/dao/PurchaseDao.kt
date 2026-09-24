@@ -44,6 +44,14 @@ interface PurchaseDao {
     @Query("SELECT COUNT(*) FROM purchases")
     suspend fun getCount(): Int
 
+    @Query("SELECT * FROM purchases WHERE isDeleted = 0")
+    suspend fun getActivePurchases(): List<Purchase>
+
+    /** Re-upload: rows without a txnId are left alone (the integrity check assigns one first). */
+    @Query("""UPDATE purchases SET syncStatus = '${SyncStatus.PENDING_UPDATE}'
+              WHERE isDeleted = 0 AND txnId != '' AND syncStatus = '${SyncStatus.SYNCED}'""")
+    suspend fun markAllActivePending()
+
     @Query("SELECT COUNT(*) FROM purchases WHERE isDeleted = 0 AND (productId = :productId OR productCode = :productCode)")
     suspend fun countForProduct(productId: Long, productCode: String): Int
 

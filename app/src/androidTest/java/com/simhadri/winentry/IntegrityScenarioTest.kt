@@ -12,6 +12,7 @@ import com.simhadri.winentry.data.entity.SyncStatus
 import com.simhadri.winentry.data.repository.BaselineMath
 import com.simhadri.winentry.data.repository.CommittedSaleRefresher
 import com.simhadri.winentry.data.repository.DailyStockRepository
+import com.simhadri.winentry.data.repository.IntegrityChecker
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -157,5 +158,35 @@ class IntegrityScenarioTest {
         val after = db.dailyStockDao().getDailyStock(d2, "W1")!!
         assertEquals(11, after.openQq)
         assertEquals(5, after.saleQq)
+    }
+
+    @Test
+    fun integrityCheck_findsAndRepairs() = runBlocking {
+        db.dailyStockDao().upsertCommittedBatch(listOf(BaselineMath.newBaselineRow(dm1, "W1", q(10), IntArray(4))))
+        // Stale sale: committed with sale 4, but 5 more were purchased that day
+        db.dailyStockDao().upsertCommittedBatch(listOf(committed(d, 10, 0, 6)))
+        db.purchaseDao().insert(purchase(d, 5).copy(txnId = "", invoiceNumber = "A"))
+        // Duplicate line: same product, invoice and date twice
+        db.purchaseDao().insert(purchase(d1, 2).copy(txnId = "t1", invoiceNumber = "B", syncStatus = SyncStatus.SYNCED))
+        db.purchaseDao().insert(purchase(d1, 2).copy(txnId = "t2", invoiceNumber = "B", syncStatus = SyncStatus.SYNCED))
+        // Opening mismatch: d1 opens at 9 but d closed at 6
+        db.dailyStockDao().upsertCommittedBatch(listOf(committed(d1, 9, 2, 9)))
+
+        val checker = IntegrityChecker(db)
+        val report = checker.check()
+        assertTrue(d in report.staleSaleDates)
+        assertEquals(1, report.blankTxnIds.size)
+        assertEquals(1, report.duplicateLines.size)
+        assertEquals(listOf("W1 on $d1"), report.openingMismatches)
+
+        val after = checker.repair(report)
+        assertTrue(after.staleSaleDates.isEmpty())
+        assertTrue(after.blankTxnIds.isEmpty())
+        assertTrue(after.duplicateLines.isEmpty())
+        assertEquals(9, db.dailyStockDao().getDailyStock(d, "W1")!!.saleQq)
+        assertEquals(1, db.purchaseDao().getActiveByInvoice("B", d1).size)
+        // The tombstoned copy is queued so the cloud copy is deleted too
+        assertTrue(db.purchaseDao().getPendingSyncPurchases().any { it.isDeleted })
+        assertEquals(listOf("W1 on $d1"), after.openingMismatches)
     }
 }

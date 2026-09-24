@@ -59,6 +59,9 @@ class SyncCoordinator(private val context: Context) {
 
         const val SYNC_BUSY = "Sync already running"
 
+        /** Rows per Cloud Function call; keeps each call well inside the CF timeout. */
+        private const val CF_BATCH = 300
+
         /** Serialises every cloud read/write in the process; the CF upserts by sheet row position. */
         val syncLock = Mutex()
 
@@ -200,6 +203,20 @@ class SyncCoordinator(private val context: Context) {
             database.pendingCloudDeleteDao().count()
     }
 
+    /**
+     * Settings → Re-upload All: queues every live row and syncs. For a sheet that is missing
+     * rows the device already marked SYNCED (e.g. after a sheet was replaced).
+     */
+    suspend fun reuploadAll(): SyncResult {
+        withContext(Dispatchers.IO) {
+            DbSnapshot.take(context, "reupload")
+            database.dailyStockDao().markAllCommittedAsPending()
+            database.purchaseDao().markAllActivePending()
+            database.dayReconciliationDao().markAllAsPending()
+        }
+        return performFullSync()
+    }
+
     /** Deletes all inventory data on this device (products are kept). The cloud is not touched. */
     suspend fun wipeLocalInventory(reason: String) = withContext(Dispatchers.IO) {
         DbSnapshot.take(context, reason)
@@ -229,23 +246,23 @@ class SyncCoordinator(private val context: Context) {
         val toDelete = pending.filter { it.isDeleted }
         var successCount = 0
 
-        if (toWrite.isNotEmpty()) {
-            val rows = toWrite.map { it.toSheetRow() }
+        for (chunk in toWrite.chunked(CF_BATCH)) {
+            val rows = chunk.map { it.toSheetRow() }
             when (cfClient.syncUserSheet("write_purchases", rows = rows)) {
                 is SyncSheetResult.Written -> {
-                    purchaseDao.markSyncedIfUnchanged(toWrite)
-                    successCount += toWrite.size
-                    Log.d(TAG, "CF wrote ${toWrite.size} purchase rows")
+                    purchaseDao.markSyncedIfUnchanged(chunk)
+                    successCount += chunk.size
+                    Log.d(TAG, "CF wrote ${chunk.size} purchase rows")
                 }
                 is SyncSheetResult.NoSheet -> {
                     Log.e(TAG, "Purchase write failed — user sheet not found in CF")
-                    toWrite.forEach { purchaseDao.markSyncError(it.id) }
+                    chunk.forEach { purchaseDao.markSyncError(it.id) }
                 }
                 else -> {
                     Log.e(TAG, "CF write_purchases failed")
-                    toWrite.forEach { purchaseDao.markSyncError(it.id) }
+                    chunk.forEach { purchaseDao.markSyncError(it.id) }
                     ErrorLogger.log(context, "Sync/Purchases",
-                        "${toWrite.size} purchase(s) failed to sync to cloud — will retry on next sync")
+                        "${chunk.size} purchase(s) failed to sync to cloud — will retry on next sync")
                 }
             }
         }
@@ -308,22 +325,23 @@ class SyncCoordinator(private val context: Context) {
         }
 
         Log.d(TAG, "Syncing ${pending.size} pending daily stock rows")
-        val rows = pending.map { it.toSheetRow() }
-
-        return when (cfClient.syncUserSheet("write_daily_stock", rows = rows)) {
-            is SyncSheetResult.Written -> {
-                dailyStockDao.markStockSyncedIfUnchanged(pending)
-                Log.d(TAG, "CF wrote ${pending.size} daily stock rows")
-                pending.size
-            }
-            else -> {
-                pending.forEach { dailyStockDao.markStockSyncError(it.date, it.productCode) }
-                Log.e(TAG, "CF write_daily_stock failed — will retry")
-                ErrorLogger.log(context, "Sync/DailyStock",
-                    "${pending.size} daily stock row(s) failed to sync to cloud — will retry on next sync")
-                0
+        var written = 0
+        for (chunk in pending.chunked(CF_BATCH)) {
+            when (cfClient.syncUserSheet("write_daily_stock", rows = chunk.map { it.toSheetRow() })) {
+                is SyncSheetResult.Written -> {
+                    dailyStockDao.markStockSyncedIfUnchanged(chunk)
+                    written += chunk.size
+                    Log.d(TAG, "CF wrote ${chunk.size} daily stock rows")
+                }
+                else -> {
+                    chunk.forEach { dailyStockDao.markStockSyncError(it.date, it.productCode) }
+                    Log.e(TAG, "CF write_daily_stock failed — will retry")
+                    ErrorLogger.log(context, "Sync/DailyStock",
+                        "${chunk.size} daily stock row(s) failed to sync to cloud — will retry on next sync")
+                }
             }
         }
+        return written
     }
 
     // ── Day summary sync (via CF) ─────────────────────────────────────────────
@@ -337,18 +355,18 @@ class SyncCoordinator(private val context: Context) {
         }
 
         Log.d(TAG, "Syncing ${pending.size} pending day summary rows")
-        val rows = pending.map { it.toDaySummaryRow() }
-
-        when (cfClient.syncUserSheet("write_day_summary", rows = rows)) {
-            is SyncSheetResult.Written -> {
-                dao.markSyncedIfUnchanged(pending)
-                Log.d(TAG, "CF wrote ${pending.size} day summary rows")
-            }
-            else -> {
-                pending.forEach { dao.markSyncError(it.date) }
-                Log.e(TAG, "CF write_day_summary failed — will retry")
-                ErrorLogger.log(context, "Sync/DaySummary",
-                    "${pending.size} day summary row(s) failed to sync to cloud — will retry on next sync")
+        for (chunk in pending.chunked(CF_BATCH)) {
+            when (cfClient.syncUserSheet("write_day_summary", rows = chunk.map { it.toDaySummaryRow() })) {
+                is SyncSheetResult.Written -> {
+                    dao.markSyncedIfUnchanged(chunk)
+                    Log.d(TAG, "CF wrote ${chunk.size} day summary rows")
+                }
+                else -> {
+                    chunk.forEach { dao.markSyncError(it.date) }
+                    Log.e(TAG, "CF write_day_summary failed — will retry")
+                    ErrorLogger.log(context, "Sync/DaySummary",
+                        "${chunk.size} day summary row(s) failed to sync to cloud — will retry on next sync")
+                }
             }
         }
     }

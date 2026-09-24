@@ -1,0 +1,4 @@
+Data safety: sync never overlaps or loses edits made during an upload; restores keep unsynced changes; cleared entries are also removed from the cloud.
+Purchases: editing, deleting or moving a purchase updates that day's sale. Bad dates in imports are reported, never replaced by today.
+Daily Stock: clearing an entry keeps that day's purchases in the next day's opening.
+New in Settings: Check Data Integrity and Re-upload All Data.

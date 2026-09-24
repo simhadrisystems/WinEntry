@@ -26,29 +26,6 @@ object SyncHelper {
 
     @Volatile private var purchaseImportInFlight = false
 
-    // ── Transaction sync (daily sync icon) ───────────────────────────────────
-
-    fun syncTransactions(
-        context:    Context,
-        scope:      CoroutineScope,
-        anchorView: View
-    ) {
-        scope.launch {
-            val coordinator = SyncCoordinator(context)
-            snack(anchorView, "⏫ Syncing transactions…", Snackbar.LENGTH_SHORT)
-            when (val result = coordinator.performFullSync()) {
-                is SyncCoordinator.SyncResult.Success ->
-                    snack(anchorView,
-                        "✓ Synced — ${result.purchasesCount} purchase(s), " +
-                        "${result.stockCount} stock row(s)",
-                        Snackbar.LENGTH_LONG)
-                is SyncCoordinator.SyncResult.Error ->
-                    snack(anchorView, "✗ Sync failed: ${result.message}", Snackbar.LENGTH_LONG)
-                else -> {}
-            }
-        }
-    }
-
     // ── Product master sync (Products menu) ──────────────────────────────────
 
     fun syncProductsFromCloud(
@@ -338,7 +315,9 @@ object SyncHelper {
                                         }
 
                                         if (hasDups) {
-                                            append("\nWhat should happen to the duplicates?")
+                                            append("\nWhat should happen to the duplicates?\n")
+                                            append("  Skip    — keep the rows already on this device\n")
+                                            append("  Replace — overwrite them with the sheet values")
                                         }
                                     }
 
@@ -349,7 +328,8 @@ object SyncHelper {
                                         text = msg
                                         textSize = 12f
                                         typeface = mono
-                                        setTextColor(android.graphics.Color.parseColor("#212121"))
+                                        setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                                            activity, com.google.android.material.R.attr.colorOnSurface, 0))
                                     }
                                     scrollView.addView(textView)
 
@@ -363,10 +343,11 @@ object SyncHelper {
 
                                     if (hasDups) {
                                         builder
-                                            .setPositiveButton("Skip duplicates") { _, _ ->
+                                            // Short labels keep all three buttons on one row; long ones stack and push Replace off screen
+                                            .setPositiveButton("Skip") { _, _ ->
                                                 cont.resumeWith(Result.success(emptyList()))
                                             }
-                                            .setNeutralButton("Replace duplicates") { _, _ ->
+                                            .setNeutralButton("Replace") { _, _ ->
                                                 cont.resumeWith(Result.success(preview.dupRows))
                                             }
                                     } else {

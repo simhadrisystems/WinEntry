@@ -24,6 +24,11 @@ interface DailyStockDao {
     @Query("SELECT * FROM daily_stock WHERE date = :date AND productCode = :productCode")
     suspend fun getDailyStock(date: String, productCode: String): DailyStock?
 
+    @Query("""SELECT date, productCode, openQq, openPp, openNn, openDd, closeQq, closePp, closeNn, closeDd,
+              saleQq, salePp, saleNn, saleDd, isOpeningStock
+              FROM daily_stock WHERE isCommitted = 1 ORDER BY productCode, date""")
+    suspend fun getCommittedQtyRows(): List<StockQtyRow>
+
     @Query("SELECT COUNT(*) FROM daily_stock WHERE productCode = :productCode AND isCommitted = 1")
     suspend fun countForProduct(productCode: String): Int
 
@@ -383,3 +388,12 @@ interface DailyStockDao {
     """)
     suspend fun getOpeningStockSyncStatuses(date: String): List<String>
 }
+
+/** Quantities only, for whole-history checks without loading prices and amounts. */
+data class StockQtyRow(
+    val date: String, val productCode: String,
+    val openQq: Int, val openPp: Int, val openNn: Int, val openDd: Int,
+    val closeQq: Int, val closePp: Int, val closeNn: Int, val closeDd: Int,
+    val saleQq: Int, val salePp: Int, val saleNn: Int, val saleDd: Int,
+    val isOpeningStock: Boolean
+)

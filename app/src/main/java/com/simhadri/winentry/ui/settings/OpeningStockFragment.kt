@@ -697,7 +697,8 @@ class OpeningStockFragment : Fragment() {
                     "Use an older baseline?",
                     "${formatDisplay(chosen.date)} becomes the active baseline.\n\n" +
                     "$later will no longer be a baseline. Its quantities are kept as ordinary " +
-                    "Daily Stock days, so a change on the day before may then carry into it.",
+                    "Daily Stock days, so a change on the day before may then carry into it.\n\n" +
+                    "Active products with no entry on ${formatDisplay(chosen.date)} start from a zero opening balance.",
                     "Use ${formatDisplay(chosen.date)}"
                 ) { useBaseline(chosen) }
             }

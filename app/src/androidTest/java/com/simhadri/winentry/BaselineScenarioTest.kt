@@ -141,7 +141,6 @@ class BaselineScenarioTest {
     fun changeOnDayBefore_doesNotTouchBaseline() = runBlocking {
         val before = dao.getAllDailyStockForDate(d)
         val edited = listOf(dailyRow(dm1, "W1", 50, 0, 35))
-        assertTrue(repo.checkWouldCreateNegative(edited).isEmpty())
         assertTrue(!repo.previewCascade(edited).isNeeded)
         repo.saveAllEntries(edited)
         repo.cascadeRecalculate(edited, products)

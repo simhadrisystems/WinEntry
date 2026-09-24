@@ -27,6 +27,13 @@ import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.ui.auth.AuthViewModel
 import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.utils.AppDialogs
+import com.simhadri.winentry.data.AppDatabase
+import com.simhadri.winentry.data.repository.IntegrityChecker
+import com.simhadri.winentry.ui.auth.UserRole
+import com.simhadri.winentry.utils.DbSnapshot
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
 import com.simhadri.winentry.utils.SupportHelper
@@ -121,6 +128,12 @@ class SettingsFragment : Fragment() {
                 msg?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show() }
             }
         }
+
+        binding.btnCheckIntegrity.setOnClickListener { runIntegrityCheck() }
+        binding.btnReuploadAll.visibility =
+            if (UserRole.isEditor(requireContext()) && SyncCoordinator(requireContext()).isUserSheetReady())
+                View.VISIBLE else View.GONE
+        binding.btnReuploadAll.setOnClickListener { confirmReuploadAll() }
 
         // ── Error Log ─────────────────────────────────────────────────────
         // Show share button only when errors exist — hidden otherwise
@@ -652,6 +665,67 @@ class SettingsFragment : Fragment() {
         for (v in listOf(binding.textLanguageDesc, binding.textBusinessInfoDesc,
                          binding.textSyncSettingsDesc, binding.textHelpSupportDesc, binding.textMyDriveDesc))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
+    }
+
+    private fun runIntegrityCheck() {
+        val ctx = requireContext()
+        binding.btnCheckIntegrity.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val checker = IntegrityChecker(AppDatabase.getInstance(ctx))
+            val report = withContext(Dispatchers.IO) { checker.check() }
+            if (_binding == null) return@launch
+            binding.btnCheckIntegrity.isEnabled = true
+            if (report.repairable == 0) {
+                AppDialogs.info(requireContext(), "Data Integrity", report.summary())
+                return@launch
+            }
+            AppDialogs.confirm(requireContext(), "Data Integrity",
+                report.summary() + "\n\nA copy of the local data is saved on this device before repairing.",
+                actionLabel = "Repair"
+            ) { repairIntegrity(checker, report) }
+        }
+    }
+
+    private fun repairIntegrity(checker: IntegrityChecker, report: IntegrityChecker.Report) {
+        val ctx = requireContext()
+        binding.btnCheckIntegrity.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val after = withContext(Dispatchers.IO) {
+                SyncCoordinator.syncLock.withLock {
+                    DbSnapshot.take(ctx, "integrity")
+                    checker.repair(report)
+                }
+            }
+            if (_binding == null) return@launch
+            binding.btnCheckIntegrity.isEnabled = true
+            AppDialogs.info(requireContext(), "Repair Complete",
+                "Repaired changes are uploaded on the next sync.\n\n" + after.summary())
+        }
+    }
+
+    private fun confirmReuploadAll() {
+        AppDialogs.confirm(requireContext(), "Re-upload All Data",
+            "Sends every purchase, daily stock and day summary on this device to your cloud sheet " +
+                "again. Use this when the sheet is missing data this device has.\n\n" +
+                "Run Check Data Integrity first so corrected data is uploaded. This can take a few minutes.",
+            actionLabel = "Re-upload"
+        ) {
+            val ctx = requireContext()
+            binding.btnReuploadAll.isEnabled = false
+            Toast.makeText(ctx, "Re-uploading…", Toast.LENGTH_SHORT).show()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val result = SyncCoordinator(ctx).reuploadAll()
+                if (_binding == null) return@launch
+                binding.btnReuploadAll.isEnabled = true
+                val msg = when (result) {
+                    is SyncCoordinator.SyncResult.Success ->
+                        "Re-upload complete: ${result.purchasesCount} purchase(s), ${result.stockCount} stock row(s)."
+                    is SyncCoordinator.SyncResult.Error -> "Re-upload stopped: ${result.message}. Unsent rows stay queued."
+                    else -> "Re-upload finished."
+                }
+                AppDialogs.info(requireContext(), "Re-upload All Data", msg)
+            }
+        }
     }
 
     private fun updateErrorLogButton() {

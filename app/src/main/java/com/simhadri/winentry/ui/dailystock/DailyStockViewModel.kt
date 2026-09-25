@@ -516,18 +516,18 @@ class DailyStockViewModel(application: Application) : AndroidViewModel(applicati
      * Build ONE DailyStock row per product — all 4 sizes, all snapshots.
      * Called at commit time; values are locked permanently.
      */
-    private suspend fun buildRows(entry: DailyEntry): List<DailyStock> {
+    private fun buildRows(entry: DailyEntry): List<DailyStock> {
         val date = entry.date
         val p  = entry.product
         val sq = entry.sale
         val ob = entry.opening
         val cb = entry.closing
-        // A committed day keeps the prices it was sold at; only new days take the master price
-        val stored = repository.getDailyStockRaw(date, p.stockCode)?.takeIf { it.isCommitted }
-        val prQq = stored?.priceQq ?: p.qqSalePrice
-        val prPp = stored?.pricePp ?: p.ppSalePrice
-        val prNn = stored?.priceNn ?: p.nnSalePrice
-        val prDd = stored?.priceDd ?: p.ddSalePrice
+        // Only hand-edited products reach here; re-entering a closing is how a corrected
+        // master price is applied. Bulk/cascade paths keep stored prices.
+        val prQq = p.qqSalePrice
+        val prPp = p.ppSalePrice
+        val prNn = p.nnSalePrice
+        val prDd = p.ddSalePrice
         val amtQq = sq.qq * prQq
         val amtPp = sq.pp * prPp
         val amtNn = sq.nn * prNn

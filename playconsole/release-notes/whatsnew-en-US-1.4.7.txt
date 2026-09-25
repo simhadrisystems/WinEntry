@@ -1,0 +1,4 @@
+Fixed: after correcting a sale price in Products, re-entering the closing now updates the day total too.
+Data safety: sync never overlaps or loses edits; restores keep unsynced changes; cleared entries are also removed from the cloud.
+Purchases: editing, deleting or moving a purchase updates that day's sale. Bad dates in imports are reported.
+New in Settings: Check Data Integrity and Re-upload All Data.

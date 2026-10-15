@@ -487,6 +487,107 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- 5. Daily Sale Summary (IML / BEER / RTD) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardSaleSummary"
+                style="@style/Style.App.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="9dp"
+                app:strokeColor="@color/reports_accent_crimson"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_module_icon">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_report_brand_wise"
+                                android:tint="@color/reports_accent_crimson"
+                                android:scaleType="fitCenter" />
+                        </FrameLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="10dp">
+                            <TextView
+                                android:id="@+id/textSaleSummaryTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Daily Sale Summary"
+                                android:textSize="15sp"
+                                android:fontFamily="@font/ramabhadra_regular"
+                                android:textColor="@color/reports_accent_crimson"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+                            <TextView
+                                android:id="@+id/textSaleSummaryDesc"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="OB · Receipts · CB · Sale for IML / Beer / RTD"
+                                android:textSize="12sp"
+                                android:textColor="@color/app_text_secondary"
+                                android:maxLines="2"
+                                android:ellipsize="end"
+                                android:layout_marginTop="1dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaleSummaryGroups"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="Groups"
+                            android:textSize="12sp"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:textColor="@color/reports_accent_crimson" />
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaleSummaryDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="6dp"
+                            android:textSize="12sp"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            app:strokeColor="@color/reports_accent_crimson"
+                            android:textColor="@color/reports_accent_crimson" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSaleSummaryView"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="View"
+                            android:textSize="12sp"
+                            app:backgroundTint="@color/reports_accent_crimson" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- ── PERIOD REPORTS ─────────────────────────────────── -->
             <TextView
                 android:id="@+id/textSectionPeriodReports"

@@ -10,14 +10,17 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.simhadri.winentry.R
+import com.simhadri.winentry.data.AppDatabase
 import com.simhadri.winentry.databinding.FragmentReportsBinding
 import com.simhadri.winentry.sync.SyncCoordinator
 import com.simhadri.winentry.utils.AppDialogs
 import com.simhadri.winentry.utils.AppStrings
 import com.simhadri.winentry.utils.LangPrefs
 import java.text.SimpleDateFormat
+import kotlinx.coroutines.launch
 import java.util.*
 
 class ReportsFragment : Fragment() {
@@ -35,6 +38,7 @@ class ReportsFragment : Fragment() {
     private var brandWiseDate: String     = sdf.format(Date())
     private var salesMarginFrom: String   = sdf.format(Date())
     private var salesMarginTo: String     = sdf.format(Date())
+    private var saleSummaryDate: String   = sdf.format(Date(System.currentTimeMillis() - 24L * 60 * 60 * 1000))
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -69,6 +73,7 @@ class ReportsFragment : Fragment() {
         updateDateButton(binding.btnBrandWiseDate, brandWiseDate)
         updateDateButton(binding.btnSalesMarginFrom, salesMarginFrom)
         updateDateButton(binding.btnSalesMarginTo, salesMarginTo)
+        updateDateButton(binding.btnSaleSummaryDate, saleSummaryDate)
 
         // ── Daily Stock Sheet ────────────────────────────────────
         binding.btnDailySheetDate.setOnClickListener {
@@ -156,6 +161,29 @@ class ReportsFragment : Fragment() {
                     includeZero = includeZero
                 )
             }
+        }
+
+        // ── Daily Sale Summary ─────────────────────────────────────
+        binding.btnSaleSummaryDate.setOnClickListener {
+            showDatePicker(saleSummaryDate) { picked ->
+                saleSummaryDate = picked
+                updateDateButton(binding.btnSaleSummaryDate, picked)
+            }
+        }
+        binding.btnSaleSummaryGroups.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val types = AppDatabase.getInstance(requireContext()).productDao()
+                    .getAllProductsByDailySortKeySync().map { it.productType }.toSet()
+                if (_binding != null) SaleSummaryGroupsDialog.show(requireContext(), types)
+            }
+        }
+        binding.btnSaleSummaryView.setOnClickListener {
+            val dmy = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(sdf.parse(saleSummaryDate)!!)
+            navigateToViewer(
+                reportType = ReportViewerFragment.TYPE_SALE_SUMMARY,
+                date       = saleSummaryDate,
+                title      = "Daily Sale Report  ·  $dmy"
+            )
         }
 
         // ── Sales & Profit Margin Report ─────────────────────────
@@ -279,6 +307,8 @@ class ReportsFragment : Fragment() {
         binding.textClosingBalancesDesc.text        = AppStrings.reportsClosingBalancesDesc.get(lang)
         binding.textBrandWiseTitle.text             = AppStrings.reportsBrandWiseTitle.get(lang)
         binding.textBrandWiseDesc.text              = AppStrings.reportsBrandWiseDesc.get(lang)
+        binding.textSaleSummaryTitle.text           = AppStrings.reportsSaleSummaryTitle.get(lang)
+        binding.textSaleSummaryDesc.text            = AppStrings.reportsSaleSummaryDesc.get(lang)
         binding.textSectionPeriodReports.text       = AppStrings.reportsSectionPeriod.get(lang)
         binding.textPurchaseReportTitle.text        = AppStrings.reportsPurchaseReportTitle.get(lang)
         binding.textPurchaseReportDesc.text         = AppStrings.reportsPurchaseReportDesc.get(lang)
@@ -290,6 +320,7 @@ class ReportsFragment : Fragment() {
         binding.btnPurchaseView.text                = viewLabel
         binding.btnBrandWiseView.text               = viewLabel
         binding.btnSalesMarginView.text             = viewLabel
+        binding.btnSaleSummaryView.text             = viewLabel
         binding.btnMonthlySaleView.text             = AppStrings.reportsBrowseMonthsButton.get(lang)
         binding.checkIncludeZero.text               = AppStrings.reportsIncludeZero.get(lang)
         binding.tvReportsBusinessInfoNote.text      = AppStrings.reportsBusinessInfoNote.get(lang)
@@ -299,12 +330,12 @@ class ReportsFragment : Fragment() {
         for (v in listOf(binding.textDailySheetTitle, binding.textMonthlySaleTitle,
                          binding.textClosingBalancesTitle, binding.textBrandWiseTitle,
                          binding.textPurchaseReportTitle, binding.textSalesMarginTitle,
-                         binding.textQuickSaleTitle))
+                         binding.textQuickSaleTitle, binding.textSaleSummaryTitle))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, titleSp)
         for (v in listOf(binding.textDailySheetDesc, binding.textMonthlySaleDesc,
                          binding.textClosingBalancesDesc, binding.textBrandWiseDesc,
                          binding.textPurchaseReportDesc, binding.textSalesMarginDesc,
-                         binding.textQuickSaleDesc))
+                         binding.textQuickSaleDesc, binding.textSaleSummaryDesc))
             v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, descSp)
     }
 

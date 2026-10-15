@@ -14,6 +14,8 @@ import com.simhadri.winentry.data.entity.stockCode
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.data.repository.PurchaseQuantities
 import com.simhadri.winentry.data.repository.PurchaseRepository
+import com.simhadri.winentry.utils.SaleSummaryGroups
+import com.simhadri.winentry.utils.SaleSummaryGroups.Slot
 import com.simhadri.winentry.utils.TypeLabels
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -51,6 +53,10 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
     var cachedHtml: String = ""
         private set
 
+    /** Plain-text version for reports that can be shared as a message (Daily Sale Summary). */
+    var cachedText: String = ""
+        private set
+
     /** True once loadReport has been called — prevents double-load on rotation. */
     private var loaded = false
 
@@ -74,6 +80,8 @@ class ReportViewerViewModel(app: Application) : AndroidViewModel(app) {
                         buildPurchaseReportHtml(date, dateTo, title)
                     ReportViewerFragment.TYPE_SALES_MARGIN_REPORT ->
                         buildSalesMarginHtml(date, dateTo, title)
+                    ReportViewerFragment.TYPE_SALE_SUMMARY ->
+                        buildSaleSummary(date, title)
                     ReportViewerFragment.TYPE_BRAND_WISE_REPORT -> {
                         val entries = loadEntriesAll(date)
                         buildBrandWiseHtml(date, entries, title, includeZero)
@@ -1023,7 +1031,143 @@ ${if (recon != null) """
 </body></html>"""
     }
 
-    fun buildNoDataHtml(date: String) = """<!DOCTYPE html>
+    // ── Daily Sale Summary (IML / BEER / RTD / extra group) ───────────────────
+
+    /** OB, receipts, CB, sale for one size (or for a whole group). */
+    private class Movement(var ob: Int = 0, var rcpt: Int = 0, var cb: Int = 0, var sale: Int = 0) {
+        fun add(o: Int, r: Int, c: Int, s: Int) { ob += o; rcpt += r; cb += c; sale += s }
+        fun add(m: Movement) = add(m.ob, m.rcpt, m.cb, m.sale)
+    }
+
+    private suspend fun buildSaleSummary(date: String, title: String): String {
+        val entries = loadEntries(date)
+        if (entries.isEmpty()) return ""
+
+        val groups    = SaleSummaryGroups.load(getApp())
+        // Daily Stock commits only the products the user edited, so an untouched product is
+        // legitimately uncommitted; only a date with no committed rows at all is unentered.
+        val dayEntered = repository.getAllDailyStockForDate(date).any { it.isCommitted }
+
+        val sizes = listOf("QQ", "PP", "NN", "DD")
+        val bySlot = SaleSummaryGroups.REPORT_ORDER.associateWith { List(4) { Movement() } }
+
+        for (e in entries) {
+            val slot = groups.slotFor(e.product.productType)
+            val cells = bySlot[slot] ?: continue
+            cells[0].add(e.opening.qq, e.purchase.qq, e.closing.qq, e.sale.qq)
+            cells[1].add(e.opening.pp, e.purchase.pp, e.closing.pp, e.sale.pp)
+            cells[2].add(e.opening.nn, e.purchase.nn, e.closing.nn, e.sale.nn)
+            cells[3].add(e.opening.dd, e.purchase.dd, e.closing.dd, e.sale.dd)
+        }
+
+        val shown = SaleSummaryGroups.REPORT_ORDER.filter {
+            it != Slot.EXTRA || groups.assignment.values.contains(Slot.EXTRA)
+        }
+
+        val prefs    = getApp().getSharedPreferences("business_info", android.content.Context.MODE_PRIVATE)
+        val business = prefs.getString("business_name", "").orEmpty()
+        val licence  = prefs.getString("licence_no", "").orEmpty()
+        val location = prefs.getString("location", "").orEmpty()
+        val dmy = try {
+            SimpleDateFormat("dd/MM/yyyy", Locale.US).format(
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)!!)
+        } catch (_: Exception) { date }
+
+        // Plain text for WhatsApp: a ``` block renders monospace so the columns line up.
+        data class Line(val label: String, val m: Movement?)
+        val lines = mutableListOf<Line>()
+        for (slot in shown) {
+            val cells = bySlot.getValue(slot)
+            val total = Movement().also { t -> cells.forEach(t::add) }
+            if (groups.showsSizes(slot)) {
+                lines += Line(groups.label(slot), null)
+                sizes.forEachIndexed { i, s -> lines += Line(" $s", cells[i]) }
+                lines += Line(" Total", total)
+            } else {
+                lines += Line(groups.label(slot), total)
+            }
+        }
+        val w = maxOf(6, lines.maxOf { it.m?.let { m ->
+            maxOf(m.ob, m.rcpt, m.cb, m.sale).toString().length } ?: 0 } + 1)
+        val lw = maxOf(6, lines.filter { it.m != null }.maxOf { it.label.length } + 1)
+        val text = buildString {
+            append("*DAILY SALE REPORT*\n")
+            append("Date: $dmy\n")
+            if (business.isNotBlank()) append("$business\n")
+            if (licence.isNotBlank())  append("Licence: $licence\n")
+            append("```\n")
+            append("".padEnd(lw) + "OB".padStart(w) + "Rcpt".padStart(w) + "CB".padStart(w) + "Sale".padStart(w) + "\n")
+            for (l in lines) {
+                val m = l.m
+                if (m == null) append(l.label).append('\n')
+                else append(l.label.padEnd(lw) + "${m.ob}".padStart(w) + "${m.rcpt}".padStart(w) +
+                    "${m.cb}".padStart(w) + "${m.sale}".padStart(w) + "\n")
+            }
+            append("```")
+            if (!dayEntered) append("\nNote: closing stock not yet entered for this date")
+        }
+        cachedText = text
+
+        val inLocale = Locale("en", "IN")
+        fun n(v: Int) = java.text.NumberFormat.getIntegerInstance(inLocale).format(v.toLong())
+        fun row(cls: String, label: String, m: Movement) =
+            """<tr class="$cls"><td class="l">$label</td><td>${n(m.ob)}</td><td>${n(m.rcpt)}</td><td>${n(m.cb)}</td><td class="s">${n(m.sale)}</td></tr>"""
+
+        val body = StringBuilder()
+        for (slot in shown) {
+            val cells = bySlot.getValue(slot)
+            val total = Movement().also { t -> cells.forEach(t::add) }
+            if (groups.showsSizes(slot)) {
+                body.append("""<tr class="g"><td colspan="5">${groups.label(slot)}</td></tr>""")
+                sizes.forEachIndexed { i, s -> body.append(row("", s, cells[i])) }
+                body.append(row("t", "${groups.label(slot)} Total", total))
+            } else {
+                body.append(row("t", groups.label(slot), total))
+            }
+        }
+
+        val warn = if (dayEntered) "" else
+            """<div class="warn">Closing stock has not been entered for this date in Daily Stock &mdash; CB equals OB + Rcpt and every sale shows as 0.</div>"""
+        val licLine = if (licence.isNotBlank()) "<div class='lic'>$licence</div>" else ""
+        val locLine = if (location.isNotBlank()) "<div class='loc'>$location</div>" else ""
+
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @page { margin:15mm }
+  body  { font-family:Arial,sans-serif; font-size:14px; margin:12px; color:#212121 }
+  .hdr  { text-align:center; margin-bottom:10px }
+  .biz  { font-size:17px; font-weight:bold; color:#1a237e }
+  .lic  { font-size:13px; font-weight:bold; margin-top:2px }
+  .loc  { font-size:12px; color:#555; margin-top:2px }
+  .rep  { font-size:14px; font-weight:bold; color:#1a237e; margin-top:6px }
+  table { border-collapse:collapse; width:100%; max-width:520px; margin:0 auto; border:1px solid #b0b8d4 }
+  th    { background:#1a237e; color:#fff; padding:6px; font-size:13px }
+  td    { padding:5px 8px; border-bottom:1px solid #e0e0e0; text-align:right; white-space:nowrap }
+  td.l  { text-align:left }
+  td.s  { font-weight:bold }
+  tr.g td { background:#3949ab; color:#fff; font-weight:bold; text-align:left }
+  tr.t td { background:#c5cae9; font-weight:bold }
+  .warn { max-width:520px; margin:10px auto 0; padding:8px; border:1px solid #c62828;
+          color:#b71c1c; background:#ffebee; font-size:12px; border-radius:4px }
+  .gen  { text-align:center; font-size:9px; color:#999; margin-top:8px }
+</style></head><body>
+<div class="hdr">
+  <div class="biz">$business</div>
+  $licLine
+  $locLine
+  <div class="rep">$title</div>
+</div>
+<table>
+  <thead><tr><th style="text-align:left"></th><th>OB</th><th>Rcpt</th><th>CB</th><th>Sale</th></tr></thead>
+  <tbody>$body</tbody>
+</table>
+$warn
+<div class="gen">Generated ${SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())} &middot; <b>WinEntry</b> &middot; Simhadri Systems</div>
+</body></html>"""
+    }
+
+    fun buildNoDataHtml(date: String) ="""<!DOCTYPE html>
 <html><body style="font-family:Arial;text-align:center;padding:40px">
 <h3 style="color:#888">No data found for ${formatDate(date)}</h3>
 </body></html>"""

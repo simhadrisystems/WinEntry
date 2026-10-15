@@ -272,4 +272,20 @@ object AppDialogs {
             .setPositiveButton(actionLabel) { _, _ -> onAction() }
             .show()
     }
+
+    /** Cancel + action around a caller-built form view (settings editors). */
+    fun custom(
+        context: Context,
+        title: String,
+        view: android.view.View,
+        actionLabel: String,
+        onAction: () -> Unit
+    ) {
+        MaterialAlertDialogBuilder(context)
+            .setTitle(title)
+            .setView(view)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton(actionLabel) { _, _ -> onAction() }
+            .show()
+    }
 }

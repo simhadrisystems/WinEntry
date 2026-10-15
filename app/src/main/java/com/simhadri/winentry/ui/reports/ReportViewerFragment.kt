@@ -18,6 +18,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.simhadri.winentry.databinding.FragmentReportViewerBinding
+import com.simhadri.winentry.utils.AppDialogs
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -40,6 +41,7 @@ class ReportViewerFragment : Fragment() {
         const val TYPE_PURCHASE_REPORT      = "PURCHASE_REPORT"
         const val TYPE_BRAND_WISE_REPORT    = "BRAND_WISE"
         const val TYPE_SALES_MARGIN_REPORT  = "SALES_MARGIN"
+        const val TYPE_SALE_SUMMARY         = "SALE_SUMMARY"
     }
 
     override fun onCreateView(
@@ -89,7 +91,16 @@ class ReportViewerFragment : Fragment() {
 
         // Share button
         binding.btnShare.setOnClickListener {
-            if (viewModel.cachedHtml.isNotEmpty()) shareHtmlAsPdf(title, date, dateTo, reportType)
+            if (viewModel.cachedHtml.isEmpty()) return@setOnClickListener
+            if (reportType == TYPE_SALE_SUMMARY && viewModel.cachedText.isNotEmpty()) {
+                AppDialogs.choice(requireContext(), "Share Report",
+                    arrayOf("As message (WhatsApp / SMS)", "As file")) { which ->
+                    if (which == 0) shareText(title, viewModel.cachedText)
+                    else shareHtmlAsPdf(title, date, dateTo, reportType)
+                }
+            } else {
+                shareHtmlAsPdf(title, date, dateTo, reportType)
+            }
         }
 
         // Observe report state — handles both first load and rotation restore
@@ -137,6 +148,18 @@ class ReportViewerFragment : Fragment() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    private fun shareText(title: String, text: String) {
+        try {
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+                putExtra(Intent.EXTRA_SUBJECT, title)
+            }, "Share Report"))
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Share failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     // SHARE — saves HTML to cache and shares via Intent
     // ═══════════════════════════════════════════════════════════════
 
@@ -149,6 +172,7 @@ class ReportViewerFragment : Fragment() {
                 TYPE_CLOSING_BALANCES -> "ClosingBalances"
                 TYPE_PURCHASE_REPORT  -> "Purchases_to_${dateTo.replace("-", "")}"
                 TYPE_BRAND_WISE_REPORT -> "BrandWise"
+                TYPE_SALE_SUMMARY     -> "SaleSummary"
                 else -> "Report"
             } + ".html"
 

@@ -339,6 +339,14 @@ object AppStrings {
         en = "Form R2 — all brands, grouped by type",
         te = "ఫారం R2 — అన్ని బ్రాండ్ల అమ్మకాలు రకాల వారీగా వర్గీకరణ"
     )
+    val reportsSaleSummaryTitle = L(
+        en = "Daily Sale Summary",
+        te = "రోజువారీ అమ్మకాల సారాంశం"
+    )
+    val reportsSaleSummaryDesc = L(
+        en = "OB · Receipts · CB · Sale for IML / Beer / RTD",
+        te = "IML / బీర్ / RTD — ప్రారంభ నిల్వ · వచ్చిన సరుకు · ముగింపు నిల్వ · అమ్మకం"
+    )
     val reportsSectionPeriod = L(
         en = "PERIOD REPORTS",
         te = "కాల వ్యవధి నివేదికలు"

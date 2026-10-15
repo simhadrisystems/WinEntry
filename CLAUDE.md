@@ -221,6 +221,22 @@ Key points:
 - The exported title cell carries a `[MODE:OB_CB]` / `[MODE:DIRECT_QTY]` marker so re-importing the screen's own export restores Direct Qty mode data (Sale Qty columns) correctly and switches the mode to match; the day-end reconciliation figures (UPI/Expenses/Deposits/Notes) are written below the totals row and restored the same way.
 - `QuickSaleRow.closingStockValue()` (closing qty × current sale price) is shown in the reconciliation footer under "Total sale" — OB_CB mode only, since Direct Qty never touches `closing`. A parallel **"Print Closing Stock"** menu action mirrors the sale report's full OB/PQ/CB/SQ table but with a Closing Value column and grand-total box, instead of Sale Amount.
 
+### Daily Sale Summary (`ui/reports/`) — started 2026-10-15, not yet released
+
+The short report shop owners have to share every morning for the previous day: OB | Rcpt | CB | Sale for **IML / BEER / RTD** plus one optional user-named 4th group. It is a card on the Reports screen with its date set to yesterday by default; the report type is `ReportViewerFragment.TYPE_SALE_SUMMARY`.
+
+- **Groups are configurable per type code.** `utils/SaleSummaryGroups.kt` keeps the settings in `sale_summary_groups` SharedPreferences (device-local, not synced); `ui/reports/SaleSummaryGroupsDialog.kt` is the editor, opened from the card's "Groups" button.
+  - Each type is assigned to IML, RTD, the 4th group, or "Not reported".
+  - Beer is fixed to `B` and can't be reassigned.
+  - Default: IML = `W`+`Y`. **A type with no assignment falls into RTD**, so a new product type never silently drops out of a mandatory report.
+  - The 4th group appears only when a type is assigned to it.
+  - Size break-up (QQ/PP/NN/DD) is set per group; IML is the only one split by size by default.
+- **Data:** `ReportViewerViewModel.buildSaleSummary()` uses `loadEntries()` (active products only, matching the Daily Stock screen). The header uses `business_name` / `licence_no` / `location` from Business Info.
+- **"Closing not entered" warning:** shown only when the date has **no** committed rows at all. Daily Stock commits only the products the user edited, so an untouched product is legitimately uncommitted; a per-product check would be noisy and wrong.
+- **Share:** a choice between "As message (WhatsApp / SMS)" and "As file". The message is `cachedText`, with the table inside a ``` block so WhatsApp renders it monospace and the columns line up.
+- **Dialog:** the editor uses `AppDialogs.custom()` (new; Cancel + action around a caller-built view).
+- **Tests:** `SaleSummaryReportTest` (instrumented; in-memory Room via the `AppDatabase.INSTANCE` swap) covers default groups, custom groups, and the no-closing warning.
+
 ### In-App Update Detection (`ui/update/AppUpdateManager.kt`)
 
 Called once per cold start from `HomeFragment.onResume()` via a companion-object session flag. Uses Google Play In-App Update API:

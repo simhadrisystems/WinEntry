@@ -73,7 +73,8 @@ class SaleSummaryReportTest {
     private fun seed() = runBlocking {
         db.productDao().insertProducts(listOf(
             product("W", "A1"), product("Y", "B1"), product("B", "K1"),
-            product("R", "C1"), product("E", "W1"), product("V", "X1", active = false)))
+            product("R", "C1"), product("E", "W1"), product("V", "X1", active = false),
+            product("M", "M1"), product("W", "A2L")))
         val z = IntArray(4)
         db.dailyStockDao().upsertCommittedBatch(listOf(
             row(prev, "WA1", z, intArrayOf(100, 80, 200, 50)),
@@ -82,11 +83,15 @@ class SaleSummaryReportTest {
             row(prev, "RC1", z, intArrayOf(10, 0, 0, 0)),
             row(prev, "EW1", z, intArrayOf(5, 0, 0, 0)),
             row(prev, "VX1", z, intArrayOf(7, 0, 0, 0)),
+            row(prev, "MM1", z, intArrayOf(6, 0, 0, 0)),
+            row(prev, "WA2L", z, intArrayOf(30, 0, 0, 0)),
             // EW1 untouched on d: no committed row, so CB = OB and sale 0
             row(d, "WA1", intArrayOf(100, 80, 200, 50), intArrayOf(95, 70, 190, 45)),
             row(d, "YB1", intArrayOf(20, 0, 0, 0), intArrayOf(18, 0, 0, 0)),
             row(d, "BK1", intArrayOf(300, 100, 0, 0), intArrayOf(280, 90, 0, 0)),
             row(d, "RC1", intArrayOf(10, 0, 0, 0), intArrayOf(9, 0, 0, 0)),
+            row(d, "MM1", intArrayOf(6, 0, 0, 0), intArrayOf(4, 0, 0, 0)),
+            row(d, "WA2L", intArrayOf(30, 0, 0, 0), intArrayOf(27, 0, 0, 0)),
         ))
         val w = db.productDao().getAllProductsSync().first { it.stockCode == "WA1" }
         db.purchaseDao().insert(Purchase(purchaseDate = d, productId = w.id, productCode = "WA1",
@@ -122,17 +127,17 @@ class SaleSummaryReportTest {
     }
 
     @Test
-    fun defaultGroups_imlIsWhiskyBrandyBySize_restIsRtd() {
+    fun defaultGroups_everythingIsImlExceptMixer() {
         val t = load(d).cachedText
         assertTrue(t.contains("SIMHADRI WINES") && t.contains("Licence: GSND-07 GBL") && t.contains("14/10/2026"))
-        assertEquals(listOf(120, 12, 113, 19), nums(t, " QQ"))
+        // whisky (incl. 1000ml) + brandy + rum + untouched wine; inactive vodka excluded
+        assertEquals(listOf(165, 12, 154, 23), nums(t, " QQ"))
         assertEquals(listOf(80, 0, 70, 10), nums(t, " PP"))
         assertEquals(listOf(200, 0, 190, 10), nums(t, " NN"))
         assertEquals(listOf(50, 0, 45, 5), nums(t, " DD"))
-        assertEquals(listOf(450, 12, 418, 44), nums(t, " Total"))
+        assertEquals(listOf(495, 12, 459, 48), nums(t, " Total"))
         assertEquals(listOf(400, 0, 370, 30), nums(t, "BEER"))
-        // rum + untouched wine; inactive vodka excluded
-        assertEquals(listOf(15, 0, 14, 1), nums(t, "RTD"))
+        assertEquals(listOf(6, 0, 4, 2), nums(t, "RTD"))
         assertFalse(t.contains("OTHERS"))
         assertFalse(t.contains("not yet entered"))
     }
@@ -145,9 +150,10 @@ class SaleSummaryReportTest {
                                "E" to Slot.EXTRA, "V" to Slot.NONE),
             bySize     = mapOf(Slot.IML to true)))
         val t = load(d).cachedText
-        assertEquals(listOf(130, 12, 122, 20), nums(t, " QQ"))
+        assertEquals(listOf(160, 12, 149, 23), nums(t, " QQ"))
         assertEquals(listOf(400, 0, 370, 30), nums(t, "BEER"))
-        assertEquals(listOf(0, 0, 0, 0), nums(t, "RTD"))
+        // mixer not in the saved map: still defaults to RTD
+        assertEquals(listOf(6, 0, 4, 2), nums(t, "RTD"))
         assertEquals(listOf(5, 0, 5, 0), nums(t, "WINE"))
     }
 
@@ -156,6 +162,35 @@ class SaleSummaryReportTest {
         val vm = load(next)
         assertTrue(vm.cachedText.contains("closing stock not yet entered"))
         assertTrue(vm.cachedHtml.contains("Closing stock has not been entered"))
-        assertEquals(listOf(418, 0, 418, 0), nums(vm.cachedText, " Total"))
+        assertEquals(listOf(459, 0, 459, 0), nums(vm.cachedText, " Total"))
+    }
+
+    @Test
+    fun beerSizeBreakup_usesBottleSizes() {
+        SaleSummaryGroups.save(ctx, SaleSummaryGroups("", emptyMap(), mapOf(Slot.IML to true, Slot.BEER to true)))
+        val vm = load(d)
+        val t = vm.cachedText
+        assertEquals(listOf(300, 0, 280, 20), nums(t, " 650ML"))
+        assertEquals(listOf(100, 0, 90, 10), nums(t, " 500ML"))
+        assertEquals(listOf(0, 0, 0, 0), nums(t, " 330ML"))
+        assertEquals(listOf(400, 0, 370, 30), nums(t.substringAfter("BEER\n"), " Total"))
+        assertTrue(vm.cachedHtml.contains("<td class=\"l\">650ML</td>"))
+    }
+
+    /** Size-wise table: OB, Rcpt, Total stock, Sale, CB per column. */
+    @Test
+    fun sizeWiseTable_splitsLiquorBySizeBeerByBottleAnd1000ml() {
+        val vm = load(d)
+        val t = vm.cachedText
+        assertEquals(listOf(50, 0, 50, 5, 45), nums(t, "DD"))
+        assertEquals(listOf(200, 0, 200, 10, 190), nums(t, "NN"))
+        assertEquals(listOf(80, 0, 80, 10, 70), nums(t, "PP"))
+        assertEquals(listOf(141, 12, 153, 22, 131), nums(t, "QQ"))
+        assertEquals(listOf(30, 0, 30, 3, 27), nums(t, "LL"))
+        assertEquals(listOf(300, 0, 300, 20, 280), nums(t, "650ML"))
+        assertEquals(listOf(100, 0, 100, 10, 90), nums(t, "500ML"))
+        assertEquals(listOf(0, 0, 0, 0, 0), nums(t, "330ML"))
+        assertEquals(listOf(901, 12, 913, 80, 833), nums(t, "TOTAL"))
+        assertTrue(vm.cachedHtml.contains("CLOSING BALANCE") && vm.cachedHtml.contains("14/10/26"))
     }
 }

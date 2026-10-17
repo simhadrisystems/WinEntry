@@ -1060,6 +1060,30 @@ ${if (recon != null) """
             cells[3].add(e.opening.dd, e.purchase.dd, e.closing.dd, e.sale.dd)
         }
 
+        // Size-wise table. The product master has no ml sizes, so beer QQ is 650ml, PP 500ml
+        // and anything smaller 330ml; a brand code ending in L is the 1000ml (LL) product.
+        val sizeCols = linkedMapOf("DD" to Movement(), "NN" to Movement(), "PP" to Movement(),
+            "QQ" to Movement(), "LL" to Movement(), "650ML" to Movement(), "500ML" to Movement(),
+            "330ML" to Movement())
+        for (e in entries) {
+            val slot = groups.slotFor(e.product.productType)
+            if (slot == Slot.NONE) continue
+            val beer = slot == Slot.BEER
+            val ll = !beer && e.product.brandCode.endsWith("L", ignoreCase = true)
+            fun col(size: String) = sizeCols.getValue(when {
+                ll -> "LL"
+                beer && size == "QQ" -> "650ML"
+                beer && size == "PP" -> "500ML"
+                beer -> "330ML"
+                else -> size
+            })
+            col("QQ").add(e.opening.qq, e.purchase.qq, e.closing.qq, e.sale.qq)
+            col("PP").add(e.opening.pp, e.purchase.pp, e.closing.pp, e.sale.pp)
+            col("NN").add(e.opening.nn, e.purchase.nn, e.closing.nn, e.sale.nn)
+            col("DD").add(e.opening.dd, e.purchase.dd, e.closing.dd, e.sale.dd)
+        }
+        val sizeTotal = Movement().also { t -> sizeCols.values.forEach(t::add) }
+
         val shown = SaleSummaryGroups.REPORT_ORDER.filter {
             it != Slot.EXTRA || groups.assignment.values.contains(Slot.EXTRA)
         }
@@ -1073,6 +1097,12 @@ ${if (recon != null) """
                 SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)!!)
         } catch (_: Exception) { date }
 
+        // Beer breaks up by bottle (same mapping as the size-wise table below).
+        fun sizeRows(slot: Slot, cells: List<Movement>): List<Pair<String, Movement>> =
+            if (slot == Slot.BEER) listOf("650ML" to cells[0], "500ML" to cells[1],
+                "330ML" to Movement().also { it.add(cells[2]); it.add(cells[3]) })
+            else sizes.zip(cells)
+
         // Plain text for WhatsApp: a ``` block renders monospace so the columns line up.
         data class Line(val label: String, val m: Movement?)
         val lines = mutableListOf<Line>()
@@ -1081,7 +1111,7 @@ ${if (recon != null) """
             val total = Movement().also { t -> cells.forEach(t::add) }
             if (groups.showsSizes(slot)) {
                 lines += Line(groups.label(slot), null)
-                sizes.forEachIndexed { i, s -> lines += Line(" $s", cells[i]) }
+                sizeRows(slot, cells).forEach { (s, m) -> lines += Line(" $s", m) }
                 lines += Line(" Total", total)
             } else {
                 lines += Line(groups.label(slot), total)
@@ -1103,6 +1133,16 @@ ${if (recon != null) """
                 else append(l.label.padEnd(lw) + "${m.ob}".padStart(w) + "${m.rcpt}".padStart(w) +
                     "${m.cb}".padStart(w) + "${m.sale}".padStart(w) + "\n")
             }
+            append("```\n")
+            append("*SIZE-WISE*\n```\n")
+            val sw = maxOf(w, "Total".length + 1)
+            val slw = 7
+            append("".padEnd(slw) + "OB".padStart(sw) + "Rcpt".padStart(sw) + "Total".padStart(sw) +
+                "Sale".padStart(sw) + "CB".padStart(sw) + "\n")
+            for ((label, m) in sizeCols + ("TOTAL" to sizeTotal)) {
+                append(label.padEnd(slw) + "${m.ob}".padStart(sw) + "${m.rcpt}".padStart(sw) +
+                    "${m.ob + m.rcpt}".padStart(sw) + "${m.sale}".padStart(sw) + "${m.cb}".padStart(sw) + "\n")
+            }
             append("```")
             if (!dayEntered) append("\nNote: closing stock not yet entered for this date")
         }
@@ -1119,12 +1159,31 @@ ${if (recon != null) """
             val total = Movement().also { t -> cells.forEach(t::add) }
             if (groups.showsSizes(slot)) {
                 body.append("""<tr class="g"><td colspan="5">${groups.label(slot)}</td></tr>""")
-                sizes.forEachIndexed { i, s -> body.append(row("", s, cells[i])) }
+                sizeRows(slot, cells).forEach { (s, m) -> body.append(row("", s, m)) }
                 body.append(row("t", "${groups.label(slot)} Total", total))
             } else {
                 body.append(row("t", groups.label(slot), total))
             }
         }
+
+        val dmyShort = try {
+            SimpleDateFormat("dd/MM/yy", Locale.US).format(
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)!!)
+        } catch (_: Exception) { date }
+        val allCols = sizeCols.values + sizeTotal
+        fun sizeRow(cls: String, label: String, v: (Movement) -> Int) =
+            """<tr class="$cls"><td class="l">$label</td>""" +
+                allCols.joinToString("") { "<td>${n(v(it))}</td>" } + "</tr>"
+        val sizeTable = """<div class="sw"><table class="st">
+  <thead><tr><th class="dt">$dmyShort</th>${sizeCols.keys.joinToString("") { "<th>$it</th>" }}<th>TOTAL</th></tr></thead>
+  <tbody>
+    ${sizeRow("", "OPENING") { it.ob }}
+    ${sizeRow("rc", "RECEIPTS") { it.rcpt }}
+    ${sizeRow("", "TOTAL STOCK") { it.ob + it.rcpt }}
+    ${sizeRow("sl", "SALES") { it.sale }}
+    ${sizeRow("", "CLOSING BALANCE") { it.cb }}
+  </tbody>
+</table></div>"""
 
         val warn = if (dayEntered) "" else
             """<div class="warn">Closing stock has not been entered for this date in Daily Stock &mdash; CB equals OB + Rcpt and every sale shows as 0.</div>"""
@@ -1142,6 +1201,15 @@ ${if (recon != null) """
   .loc  { font-size:12px; color:#555; margin-top:2px }
   .rep  { font-size:14px; font-weight:bold; color:#1a237e; margin-top:6px }
   table { border-collapse:collapse; width:100%; max-width:520px; margin:0 auto; border:1px solid #b0b8d4 }
+  .sw   { max-width:760px; margin:16px auto 0; overflow-x:auto }
+  table.st { max-width:none; border:1px solid #9e9e9e }
+  table.st th { background:#fff; color:#212121; border:1px solid #9e9e9e; font-weight:normal }
+  table.st th.dt { color:#c62828; font-weight:bold; text-align:left }
+  table.st td { border:1px solid #bdbdbd; padding:4px 6px }
+  table.st td.l { font-weight:bold }
+  table.st td:last-child { font-weight:bold }
+  table.st tr.rc td { background:#fbe9e7 }
+  table.st tr.sl td { color:#c62828; font-weight:bold }
   th    { background:#1a237e; color:#fff; padding:6px; font-size:13px }
   td    { padding:5px 8px; border-bottom:1px solid #e0e0e0; text-align:right; white-space:nowrap }
   td.l  { text-align:left }
@@ -1162,6 +1230,7 @@ ${if (recon != null) """
   <thead><tr><th style="text-align:left"></th><th>OB</th><th>Rcpt</th><th>CB</th><th>Sale</th></tr></thead>
   <tbody>$body</tbody>
 </table>
+$sizeTable
 $warn
 <div class="gen">Generated ${SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())} &middot; <b>WinEntry</b> &middot; Simhadri Systems</div>
 </body></html>"""

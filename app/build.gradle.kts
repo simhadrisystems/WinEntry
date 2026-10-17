@@ -24,8 +24,8 @@ android {
         applicationId = "com.simhadri.winentry"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.4.7"
+        versionCode = 20
+        versionName = "1.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("Boolean", "FORCE_UPDATE", "true")
     }

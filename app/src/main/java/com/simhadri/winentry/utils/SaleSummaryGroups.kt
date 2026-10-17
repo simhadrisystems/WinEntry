@@ -7,8 +7,8 @@ import android.content.Context
  * (IML, BEER, RTD, and one user-named extra group) to which product type codes
  * are assigned. Beer always holds exactly "B" and cannot be reassigned.
  *
- * A type with no stored assignment falls into RTD, so a newly imported product
- * type never silently drops out of a report that has to be submitted daily.
+ * A type with no stored assignment falls into IML (Mixer, M, into RTD), so a newly
+ * imported product type never silently drops out of a report that has to be submitted daily.
  */
 data class SaleSummaryGroups(
     val extraName: String,
@@ -20,7 +20,7 @@ data class SaleSummaryGroups(
     fun slotFor(type: String): Slot {
         val t = type.uppercase()
         if (t == BEER_TYPE) return Slot.BEER
-        return assignment[t] ?: Slot.RTD
+        return assignment[t] ?: DEFAULT_ASSIGNMENT[t] ?: Slot.IML
     }
 
     fun label(slot: Slot): String = when (slot) {
@@ -42,14 +42,14 @@ data class SaleSummaryGroups(
         private const val KEY_ASSIGN   = "assignment"
         private const val KEY_BY_SIZE  = "by_size"
 
-        private val DEFAULT_ASSIGNMENT = mapOf("W" to Slot.IML, "Y" to Slot.IML)
+        private val DEFAULT_ASSIGNMENT = mapOf("M" to Slot.RTD)
 
         fun load(context: Context): SaleSummaryGroups {
             val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val assignment = p.getString(KEY_ASSIGN, null)?.let(::parsePairs)
                 ?.mapNotNull { (k, v) -> runCatching { k to Slot.valueOf(v) }.getOrNull() }
                 ?.toMap()
-                ?: DEFAULT_ASSIGNMENT
+                ?: emptyMap()
             val bySize = p.getString(KEY_BY_SIZE, null)?.let(::parsePairs)
                 ?.mapNotNull { (k, v) -> runCatching { Slot.valueOf(k) to (v == "1") }.getOrNull() }
                 ?.toMap()

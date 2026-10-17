@@ -1,0 +1,3 @@
+New in Reports: Daily Sale Summary, the morning report for the previous day. Shows Opening, Receipts, Closing and Sale for IML, Beer, RTD and an optional 4th group, plus a size-wise table (DD, NN, PP, QQ, LL, 650ML, 500ML, 330ML).
+Choose which product types go into each group, and whether a group is split by size.
+Share it straight to WhatsApp as a message, or as a file.

@@ -365,7 +365,7 @@ The toolbar's `android:theme=ThemeOverlay.AppCompat.Dark.ActionBar` bleeds into 
 - **Google Sheets API v4** — called server-side only, via Cloud Functions (`CloudFunctionClient`); the on-device `google-api-client-android`/`google-api-services-sheets` Java client was removed in vc10 (dead weight, ~1,800 unused classes, see Version History above)
 - **WorkManager 2.8.1** — background periodic sync
 - **Apache POI 5.2.5** — Excel import/export (requires packaging exclusions already set in `app/build.gradle.kts`)
-- **Material 1.12.0** — required for `MaterialButtonToggleGroup` used in the onboarding dialog language toggle
-- **Activity KTX 1.8.0** — `ActivityResultContracts` for in-app update launcher
+- **Material 1.13.0** — required for `MaterialButtonToggleGroup` used in the onboarding dialog language toggle
+- **Activity KTX 1.13.0** — `ActivityResultContracts` for in-app update launcher
 - **Play In-App Update KTX 2.1.0** (`com.google.android.play:app-update-ktx`) — flexible and immediate update flows
 - ViewBinding enabled; no DataBinding, no Compose

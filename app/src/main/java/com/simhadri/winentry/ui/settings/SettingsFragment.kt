@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import com.simhadri.winentry.utils.AppStrings
+import com.simhadri.winentry.utils.HouseAds
 import com.simhadri.winentry.utils.LangPrefs
 import com.simhadri.winentry.utils.SupportHelper
 import com.simhadri.winentry.utils.UserRegistrationManager
@@ -117,6 +118,7 @@ class SettingsFragment : Fragment() {
         }
 
         binding.tvAppVersion.text = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+        renderHouseAd = HouseAds.bind(binding.houseAd, viewLifecycleOwner)
 
         binding.btnCheckUpdate.setOnClickListener {
             viewLifecycleOwner.lifecycleScope.launch {
@@ -626,6 +628,8 @@ class SettingsFragment : Fragment() {
         }
     }
 
+    private var renderHouseAd: (() -> Unit)? = null
+
     private fun applyLanguage() {
         val lang = LangPrefs.get(requireContext())
         val te = lang == AppStrings.Lang.TE
@@ -633,6 +637,8 @@ class SettingsFragment : Fragment() {
         val descSp  = if (te) 11f else 13f
 
         binding.toolbar.title                  = AppStrings.settingsToolbarTitle.get(lang)
+        binding.textHouseAdSection.text        = AppStrings.houseAdSection.get(lang)
+        renderHouseAd?.invoke()
         binding.textLanguageTitle.text         = AppStrings.settingsLanguageTitle.get(lang)
         binding.textLanguageDesc.text          = AppStrings.settingsLanguageDesc.get(lang)
         binding.textBusinessInfoTitle.text     = AppStrings.settingsBusinessInfoTitle.get(lang)

@@ -29,6 +29,7 @@ import com.simhadri.winentry.ui.auth.ErrorLogger
 import com.simhadri.winentry.BuildConfig
 import com.simhadri.winentry.ui.update.AppUpdateManager
 import com.simhadri.winentry.utils.AppStrings
+import com.simhadri.winentry.utils.HouseAds
 import com.simhadri.winentry.utils.LangPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,6 +95,16 @@ class HomeFragment : Fragment() {
         setupBackPressGuard()
         showTestDataHintIfNeeded()
         setupOnboardingCard()
+        renderHouseAd = HouseAds.bind(binding.houseAd, viewLifecycleOwner) {
+            setHouseAdVisible(false)
+            val lang = LangPrefs.get(requireContext())
+            Snackbar.make(binding.root, AppStrings.houseAdHidden.get(lang), Snackbar.LENGTH_LONG)
+                .setAction(AppStrings.houseAdUndo.get(lang)) {
+                    HouseAds.showOnHomeAgain(requireContext())
+                    setHouseAdVisible(true)
+                }
+                .show()
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -256,6 +267,15 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private var renderHouseAd: (() -> Unit)? = null
+
+    private fun setHouseAdVisible(visible: Boolean) {
+        if (_binding == null) return
+        val v = if (visible) View.VISIBLE else View.GONE
+        binding.textHouseAdSection.visibility = v
+        binding.houseAd.root.visibility = v
+    }
+
     override fun onResume() {
         super.onResume()
         applyLanguage()
@@ -264,6 +284,8 @@ class HomeFragment : Fragment() {
         refreshSyncStatus()
         onboardingViewModel.refresh()
         checkForAppUpdate()
+        setHouseAdVisible(!HouseAds.isHiddenOnHome(requireContext()))
+        renderHouseAd?.invoke()
     }
 
     private fun applyLanguage() {
@@ -283,6 +305,7 @@ class HomeFragment : Fragment() {
         binding.textProductsDesc.text         = AppStrings.homeProductsDesc.get(lang)
         binding.textSettingsTitle.text        = AppStrings.homeSettingsTitle.get(lang)
         binding.textSettingsDesc.text         = AppStrings.homeSettingsDesc.get(lang)
+        binding.textHouseAdSection.text       = AppStrings.houseAdSection.get(lang)
 
         for (v in listOf(binding.textDailyStockTitle, binding.textPurchasesTitle,
                          binding.textReportsTitle, binding.textProductsTitle, binding.textSettingsTitle))

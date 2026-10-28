@@ -80,6 +80,36 @@ object AppStrings {
     )
 
     // ─────────────────────────────────────────────────────────────────
+    // IN-HOUSE PROMO CARD (own apps only — see HouseAds.kt)
+    // ─────────────────────────────────────────────────────────────────
+
+    val houseAdSection = L(en = "Explore other apps from Simhadri Systems", te = "సింహాద్రి సిస్టమ్స్ వారి ఇతర యాప్‌లు చూడండి")
+    val houseAdClose = L(en = "Hide for 7 days", te = "7 రోజులు కనిపించకు")
+    val houseAdHidden = L(
+        en = "Hidden for 7 days. It stays in Settings.",
+        te = "7 రోజుల వరకు కనిపించదు. సెట్టింగులలో చూడవచ్చు."
+    )
+    val houseAdUndo = L(en = "Undo", te = "రద్దు")
+    val houseAdSudokuHeadline = L(en = "eSudoku - Classic Sudoku")
+    val houseAdSudokuBody = L(
+        en = "Free offline puzzles, 6 difficulty levels, 500-level Journey, daily challenges.",
+        te = "ఉచిత ఆఫ్‌లైన్ పజిల్స్, 6 కఠినత్వ స్థాయిలు, 500 స్థాయిల జర్నీ, రోజువారీ సవాళ్లు."
+    )
+    val houseAdSudokuCta = L(en = "Play", te = "ఆడండి")
+    val houseAdExpenseHeadline = L(en = "Expense Tracker - Daily Sales")
+    val houseAdExpenseBody = L(
+        en = "Record daily expenses and sales, cash reconciliation, reports and backups.",
+        te = "రోజువారీ ఖర్చులు, అమ్మకాలు, నగదు సరిపోల్చు, నివేదికలు మరియు బ్యాకప్‌లు."
+    )
+    val houseAdExpenseCta = L(en = "Learn more", te = "మరింత తెలుసుకోండి")
+    val houseAdCalcHeadline = L(en = "Win eCalc - Counter Calculator")
+    val houseAdCalcBody = L(
+        en = "Counter calculator easy for billing and daily totals.",
+        te = "కౌంటర్ కాలిక్యులేటర్ - సులభ బిల్లింగ్ మరియు రోజువారీ లెక్కలకు."
+    )
+    val houseAdInstallCta = L(en = "Install", te = "ఇన్‌స్టాల్")
+
+    // ─────────────────────────────────────────────────────────────────
     // ONBOARDING DIALOG
     // ─────────────────────────────────────────────────────────────────
 

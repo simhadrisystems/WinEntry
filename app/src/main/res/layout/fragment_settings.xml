@@ -414,6 +414,20 @@
                 android:layout_marginTop="4dp"
                 style="@style/Widget.Material3.Button.TextButton"/>
 
+            <!-- ── In-house promo (own apps) ────────────────────────── -->
+            <TextView
+                android:id="@+id/textHouseAdSection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="6dp"
+                android:text="Explore other apps from Simhadri Systems"
+                android:textAppearance="@style/TextAppearance.App.SectionHeader" />
+
+            <include
+                android:id="@+id/houseAd"
+                layout="@layout/view_house_ad" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

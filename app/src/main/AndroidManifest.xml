@@ -37,6 +37,10 @@
         <package android:name="com.google.android.gms" />
         <package android:name="com.android.vending" />
         <package android:name="com.whatsapp" />
+        <!-- In-house promo card skips apps already installed (HouseAds.kt) -->
+        <package android:name="com.simhadri.sudoku" />
+        <package android:name="com.simhadri.expensetracker" />
+        <package android:name="com.simhadri.calc" />
         <intent>
             <action android:name="com.google.android.gms.auth.api.signin.SERVICE" />
         </intent>

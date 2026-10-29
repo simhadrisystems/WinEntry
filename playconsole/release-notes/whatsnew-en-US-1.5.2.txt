@@ -1,0 +1,2 @@
+The app is now about half the size, with the same features.
+Excel import and export were rebuilt to be lighter; your files open as before.

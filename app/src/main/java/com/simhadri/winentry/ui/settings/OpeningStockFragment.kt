@@ -45,10 +45,10 @@ import java.util.*
 import java.io.File
 import java.io.FileOutputStream
 import androidx.core.content.FileProvider
-import org.apache.poi.ss.usermodel.FillPatternType
-import org.apache.poi.ss.usermodel.HorizontalAlignment
-import org.apache.poi.ss.usermodel.IndexedColors
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.FillPatternType
+import com.simhadri.winentry.utils.xlsx.HorizontalAlignment
+import com.simhadri.winentry.utils.xlsx.IndexedColors
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 
 /**
  * Opening Stock Setup — enter initial stock quantities for a new period.
@@ -1289,7 +1289,7 @@ class OpeningStockFragment : Fragment() {
             try {
                 Toast.makeText(appCtx, "Generating template…", Toast.LENGTH_SHORT).show()
                 val uri = withContext(Dispatchers.IO) {
-                    val workbook = XSSFWorkbook()
+                    val workbook = XlsxWorkbook()
                     val sheet = workbook.createSheet("Closing")
 
                     val headerStyle = workbook.createCellStyle().apply {

@@ -1,6 +1,7 @@
 package com.simhadri.winentry
 
 import com.simhadri.winentry.utils.ExcelCells
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -8,13 +9,15 @@ import org.junit.Test
 
 class ExcelCellsTest {
 
-    private val wb = XSSFWorkbook()
+    private val wb = XlsxWorkbook()
     private val row = wb.createSheet().createRow(0)
 
     @Test fun formulaReadsCachedValue() {
-        val c = row.createCell(0)
-        c.cellFormula = "2*6"
-        wb.creationHelper.createFormulaEvaluator().evaluateFormulaCell(c)
+        val poi = XSSFWorkbook()
+        poi.createSheet().createRow(0).createCell(0).cellFormula = "2*6"
+        poi.creationHelper.createFormulaEvaluator().evaluateAll()
+        val bytes = java.io.ByteArrayOutputStream().also { poi.write(it) }.toByteArray()
+        val c = XlsxWorkbook(java.io.ByteArrayInputStream(bytes)).getSheetAt(0).getRow(0)!!.getCell(0)
         assertEquals(12, ExcelCells.quantity(c))
         assertEquals("12", ExcelCells.text(c))
     }

@@ -9,7 +9,7 @@ import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.repository.DailyStockRepository
 import com.simhadri.winentry.utils.ExcelHelper
 import kotlinx.coroutines.runBlocking
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -40,7 +40,7 @@ class ProductIntegrityTest {
 
     /** Name, Type, Category, Brand, then blank cells except QQ sale price (col 9); rows 1 and 3, row 2 blank. */
     private fun sheet(vararg rows: Pair<Int, List<Any?>>): Uri {
-        val wb = XSSFWorkbook()
+        val wb = XlsxWorkbook()
         val sh = wb.createSheet()
         sh.createRow(0).createCell(0).setCellValue("Product Name")
         for ((r, cells) in rows) {

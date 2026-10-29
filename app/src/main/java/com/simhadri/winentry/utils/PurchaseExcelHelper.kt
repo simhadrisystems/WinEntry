@@ -9,8 +9,7 @@ import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.util.ProductCodeResolver
 import com.simhadri.winentry.data.entity.Purchase
 import com.simhadri.winentry.data.repository.PurchaseRepository
-import org.apache.poi.ss.usermodel.*
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.*
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -75,7 +74,7 @@ class PurchaseExcelHelper(private val context: Context) {
             ?: return ImportResult(0, 0, 0, listOf("Failed to open file"))
         
         return try {
-            val workbook = XSSFWorkbook(inputStream)
+            val workbook = XlsxWorkbook(inputStream)
             val sheet = workbook.getSheetAt(0)
             
             android.util.Log.d("PurchaseExcelHelper", "=== MULTI-SHIPMENT IMPORT ===")
@@ -431,7 +430,7 @@ class PurchaseExcelHelper(private val context: Context) {
         @Suppress("UNUSED_PARAMETER") date: String = "",
         fileName: String
     ): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Purchases")
         
         val headerStyle = workbook.createCellStyle().apply {
@@ -615,7 +614,7 @@ class PurchaseExcelHelper(private val context: Context) {
      * Generate template with multi-shipment example
      */
     fun generateTemplate(products: List<Product>, fileName: String): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Multi-Shipment Template")
         
         val headerStyle = workbook.createCellStyle().apply {

@@ -4,11 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.simhadri.winentry.data.entity.DailyEntry
-import org.apache.poi.ss.usermodel.*
-import org.apache.poi.ss.util.CellRangeAddress
-import org.apache.poi.xssf.usermodel.XSSFCellStyle
-import org.apache.poi.xssf.usermodel.XSSFColor
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.*
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -28,7 +24,7 @@ class DailyStockExcelHelper(private val context: Context) {
         customTitle: String,
         fileName: String
     ): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Day Sale Sheet")
 
         // Create all styles
@@ -232,8 +228,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Styling functions
-    private fun createTitleStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createTitleStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.bold = true
             font.fontHeightInPoints = 14
@@ -243,8 +239,8 @@ class DailyStockExcelHelper(private val context: Context) {
         }
     }
 
-    private fun createHeaderStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createHeaderStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.bold = true
             font.fontHeightInPoints = 12
@@ -260,8 +256,8 @@ class DailyStockExcelHelper(private val context: Context) {
         }
     }
 
-    private fun createSubHeaderStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createSubHeaderStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.bold = true
             font.fontHeightInPoints = 12
@@ -276,8 +272,8 @@ class DailyStockExcelHelper(private val context: Context) {
         }
     }
 
-    private fun createDataStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createDataStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -291,8 +287,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Opening data style - Very light green background
-    private fun createOpeningStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createOpeningStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -310,8 +306,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Purchase data style - Very light blue background
-    private fun createPurchaseStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createPurchaseStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -328,8 +324,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Closing data style - Very light orange background
-    private fun createClosingStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createClosingStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -346,8 +342,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Sales data style - Very light yellow background
-    private fun createSalesStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createSalesStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -364,8 +360,8 @@ class DailyStockExcelHelper(private val context: Context) {
     }
 
     // Sale amount style - Indian number format without decimals
-    private fun createAmountStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createAmountStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.fontHeightInPoints = 12
             setFont(font)
@@ -380,8 +376,8 @@ class DailyStockExcelHelper(private val context: Context) {
         }
     }
 
-    private fun createTotalLabelStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createTotalLabelStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.bold = true
             font.fontHeightInPoints = 12
@@ -394,8 +390,8 @@ class DailyStockExcelHelper(private val context: Context) {
         }
     }
 
-    private fun createTotalValueStyle(workbook: XSSFWorkbook): XSSFCellStyle {
-        return (workbook.createCellStyle() as XSSFCellStyle).apply {
+    private fun createTotalValueStyle(workbook: XlsxWorkbook): CellStyle {
+        return (workbook.createCellStyle() as CellStyle).apply {
             val font = workbook.createFont()
             font.bold = true
             font.fontHeightInPoints = 12

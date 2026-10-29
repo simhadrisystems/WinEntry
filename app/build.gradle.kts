@@ -24,8 +24,8 @@ android {
         applicationId = "com.simhadri.winentry"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "1.5.1"
+        versionCode = 22
+        versionName = "1.5.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("Boolean", "FORCE_UPDATE", "true")
     }
@@ -144,10 +144,6 @@ dependencies {
     // ── WorkManager ───────────────────────────────────────────────────────
     implementation("androidx.work:work-runtime-ktx:2.8.1")
 
-    // ── Apache POI (Excel import) ─────────────────────────────────────────
-    implementation("org.apache.poi:poi:5.2.5")
-    implementation("org.apache.poi:poi-ooxml:5.2.5")
-
     // ── Google Sign-In (needed for Firebase Auth) ──────────────────────────
     // 20.7.0 is the last version that supports the legacy GoogleSignIn /
     // GoogleSignInClient intent-based API used throughout this app.
@@ -165,6 +161,9 @@ dependencies {
 
     // ── Testing ───────────────────────────────────────────────────────────
     testImplementation("junit:junit:4.13.2")
+    // Test-only: cross-checks the in-house utils/xlsx reader and writer against POI.
+    // The app itself stopped shipping POI in vc22 (it was half the DEX).
+    testImplementation("org.apache.poi:poi-ooxml:5.2.5")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.room:room-testing:$roomVersion")

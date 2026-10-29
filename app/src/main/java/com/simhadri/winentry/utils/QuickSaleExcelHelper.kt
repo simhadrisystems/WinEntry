@@ -9,12 +9,12 @@ import com.simhadri.winentry.ui.quicksale.QuickSaleMode
 import com.simhadri.winentry.ui.quicksale.QuickSaleRow
 import com.simhadri.winentry.ui.quicksale.SizeQty
 import com.simhadri.winentry.util.ProductCodeResolver
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.FillPatternType
-import org.apache.poi.ss.usermodel.HorizontalAlignment
-import org.apache.poi.ss.usermodel.IndexedColors
-import org.apache.poi.ss.util.CellRangeAddress
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.CellType
+import com.simhadri.winentry.utils.xlsx.FillPatternType
+import com.simhadri.winentry.utils.xlsx.HorizontalAlignment
+import com.simhadri.winentry.utils.xlsx.IndexedColors
+import com.simhadri.winentry.utils.xlsx.CellRangeAddress
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -52,7 +52,7 @@ class QuickSaleExcelHelper(private val context: Context) {
         cashForDeposit: Double = 0.0,
         notes: String = ""
     ): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Quick Sale Check")
 
         val titleStyle = workbook.createCellStyle().apply {
@@ -171,7 +171,7 @@ class QuickSaleExcelHelper(private val context: Context) {
      * every other product's real closing balance for that date.
      */
     fun exportClosingForDailyStock(rows: List<QuickSaleRow>, workingDate: String, fileName: String): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Closing_Balances")
         val headerStyle = workbook.createCellStyle().apply {
             setFont(workbook.createFont().apply { bold = true; color = IndexedColors.WHITE.index })
@@ -221,7 +221,7 @@ class QuickSaleExcelHelper(private val context: Context) {
      * file can't silently zero out every other product's Opening.
      */
     fun exportClosingAsOpeningBalances(rows: List<QuickSaleRow>, fromDate: String, fileName: String): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Opening Balances")
 
         val titleStyle = workbook.createCellStyle().apply {
@@ -323,7 +323,7 @@ class QuickSaleExcelHelper(private val context: Context) {
                     .forEach { key -> zeroTolerantLookup.putIfAbsent(key, p) }
             }
         }
-        val workbook = XSSFWorkbook(inputStream)
+        val workbook = XlsxWorkbook(inputStream)
         val sheet = workbook.getSheetAt(0)
         val results = mutableListOf<Quadruple>()
         var detectedDate: String? = null
@@ -333,12 +333,12 @@ class QuickSaleExcelHelper(private val context: Context) {
         var reconDeposits: Double? = null
         var reconNotes: String? = null
 
-        fun cellInt(row: org.apache.poi.ss.usermodel.Row, col: Int): Int = row.getCell(col)?.let {
+        fun cellInt(row: com.simhadri.winentry.utils.xlsx.Row, col: Int): Int = row.getCell(col)?.let {
             if (it.cellType == CellType.NUMERIC) it.numericCellValue.toInt()
             else it.toStringSafe().trim().toIntOrNull() ?: 0
         } ?: 0
 
-        fun readSizes(row: org.apache.poi.ss.usermodel.Row, openingStart: Int):
+        fun readSizes(row: com.simhadri.winentry.utils.xlsx.Row, openingStart: Int):
                 Triple<SizeQty, SizeQty, SizeQty> {
             val opening = SizeQty(
                 cellInt(row, openingStart), cellInt(row, openingStart + 1),
@@ -482,7 +482,7 @@ class QuickSaleExcelHelper(private val context: Context) {
         val notes: String? = null
     )
 
-    private fun org.apache.poi.ss.usermodel.Cell.toStringSafe(): String = when (cellType) {
+    private fun com.simhadri.winentry.utils.xlsx.Cell.toStringSafe(): String = when (cellType) {
         CellType.STRING -> stringCellValue
         CellType.NUMERIC -> numericCellValue.toLong().toString()
         else -> ""

@@ -4,9 +4,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.simhadri.winentry.data.entity.Product
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.Cell
+import com.simhadri.winentry.utils.xlsx.CellType
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -21,7 +21,7 @@ private fun getCellStringValue(cell: Cell?): String {
 
         CellType.NUMERIC -> {
             // Check if it's a date
-            if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+            if (com.simhadri.winentry.utils.xlsx.DateUtil.isCellDateFormatted(cell)) {
                 cell.dateCellValue.toString()
             } else {
                 // Return number as string, remove decimal if it's a whole number
@@ -53,26 +53,7 @@ private fun getCellStringValue(cell: Cell?): String {
                     else -> ""
                 }
             } catch (e: Exception) {
-                // If cached result fails, try to evaluate
-                try {
-                    val evaluator = cell.sheet.workbook.creationHelper.createFormulaEvaluator()
-                    val cellValue = evaluator.evaluate(cell)
-                    when (cellValue.cellType) {
-                        CellType.NUMERIC -> {
-                            val numValue = cellValue.numberValue
-                            if (numValue == numValue.toLong().toDouble()) {
-                                numValue.toLong().toString()
-                            } else {
-                                numValue.toString()
-                            }
-                        }
-                        CellType.STRING -> cellValue.stringValue.trim()
-                        CellType.BOOLEAN -> if (cellValue.booleanValue) "YES" else "NO"
-                        else -> ""
-                    }
-                } catch (ex: Exception) {
-                    ""
-                }
+                ""
             }
         }
 
@@ -101,7 +82,7 @@ class ExcelHelper(private val context: Context) {
 
         try {
             context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val workbook = XSSFWorkbook(inputStream)
+                val workbook = XlsxWorkbook(inputStream)
                 val sheet = workbook.getSheetAt(0)
 
                 // Skip header row, start from row 1
@@ -222,7 +203,7 @@ class ExcelHelper(private val context: Context) {
 
             CellType.NUMERIC -> {
                 // Check if it's a date
-                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                if (com.simhadri.winentry.utils.xlsx.DateUtil.isCellDateFormatted(cell)) {
                     cell.dateCellValue.toString()
                 } else {
                     // Return number as string, remove decimal if it's a whole number
@@ -254,26 +235,7 @@ class ExcelHelper(private val context: Context) {
                         else -> ""
                     }
                 } catch (e: Exception) {
-                    // If cached result fails, try to evaluate
-                    try {
-                        val evaluator = cell.sheet.workbook.creationHelper.createFormulaEvaluator()
-                        val cellValue = evaluator.evaluate(cell)
-                        when (cellValue.cellType) {
-                            CellType.NUMERIC -> {
-                                val numValue = cellValue.numberValue
-                                if (numValue == numValue.toLong().toDouble()) {
-                                    numValue.toLong().toString()
-                                } else {
-                                    numValue.toString()
-                                }
-                            }
-                            CellType.STRING -> cellValue.stringValue.trim()
-                            CellType.BOOLEAN -> if (cellValue.booleanValue) "YES" else "NO"
-                            else -> ""
-                        }
-                    } catch (ex: Exception) {
-                        ""
-                    }
+                    ""
                 }
             }
 
@@ -287,7 +249,7 @@ class ExcelHelper(private val context: Context) {
      * Export products to Excel
      */
     fun exportProducts(products: List<Product>, fileName: String): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Products")
 
         // Create header row
@@ -368,7 +330,7 @@ class ExcelHelper(private val context: Context) {
      * Create product template
      */
     fun createTemplate(fileName: String): Uri {
-        val workbook = XSSFWorkbook()
+        val workbook = XlsxWorkbook()
         val sheet = workbook.createSheet("Products")
 
         // Create header row

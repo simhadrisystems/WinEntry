@@ -46,8 +46,8 @@ import com.simhadri.winentry.utils.DailyStockImportHelper
 import com.simhadri.winentry.utils.exportToDownloadsAndShare
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.apache.poi.ss.usermodel.FillPatternType
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.FillPatternType
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -1280,7 +1280,7 @@ class DailyStockFragment : Fragment() {
         }
 
         try {
-            val workbook = XSSFWorkbook()
+            val workbook = XlsxWorkbook()
             val sheet    = workbook.createSheet("Closing")
 
             val headerStyle = workbook.createCellStyle()
@@ -1401,7 +1401,7 @@ class DailyStockFragment : Fragment() {
                     return@launch
                 }
 
-                val workbook = XSSFWorkbook()
+                val workbook = XlsxWorkbook()
                 val sheet    = workbook.createSheet("Closing_Balances")
 
                 val headerStyle = workbook.createCellStyle()

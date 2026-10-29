@@ -4,8 +4,8 @@ import android.content.Context
 import android.net.Uri
 import com.simhadri.winentry.data.entity.Product
 import com.simhadri.winentry.data.entity.getAllBrandCodes
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import com.simhadri.winentry.utils.xlsx.Row
+import com.simhadri.winentry.utils.xlsx.XlsxWorkbook
 import java.io.InputStream
 
 class DailyStockImportHelper(private val context: Context) {
@@ -79,7 +79,7 @@ class DailyStockImportHelper(private val context: Context) {
             val inputStream = context.contentResolver.openInputStream(uri)
                 ?: return ImportResult(false, "Cannot open file")
 
-            val workbook = XSSFWorkbook(inputStream)
+            val workbook = XlsxWorkbook(inputStream)
             val sheet = workbook.getSheet("Closing")
                 ?: workbook.getSheet("Closing_Balances")
                 ?: if (workbook.numberOfSheets > 0) workbook.getSheetAt(0) else null
@@ -244,7 +244,7 @@ class DailyStockImportHelper(private val context: Context) {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: return ImportResult(false, "Cannot open file")
         return try {
-            val workbook       = XSSFWorkbook(inputStream)
+            val workbook       = XlsxWorkbook(inputStream)
             val productsByCode = products.associateBy { "${it.productType}${it.brandCode}" }
             val purchaseSheet  = workbook.getSheet("Purchase")
                 ?: if (workbook.numberOfSheets > 0) workbook.getSheetAt(0) else null
@@ -266,7 +266,7 @@ class DailyStockImportHelper(private val context: Context) {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: return ImportResult(false, "Cannot open file")
         return try {
-            val workbook       = XSSFWorkbook(inputStream)
+            val workbook       = XlsxWorkbook(inputStream)
             val productsByCode = products.associateBy { "${it.productType}${it.brandCode}" }
             val sheet          = workbook.getSheet("Purchase")
                 ?: if (workbook.numberOfSheets > 0) workbook.getSheetAt(0) else null
@@ -284,7 +284,7 @@ class DailyStockImportHelper(private val context: Context) {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: return ImportResult(false, "Cannot open file")
         return try {
-            val workbook       = XSSFWorkbook(inputStream)
+            val workbook       = XlsxWorkbook(inputStream)
             val productsByCode = products.associateBy { "${it.productType}${it.brandCode}" }
             val sheet          = workbook.getSheet("Sale")
                 ?: if (workbook.numberOfSheets > 0) workbook.getSheetAt(0) else null
@@ -303,7 +303,7 @@ class DailyStockImportHelper(private val context: Context) {
     // ─────────────────────────────────────────────────────────────
 
     private fun importPurchaseSheet(
-        sheet: org.apache.poi.ss.usermodel.Sheet,
+        sheet: com.simhadri.winentry.utils.xlsx.Sheet,
         productsByCode: Map<String, Product>
     ): Map<String, PurchaseImport> {
         val result = mutableMapOf<String, PurchaseImport>()
@@ -339,7 +339,7 @@ class DailyStockImportHelper(private val context: Context) {
     }
 
     private fun importSaleSheet(
-        sheet: org.apache.poi.ss.usermodel.Sheet,
+        sheet: com.simhadri.winentry.utils.xlsx.Sheet,
         productsByCode: Map<String, Product>
     ): Map<String, SaleImport> {
         val result = mutableMapOf<String, SaleImport>()
@@ -417,31 +417,31 @@ class DailyStockImportHelper(private val context: Context) {
     // ─────────────────────────────────────────────────────────────
 
     fun generateImportTemplate(products: List<Product>, fileName: String): Uri {
-        val wb = XSSFWorkbook()
+        val wb = XlsxWorkbook()
         createPurchaseTemplate(wb.createSheet("Purchase"), products)
         createSaleTemplate(wb.createSheet("Sale"), products)
         return saveAndShare(wb, fileName)
     }
 
     fun generatePurchaseTemplate(products: List<Product>, fileName: String): Uri {
-        val wb = XSSFWorkbook()
+        val wb = XlsxWorkbook()
         createPurchaseTemplate(wb.createSheet("Purchase"), products)
         return saveAndShare(wb, fileName)
     }
 
     fun generateClosingTemplate(products: List<Product>, fileName: String): Uri {
-        val wb = XSSFWorkbook()
+        val wb = XlsxWorkbook()
         createClosingTemplate(wb.createSheet("Closing"), products)
         return saveAndShare(wb, fileName)
     }
 
     fun generateSaleTemplate(products: List<Product>, fileName: String): Uri {
-        val wb = XSSFWorkbook()
+        val wb = XlsxWorkbook()
         createSaleTemplate(wb.createSheet("Sale"), products)
         return saveAndShare(wb, fileName)
     }
 
-    private fun saveAndShare(workbook: XSSFWorkbook, fileName: String): Uri {
+    private fun saveAndShare(workbook: XlsxWorkbook, fileName: String): Uri {
         val file = java.io.File(context.getExternalFilesDir(null), fileName)
         java.io.FileOutputStream(file).use { workbook.write(it) }
         workbook.close()
@@ -449,14 +449,14 @@ class DailyStockImportHelper(private val context: Context) {
             context, "${context.packageName}.fileprovider", file)
     }
 
-    private fun boldHeaderStyle(wb: XSSFWorkbook) = wb.createCellStyle().apply {
+    private fun boldHeaderStyle(wb: XlsxWorkbook) = wb.createCellStyle().apply {
         val f = wb.createFont(); f.bold = true; setFont(f)
     }
 
     private fun createPurchaseTemplate(
-        sheet: org.apache.poi.ss.usermodel.Sheet, products: List<Product>
+        sheet: com.simhadri.winentry.utils.xlsx.Sheet, products: List<Product>
     ) {
-        val hs = boldHeaderStyle(sheet.workbook as XSSFWorkbook)
+        val hs = boldHeaderStyle(sheet.workbook as XlsxWorkbook)
         val headers = arrayOf("Product Name","DATE_PURCHASE","Type","Brand Code",
             "QQ_PQ","PP_PQ","NN_PQ","DD_PQ")
         val hr = sheet.createRow(0)
@@ -474,9 +474,9 @@ class DailyStockImportHelper(private val context: Context) {
     }
 
     private fun createSaleTemplate(
-        sheet: org.apache.poi.ss.usermodel.Sheet, products: List<Product>
+        sheet: com.simhadri.winentry.utils.xlsx.Sheet, products: List<Product>
     ) {
-        val hs = boldHeaderStyle(sheet.workbook as XSSFWorkbook)
+        val hs = boldHeaderStyle(sheet.workbook as XlsxWorkbook)
         val headers = arrayOf("Product Name","DATE_SALE","Type","Brand Code",
             "QQ_SQ","PP_SQ","NN_SQ","DD_SQ")
         val hr = sheet.createRow(0)
@@ -494,9 +494,9 @@ class DailyStockImportHelper(private val context: Context) {
     }
 
     private fun createClosingTemplate(
-        sheet: org.apache.poi.ss.usermodel.Sheet, products: List<Product>
+        sheet: com.simhadri.winentry.utils.xlsx.Sheet, products: List<Product>
     ) {
-        val hs = boldHeaderStyle(sheet.workbook as XSSFWorkbook)
+        val hs = boldHeaderStyle(sheet.workbook as XlsxWorkbook)
         val headers = arrayOf("Product Name","DATE_CLOSING","Type","Brand Code",
             "QQ_CB","PP_CB","NN_CB","DD_CB")
         val hr = sheet.createRow(0)

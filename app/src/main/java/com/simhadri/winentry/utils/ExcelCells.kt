@@ -1,8 +1,8 @@
 package com.simhadri.winentry.utils
 
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.DateUtil
+import com.simhadri.winentry.utils.xlsx.Cell
+import com.simhadri.winentry.utils.xlsx.CellType
+import com.simhadri.winentry.utils.xlsx.DateUtil
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.Locale
